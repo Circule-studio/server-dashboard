@@ -1,0 +1,20 @@
+{
+  "name": "server-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard web auto-hébergé pour les services d’un serveur",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "mocks": "node dev/mocks.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.22.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true,
+  "license": "MIT"
+}

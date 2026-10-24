@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Server Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='35' height='35' rx='8' fill='%237c9cff'/><rect x='55' y='10' width='35' height='35' rx='8' fill='%2334d399'/><rect x='10' y='55' width='35' height='35' rx='8' fill='%2334d399'/><rect x='55' y='55' width='35' height='35' rx='8' fill='%237c9cff'/></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="title">Server Dashboard</h1>
+      <span id="host" class="muted"></span>
+    </div>
+    <div class="topbar-right">
+      <span id="clock" class="clock"></span>
+      <button id="editBtn" class="btn" hidden>Éditer</button>
+      <button id="authBtn" class="btn btn-ghost">Connexion</button>
+    </div>
+  </header>
+
+  <div id="editBar" class="editbar" hidden>
+    <span>Mode édition : glisse les tuiles pour les réordonner ou les déplacer.</span>
+    <div class="editbar-actions">
+      <button id="renameBoardBtn" class="btn btn-ghost">Renommer le tableau</button>
+      <button id="addWidgetBtn" class="btn btn-ghost">+ Widget</button>
+      <button id="addCatBtn" class="btn btn-ghost">+ Catégorie</button>
+      <button id="cancelBtn" class="btn btn-ghost">Annuler</button>
+      <button id="saveBtn" class="btn btn-primary">Enregistrer</button>
+    </div>
+  </div>
+
+  <section id="stats" class="stats" aria-label="Ressources du serveur">
+    <div class="stat" id="stat-cpu"><div class="stat-head"><span>CPU</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-mem"><div class="stat-head"><span>Mémoire</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-disk"><div class="stat-head"><span>Disque</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-up"><div class="stat-head"><span>Uptime</span><b>–</b></div><small class="muted"></small></div>
+  </section>
+
+  <section id="widgets" class="widgets" aria-label="Widgets"></section>
+
+  <main id="board" class="board"></main>
+
+  <section id="dockerSection" class="panel">
+    <div class="panel-head">
+      <h2>Conteneurs Docker</h2>
+      <span id="dockerSummary" class="muted"></span>
+    </div>
+    <div id="dockerBody"></div>
+  </section>
+
+  <dialog id="loginDialog">
+    <form method="dialog" id="loginForm">
+      <h3>Connexion admin</h3>
+      <label>Mot de passe<input type="password" name="password" required autocomplete="current-password"></label>
+      <p class="error" id="loginError"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
+        <button class="btn btn-primary">Se connecter</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="appDialog">
+    <form method="dialog" id="appForm">
+      <h3 id="appDialogTitle">Application</h3>
+      <label>Nom<input name="name" required maxlength="100"></label>
+      <label>URL<input name="url" type="url" required placeholder="http://192.168.1.10:8096"></label>
+      <label>Icône
+        <input name="icon" placeholder="jellyfin, plex, portainer… ou URL d'image">
+        <small class="muted">Nom d'icône de <a href="https://dashboardicons.com" target="_blank" rel="noopener">dashboardicons.com</a> ou URL complète.</small>
+      </label>
+      <label>Description<input name="description" maxlength="200"></label>
+      <label>Catégorie<select name="category"></select></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
+        <button class="btn btn-primary">Valider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="widgetDialog">
+    <form method="dialog" id="widgetForm">
+      <h3 id="widgetDialogTitle">Widget</h3>
+      <label>Type<select name="type"></select></label>
+      <label>Nom<input name="name" maxlength="100" placeholder="Laisser vide pour utiliser le type"></label>
+      <label data-field="url">URL du service
+        <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
+        <small class="muted">Adresse joignable depuis le serveur du dashboard.</small>
+      </label>
+      <label data-field="apiKey"><span data-key-label>Clé API</span>
+        <input name="apiKey" type="password" autocomplete="off">
+        <small class="muted" data-key-help></small>
+      </label>
+      <label data-field="username">Utilisateur<input name="username" autocomplete="off"></label>
+      <label data-field="password">Mot de passe<input name="password" type="password" autocomplete="new-password"></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
+        <button class="btn btn-primary">Valider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="textDialog">
+    <form method="dialog" id="textForm">
+      <h3 id="textDialogTitle"></h3>
+      <label><span id="textDialogLabel">Nom</span><input name="value" required maxlength="100"></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
+        <button class="btn btn-primary">Valider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

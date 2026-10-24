@@ -1,0 +1,15 @@
+services:
+  dashboard:
+    build: .
+    container_name: server-dashboard
+    restart: unless-stopped
+    ports:
+      - "7575:7575"
+    environment:
+      - ADMIN_PASSWORD=change-moi
+      # Disque affiché dans les stats : la racine de l'hôte montée en lecture seule
+      - DISK_PATH=/host
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /:/host:ro
