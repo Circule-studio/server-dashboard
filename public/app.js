@@ -223,8 +223,8 @@ const RENDERERS = {
 
   torrent: (d) => [
     h('div', { class: 'widget-stats' },
-      h('div', {}, h('b', {}, `↓ ${fmtSpeed(d.download)}`), h('span', {}, 'Réception')),
-      h('div', {}, h('b', {}, `↑ ${fmtSpeed(d.upload)}`), h('span', {}, 'Envoi')),
+      h('div', {}, h('b', {}, fmtSpeed(d.download)), h('span', {}, '↓ Reçu')),
+      h('div', {}, h('b', {}, fmtSpeed(d.upload)), h('span', {}, '↑ Envoyé')),
       h('div', {}, h('b', {}, `${d.counts.downloading} / ${d.counts.seeding}`), h('span', {}, 'DL / seed'))),
     d.torrents.length
       ? h('ul', { class: 'widget-list' }, d.torrents.map((t) => h('li', {},

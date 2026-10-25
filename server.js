@@ -307,7 +307,7 @@ app.get('/api/status', async (req, res) => {
 
 app.get('/api/system', async (req, res) => {
   res.json({
-    hostname: os.hostname(),
+    hostname: process.env.SERVER_NAME || os.hostname(),
     platform: `${os.type()} ${os.release()}`,
     uptime: os.uptime(),
     cpu: { usage: cpuUsage(), cores: os.cpus().length, model: os.cpus()[0]?.model, load: os.loadavg() },

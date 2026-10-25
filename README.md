@@ -2,6 +2,17 @@
 
 Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page.
 
+![Vue d'ensemble du dashboard : stats du serveur, widgets Jellyfin, qBittorrent, Sonarr, Radarr, tuiles d'applications et conteneurs Docker](docs/screenshots/dashboard.png)
+
+<details>
+<summary>Version mobile</summary>
+
+<img src="docs/screenshots/mobile.png" alt="Le dashboard sur un écran de téléphone" width="320">
+
+</details>
+
+*Captures réalisées avec les faux services de `npm run mocks`.*
+
 - **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local.
 - **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
 - **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
@@ -16,7 +27,13 @@ Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côt�
 ## Déploiement sur le serveur (Docker)
 
 1. Copie le dossier sur le serveur (`git clone`, `scp`…).
-2. Dans `docker-compose.yml`, remplace `ADMIN_PASSWORD=change-moi` par un vrai mot de passe.
+2. Crée le fichier `.env` à partir du modèle et mets-y un vrai mot de passe :
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   `.env` est ignoré par Git : ne mets jamais de mot de passe directement dans `docker-compose.yml`.
 3. Lance :
 
    ```bash
@@ -66,6 +83,7 @@ Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIB
 | `PORT` | `7575` | Port HTTP |
 | `ADMIN_PASSWORD` | `admin` | Mot de passe du mode édition |
 | `DATA_DIR` | `./data` | Dossier de la config et du secret de session |
+| `SERVER_NAME` | nom de la machine | Nom affiché à côté du titre (utile en Docker) |
 | `DISK_PATH` | `/` (`C:\` sous Windows) | Chemin dont on affiche l'occupation disque |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |

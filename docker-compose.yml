@@ -6,7 +6,9 @@ services:
     ports:
       - "7575:7575"
     environment:
-      - ADMIN_PASSWORD=change-moi
+      # Valeurs lues dans le fichier .env (voir .env.example), jamais écrites ici
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Définis ADMIN_PASSWORD dans le fichier .env}
+      - SERVER_NAME=${SERVER_NAME:-mon-serveur}
       # Disque affiché dans les stats : la racine de l'hôte montée en lecture seule
       - DISK_PATH=/host
     volumes:
