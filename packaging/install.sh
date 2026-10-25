@@ -25,6 +25,10 @@ UNIT_FILE="/etc/systemd/system/$SERVICE.service"
 NODE_MAJOR=22
 MIN_NODE_MAJOR=20
 
+# Évite les avertissements de locale des modèles LXC minimaux et la notice de mise à jour de npm.
+export LC_ALL=C.UTF-8 LANG=C.UTF-8
+export NPM_CONFIG_UPDATE_NOTIFIER=false
+
 info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31mErreur :\033[0m %s\n' "$*" >&2; exit 1; }
 
