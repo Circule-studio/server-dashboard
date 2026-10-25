@@ -272,16 +272,44 @@ function widgetCard(w, i, count) {
   const t = WIDGET_TYPES[w.type];
   const head = h('div', { class: 'widget-head' },
     iconEl({ name: w.name, icon: t.icon }),
-    h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener' }, w.name || t.label));
-  if (state.editing) {
-    head.append(h('div', { class: 'tile-tools' },
-      h('button', { class: 'icon-btn', title: 'Vers la gauche', disabled: i === 0, onclick: () => moveWidget(i, -1) }, '←'),
-      h('button', { class: 'icon-btn', title: 'Vers la droite', disabled: i === count - 1, onclick: () => moveWidget(i, 1) }, '→'),
-      h('button', { class: 'icon-btn', title: 'Modifier', onclick: () => openWidgetDialog(i) }, '✎'),
-      h('button', { class: 'icon-btn danger', title: 'Supprimer', onclick: () => deleteWidget(i) }, '✕')));
-  }
-  return h('article', { class: `widget widget-${t.kind}`, 'data-widget': w.id }, head, widgetBody(w));
+    h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || t.label));
+  const card = h('article', { class: `widget widget-${t.kind}`, 'data-widget': w.id }, head, widgetBody(w));
+  if (!state.editing) return card;
+
+  // Les flèches restent utiles sur écran tactile, où le glisser-déposer HTML5 ne marche pas.
+  head.append(h('div', { class: 'tile-tools' },
+    h('button', { class: 'icon-btn', title: 'Vers la gauche', disabled: i === 0, onclick: () => moveWidget(i, i - 1) }, '←'),
+    h('button', { class: 'icon-btn', title: 'Vers la droite', disabled: i === count - 1, onclick: () => moveWidget(i, i + 2) }, '→'),
+    h('button', { class: 'icon-btn', title: 'Modifier', onclick: () => openWidgetDialog(i) }, '✎'),
+    h('button', { class: 'icon-btn danger', title: 'Supprimer', onclick: () => deleteWidget(i) }, '✕')));
+
+  card.draggable = true;
+  card.addEventListener('dragstart', (e) => {
+    draggedWidget = i;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `widget:${i}`);
+  });
+  card.addEventListener('dragend', () => { draggedWidget = null; render(); });
+  card.addEventListener('dragover', (e) => {
+    if (draggedWidget == null || draggedWidget === i) return;
+    e.preventDefault();
+    // Déposé sur la moitié gauche : avant ce widget ; moitié droite : après.
+    const after = e.clientX > card.getBoundingClientRect().left + card.offsetWidth / 2;
+    card.classList.toggle('drop-before', !after);
+    card.classList.toggle('drop-after', after);
+  });
+  card.addEventListener('dragleave', () => card.classList.remove('drop-before', 'drop-after'));
+  card.addEventListener('drop', (e) => {
+    if (draggedWidget == null) return;
+    e.preventDefault();
+    const after = card.classList.contains('drop-after');
+    moveWidget(draggedWidget, after ? i + 1 : i);
+  });
+  return card;
 }
+
+let draggedWidget = null;
 
 function widgetBody(w) {
   const entry = state.widgetData[w.id];
@@ -319,9 +347,13 @@ function scheduleWidgets() {
   }
 }
 
-function moveWidget(i, delta) {
+// Déplace le widget `from` juste avant la position `to` (to = longueur : à la fin).
+function moveWidget(from, to) {
   const list = state.draft.widgets;
-  [list[i], list[i + delta]] = [list[i + delta], list[i]];
+  const [w] = list.splice(from, 1);
+  if (from < to) to--;
+  list.splice(to, 0, w);
+  draggedWidget = null;
   render();
 }
 
