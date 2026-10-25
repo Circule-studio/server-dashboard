@@ -91,3 +91,27 @@ jobs:
       - name: Logs du service en cas d'échec
         if: failure()
         run: sudo journalctl -u server-dashboard -n 100 --no-pager
+
+  docker:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construction de l'image
+        run: docker build -t server-dashboard:ci .
+
+      - name: Le conteneur démarre et répond
+        run: |
+          docker run -d --name sd -p 7575:7575 -e ADMIN_PASSWORD=ci-test -e SERVER_NAME=ci \
+            -v /var/run/docker.sock:/var/run/docker.sock server-dashboard:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me && break; sleep 1; done
+          echo "Node dans l'image : $(docker exec sd node -v)"
+          curl -fsS http://127.0.0.1:7575/ | grep -q "Server Dashboard"
+          curl -fsS http://127.0.0.1:7575/api/system | grep -q '"hostname":"ci"'
+          curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"name":"sd"'
+          curl -fsS -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
+
+      - name: Logs du conteneur en cas d'échec
+        if: failure()
+        run: docker logs sd
