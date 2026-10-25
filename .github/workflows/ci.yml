@@ -61,7 +61,9 @@ jobs:
           sudo bash packaging/install.sh --uninstall
           ! systemctl is-active server-dashboard
           test ! -d /opt/server-dashboard
-          test -f /etc/server-dashboard/server-dashboard.env
+          # Le dossier n'est lisible que par root et le service : il contient le mot de passe.
+          sudo test -f /etc/server-dashboard/server-dashboard.env
+          ! test -r /etc/server-dashboard/server-dashboard.env
 
       - name: Logs du service en cas d'échec
         if: failure()
