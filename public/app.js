@@ -535,6 +535,7 @@ async function save() {
     state.config = await api('/api/config', { method: 'PUT', body: state.draft });
     stopEditing();
     toast('Configuration enregistrée');
+    refreshSystem();
     refreshStatus();
     scheduleWidgets();
   } catch (e) {
@@ -655,14 +656,67 @@ async function refreshSystem() {
       `${s.cpu.cores} cœurs · charge ${s.cpu.load.map((l) => l.toFixed(2)).join(' ')}`);
     const memPct = (s.memory.used / s.memory.total) * 100;
     setStat('#stat-mem', memPct, `${memPct.toFixed(0)} %`, `${fmtBytes(s.memory.used)} / ${fmtBytes(s.memory.total)}`);
-    if (s.disk.total) {
-      const diskPct = (s.disk.used / s.disk.total) * 100;
-      setStat('#stat-disk', diskPct, `${diskPct.toFixed(0)} %`, `${fmtBytes(s.disk.used)} / ${fmtBytes(s.disk.total)} · ${s.disk.path}`);
-    } else {
-      setStat('#stat-disk', 0, '–', s.disk.error || 'indisponible');
-    }
+    state.system = s;
+    renderDisks(s.disks || [s.disk]);
     setStat('#stat-up', 0, fmtUptime(s.uptime), s.platform);
   } catch { /* le serveur est peut-être en train de redémarrer */ }
+}
+
+// Une carte par disque, insérées avant la carte Uptime.
+function renderDisks(disks) {
+  const stats = $('#stats');
+  stats.querySelectorAll('.stat-disk').forEach((el) => el.remove());
+  for (const d of disks) {
+    const pct = d.total ? (d.used / d.total) * 100 : 0;
+    const name = d.label || (disks.length > 1 ? d.path : 'Disque');
+    stats.insertBefore(h('div', { class: 'stat stat-disk' },
+      h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, d.error ? '–' : `${pct.toFixed(0)} %`)),
+      h('div', { class: 'bar' }, h('i', { class: pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : '', style: `width:${Math.min(100, pct)}%` })),
+      h('small', { class: 'muted', title: d.path },
+        d.error ? `${d.error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`)),
+    $('#stat-up'));
+  }
+}
+
+// ---------- Choix des disques (mode édition) ----------
+async function openDisksDialog() {
+  const list = $('#disksList');
+  list.replaceChildren(h('p', { class: 'muted' }, 'Recherche des disques…'));
+  $('#disksForm').reset();
+  $('#disksDialog').showModal();
+  let detected = [];
+  try {
+    detected = await api('/api/disks');
+  } catch (e) {
+    list.replaceChildren(h('p', { class: 'error' }, e.message));
+    return;
+  }
+  // Disques déjà affichés : ceux de la config, sinon le disque par défaut renvoyé par /api/system.
+  const chosen = state.draft.disks?.length ? state.draft.disks : (state.system?.disks || []).map((d) => ({ path: d.path, label: '' }));
+  const rows = [...chosen.map((c) => ({ ...detected.find((d) => d.path === c.path), ...c, checked: true }))];
+  for (const d of detected) if (!rows.some((r) => r.path === d.path)) rows.push({ ...d, label: '', checked: false });
+  if (!rows.length) {
+    list.replaceChildren(h('p', { class: 'muted' }, 'Aucun disque détecté.'));
+    return;
+  }
+  list.replaceChildren(...rows.map((r) => h('label', { class: 'disk-row', 'data-path': r.path },
+    h('input', { type: 'checkbox', checked: r.checked }),
+    h('span', { class: 'disk-info' },
+      h('b', {}, r.path),
+      h('small', { class: 'muted' }, r.total ? `${fmtBytes(r.used)} / ${fmtBytes(r.total)}${r.type ? ' · ' + r.type : ''}` : 'non détecté')),
+    h('input', { class: 'disk-label', placeholder: 'Nom (facultatif)', maxlength: 50, value: r.label || '' }))));
+}
+
+function submitDisks(e) {
+  e.preventDefault();
+  const disks = [...$('#disksList').querySelectorAll('.disk-row')]
+    .filter((row) => row.querySelector('input[type=checkbox]').checked)
+    .map((row) => ({ path: row.dataset.path, label: row.querySelector('.disk-label').value.trim() }));
+  const extra = e.target.elements.extra.value.trim();
+  if (extra && !disks.some((d) => d.path === extra)) disks.push({ path: extra, label: '' });
+  state.draft.disks = disks;
+  $('#disksDialog').close();
+  toast(disks.length ? `${disks.length} disque(s) sélectionné(s) : clique sur Enregistrer` : 'Disque par défaut rétabli : clique sur Enregistrer');
 }
 
 // ---------- Statut des services ----------
@@ -761,6 +815,8 @@ async function init() {
     if (title) { state.draft.title = title; render(); }
   });
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
+  $('#disksBtn').addEventListener('click', openDisksDialog);
+  $('#disksForm').addEventListener('submit', submitDisks);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
   $('#loginForm').addEventListener('submit', submitLogin);

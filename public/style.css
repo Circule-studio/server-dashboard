@@ -259,3 +259,16 @@ dialog input:focus, dialog select:focus { outline: 2px solid var(--accent); outl
 .widget-proxmox .widget-subhead + .meter, .widget-proxmox .meter + .meter { margin-top: 0; }
 .widget-proxmox .badge { color: var(--muted); background: rgba(255, 255, 255, 0.06); padding: 0 6px; font-size: 0.68rem; }
 .widget-proxmox .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
+
+/* ---------- Choix des disques ---------- */
+.dialog-help { margin: -8px 0 14px; font-size: 0.85rem; }
+.disks-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 50vh; overflow-y: auto; }
+dialog .disk-row {
+  display: grid; grid-template-columns: auto 1fr minmax(0, 140px); align-items: center; gap: 10px;
+  flex-direction: row; margin: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+}
+.disk-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+.disk-info { display: flex; flex-direction: column; min-width: 0; }
+.disk-info b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+dialog .disk-label { padding: 6px 9px; font-size: 0.85rem; }
+@media (max-width: 480px) { dialog .disk-row { grid-template-columns: auto 1fr; } dialog .disk-label { grid-column: 1 / -1; } }

@@ -25,6 +25,7 @@
     <div class="editbar-actions">
       <button id="renameBoardBtn" class="btn btn-ghost">Renommer le tableau</button>
       <button id="addWidgetBtn" class="btn btn-ghost">+ Widget</button>
+      <button id="disksBtn" class="btn btn-ghost">Disques</button>
       <button id="addCatBtn" class="btn btn-ghost">+ Catégorie</button>
       <button id="cancelBtn" class="btn btn-ghost">Annuler</button>
       <button id="saveBtn" class="btn btn-primary">Enregistrer</button>
@@ -34,7 +35,6 @@
   <section id="stats" class="stats" aria-label="Ressources du serveur">
     <div class="stat" id="stat-cpu"><div class="stat-head"><span>CPU</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
     <div class="stat" id="stat-mem"><div class="stat-head"><span>Mémoire</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
-    <div class="stat" id="stat-disk"><div class="stat-head"><span>Disque</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
     <div class="stat" id="stat-up"><div class="stat-head"><span>Uptime</span><b>–</b></div><small class="muted"></small></div>
   </section>
 
@@ -95,6 +95,22 @@
       </label>
       <label data-field="username"><span data-user-label>Utilisateur</span><input name="username" autocomplete="off"></label>
       <label data-field="password">Mot de passe<input name="password" type="password" autocomplete="new-password"></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
+        <button class="btn btn-primary">Valider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="disksDialog">
+    <form method="dialog" id="disksForm">
+      <h3>Disques affichés</h3>
+      <p class="muted dialog-help">Coche les disques à afficher dans les stats. Le nom est facultatif.</p>
+      <div id="disksList" class="disks-list"><p class="muted">Recherche des disques…</p></div>
+      <label>Ajouter un autre chemin
+        <input name="extra" placeholder="/mnt/data, /host/mnt/nas ou D:\">
+        <small class="muted">Partage réseau, dossier monté dans Docker… Il doit exister sur le serveur.</small>
+      </label>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close>Annuler</button>
         <button class="btn btn-primary">Valider</button>
