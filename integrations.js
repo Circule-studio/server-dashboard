@@ -3,11 +3,30 @@
 const http = require('http');
 const https = require('https');
 
-function request(url, { method = 'GET', headers = {}, body, timeout = 8000 } = {}) {
+// Les erreurs réseau de Node (ECONNREFUSED…) n'ont souvent pas de message lisible.
+const NETWORK_ERRORS = {
+  ECONNREFUSED: 'Service injoignable (connexion refusée)',
+  ENOTFOUND: 'Adresse introuvable',
+  EHOSTUNREACH: 'Hôte injoignable',
+  ECONNRESET: 'Connexion interrompue',
+  ETIMEDOUT: 'Délai dépassé',
+};
+
+function networkError(e) {
+  return new Error(NETWORK_ERRORS[e.code] || e.message || e.code || 'Erreur réseau');
+}
+
+// `discardBody` : on ne lit que le code HTTP (utile pour un simple ping).
+function request(url, { method = 'GET', headers = {}, body, timeout = 8000, discardBody = false } = {}) {
   return new Promise((resolve, reject) => {
-    const u = new URL(url);
+    let u;
+    try { u = new URL(url); } catch { return reject(new Error('URL invalide')); }
     const lib = u.protocol === 'https:' ? https : http;
     const req = lib.request(u, { method, headers, timeout, rejectUnauthorized: false }, (res) => {
+      if (discardBody) {
+        res.destroy();
+        return resolve({ status: res.statusCode, headers: res.headers });
+      }
       let text = '';
       res.setEncoding('utf8');
       res.on('data', (d) => (text += d));
@@ -17,8 +36,8 @@ function request(url, { method = 'GET', headers = {}, body, timeout = 8000 } = {
         resolve({ status: res.statusCode, headers: res.headers, text, json });
       });
     });
-    req.on('timeout', () => req.destroy(new Error('délai dépassé')));
-    req.on('error', reject);
+    req.on('timeout', () => req.destroy(Object.assign(new Error('Délai dépassé'), { code: 'ETIMEDOUT' })));
+    req.on('error', (e) => reject(networkError(e)));
     if (body) req.write(body);
     req.end();
   });
@@ -238,4 +257,4 @@ function resetIntegrations() {
   qbitSids.clear();
 }
 
-module.exports = { INTEGRATIONS, fetchWidget, resetIntegrations };
+module.exports = { INTEGRATIONS, fetchWidget, resetIntegrations, request };

@@ -46,6 +46,31 @@ Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côt�
 
 Pour mettre à jour après une modification du code : `docker compose up -d --build`. La config reste dans `./data`.
 
+## Installation sans Docker (Debian / Ubuntu, LXC Proxmox)
+
+Une commande, en root, sur Debian 12+ ou Ubuntu 22.04+ avec systemd. Ça marche aussi dans un conteneur LXC Proxmox ou sur un Raspberry Pi :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/packaging/install.sh | sudo bash
+```
+
+Le script :
+- installe Node.js 22 si besoin ;
+- télécharge la dernière release dans `/opt/server-dashboard` ;
+- crée un utilisateur système `server-dashboard` et un service systemd du même nom ;
+- génère un mot de passe admin et l'affiche une seule fois.
+
+| Quoi | Où |
+|---|---|
+| Réglages (mot de passe, port, `REQUIRE_LOGIN`…) | `/etc/server-dashboard/server-dashboard.env`, puis `sudo systemctl restart server-dashboard` |
+| Config du dashboard (tuiles, widgets) | `/var/lib/server-dashboard/` |
+| Logs | `journalctl -u server-dashboard -f` |
+
+- **Mettre à jour** : relance la même commande. La config et les réglages sont conservés.
+- **Choisir une version, un port ou un mot de passe** à la première installation : `… | sudo SD_VERSION=v0.1.0 SD_PORT=8080 SD_ADMIN_PASSWORD=… bash`
+- **Désinstaller** : `… | sudo bash -s -- --uninstall` (ajoute `--purge` pour effacer aussi la config).
+- **Panneau Docker** : si Docker est installé sur la machine, le service est ajouté au groupe `docker`. Sinon, le panneau est simplement masqué.
+
 ## Développement en local
 
 ```bash
@@ -74,6 +99,10 @@ Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js)
 
 Les URL doivent être joignables **depuis le serveur du dashboard** (par exemple `http://jellyfin:8096` si les deux sont dans le même réseau Docker). Les clés et mots de passe restent sur le serveur : ils ne sont jamais renvoyés au navigateur.
 
+## Versions
+
+Les versions stables sont publiées dans les [Releases](https://github.com/Circule-studio/server-dashboard/releases), et le détail des changements est dans le [CHANGELOG](CHANGELOG.md). Pour publier une version : mettre à jour `version` dans `package.json` et `CHANGELOG.md`, fusionner dans `main`, puis pousser un tag `vX.Y.Z`. Le workflow `release.yml` crée la release.
+
 ## Contribuer
 
 Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -88,10 +117,14 @@ Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIB
 | `SERVER_NAME` | nom de la machine | Nom affiché à côté du titre (utile en Docker) |
 | `DISK_PATH` | `/` (`C:\` sous Windows) | Chemin dont on affiche l'occupation disque |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
+| `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
+| `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
 
 ## Sécurité
 
+- Les tentatives de connexion sont limitées à 10 par IP toutes les 15 minutes. Changer `ADMIN_PASSWORD` déconnecte toutes les sessions ouvertes.
+- Par défaut, le dashboard est lisible sans connexion (seule la modification est protégée). Si tu l’exposes en dehors de ton réseau, mets `REQUIRE_LOGIN=true`.
 - Monter `/var/run/docker.sock` donne au conteneur un accès équivalent à root sur l'hôte. Les actions Docker exigent d'être connecté, mais n'expose pas le dashboard directement sur Internet : place-le derrière un reverse proxy en HTTPS (Nginx Proxy Manager, Caddy, Traefik) ou derrière un VPN (WireGuard, Tailscale).
 - Pour un panneau Docker en lecture seule, utilise un proxy de socket comme `tecnativa/docker-socket-proxy` et pointe `DOCKER_SOCKET` dessus (ou retire simplement le volume).
 

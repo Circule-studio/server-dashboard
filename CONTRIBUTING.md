@@ -35,11 +35,32 @@ L'interface est en HTML/CSS/JS sans framework ni étape de build : on modifie, o
 2. Dans `public/app.js`, ajoute le type à `WIDGET_TYPES` et, si besoin, un rendu dans `RENDERERS`.
 3. Ajoute un faux service dans `dev/mocks.js` pour que tout le monde puisse le tester.
 
+## Branches
+
+| Branche | Rôle |
+|---|---|
+| `preprod` | Branche de développement : **toutes les pull requests visent `preprod`**. On y teste les nouveautés avant de les publier. |
+| `main` | Version stable, celle que les gens installent. Mise à jour en fusionnant `preprod` une fois testée. Le site du projet (`docs/`) est publié depuis `main`. |
+
+Ces deux branches sont protégées :
+- pas de push direct, pas de push forcé, pas de suppression ;
+- toute modification passe par une *pull request* dont la CI doit être verte (syntaxe, ShellCheck, test d’installation) ;
+- une relecture d’un mainteneur est requise (voir `.github/CODEOWNERS`) ;
+- une PR vers `main` qui ne vient pas de `preprod` est refusée automatiquement.
+
+Pour la première PR d’un nouveau contributeur, un mainteneur doit autoriser le lancement de la CI : c’est normal, ça protège le projet.
+
 ## Proposer une modification
 
 1. Ouvre une *issue* pour discuter de l'idée si c'est un gros changement.
-2. Fais un fork, crée une branche (`git checkout -b ma-fonctionnalite`), commite, puis ouvre une *pull request*.
+2. Fais un fork, crée une branche à partir de `preprod` (`git checkout -b ma-fonctionnalite origin/preprod`), commite, puis ouvre une *pull request* **vers `preprod`**.
 3. Pour un changement visuel, ajoute une capture d'écran avant / après dans la PR.
+
+## Sécurité
+
+- Une faille de sécurité ? **Pas d’issue publique** : voir [SECURITY.md](SECURITY.md).
+- Ne commite jamais de mot de passe, de clé API ou de fichier `.env`. Le scan de secrets de GitHub bloque la plupart des fuites, mais pas toutes.
+- Merci de respecter le [code de conduite](CODE_OF_CONDUCT.md).
 
 ## Règles de code
 

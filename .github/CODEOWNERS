@@ -1,0 +1,9 @@
+# Relecteurs demandés automatiquement sur chaque pull request.
+# Les fichiers sensibles (sécurité, installation, CI) exigent l'accord d'un mainteneur.
+*                         @thomas370
+/server.js                @thomas370
+/integrations.js          @thomas370
+/packaging/               @thomas370
+/.github/                 @thomas370
+/Dockerfile               @thomas370
+/docker-compose.yml       @thomas370

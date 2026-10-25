@@ -149,6 +149,27 @@
       section { padding: 52px 0; }
       .hero { padding-top: 36px; }
     }
+
+    /* Roadmap */
+    .roadmap { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); align-items: start; }
+    .phase { padding: 22px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--border); }
+    .phase-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+    .phase h3 { margin: 0; font-size: 1.05rem; }
+    .tag { flex: none; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+    .tag-done { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
+    .tag-next { color: var(--accent); background: rgba(124, 156, 255, 0.14); }
+    .tag-later { color: var(--muted); background: rgba(255, 255, 255, 0.06); }
+    .phase-done { border-color: rgba(52, 211, 153, 0.3); }
+    .phase ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+    .phase li { display: flex; gap: 10px; color: var(--muted); font-size: 0.93rem; line-height: 1.45; }
+    .phase li::before { content: "○"; flex: none; color: var(--muted); }
+    .phase-done li::before { content: "✓"; color: var(--ok); font-weight: 700; }
+    .phase li a { color: var(--text); text-decoration: none; }
+    .phase li a:hover { color: var(--accent); }
+    .phase li a span { color: var(--muted); font-size: 0.85em; }
+    .install-title { font-size: 1.1rem; margin: 32px 0 10px; }
+    .install-title + .note { margin: 0 0 12px; }
+    .roadmap-note { color: var(--muted); font-size: 0.92rem; margin: 22px 0 0; }
   </style>
 </head>
 <body>
@@ -161,6 +182,7 @@
       <div class="nav-links">
         <a href="#fonctionnalites">Fonctionnalités</a>
         <a href="#installation">Installation</a>
+        <a href="#roadmap">Roadmap</a>
         <a href="#contribuer">Contribuer</a>
         <a class="btn" href="https://github.com/Circule-studio/server-dashboard">
           <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -251,7 +273,13 @@
   <section id="installation">
     <div class="wrap">
       <h2>Installation</h2>
-      <p class="section-lead">Sur n'importe quel serveur Linux avec Docker : VPS, Raspberry Pi, Proxmox, NAS…</p>
+      <p class="section-lead">Sur n'importe quel serveur Linux : VPS, Raspberry Pi, conteneur LXC Proxmox, NAS…</p>
+
+      <h3 class="install-title">Sans Docker, en une commande</h3>
+      <p class="note">Debian 12+ ou Ubuntu 22.04+. Installe Node.js si besoin, crée un service systemd et affiche ton mot de passe admin. Relance la même commande pour mettre à jour.</p>
+      <div class="code"><pre>curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/packaging/install.sh | sudo bash</pre><button class="copy" type="button">Copier</button></div>
+
+      <h3 class="install-title">Avec Docker</h3>
       <div class="steps">
         <div class="step">
           <div>
@@ -275,6 +303,57 @@ nano .env   # remplace "change-moi"</pre><button class="copy" type="button">Copi
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <h2>Roadmap</h2>
+      <p class="section-lead">Où en est le projet et ce qui arrive. Chaque point est une issue GitHub : choisis-en une et lance-toi !</p>
+      <div class="roadmap">
+        <article class="phase phase-done">
+          <div class="phase-head"><h3>Version 0.1</h3><span class="tag tag-done">Disponible</span></div>
+          <ul>
+            <li>Tuiles d'apps avec statut en ligne</li>
+            <li>Stats CPU, mémoire, disque, uptime</li>
+            <li>Panneau Docker</li>
+            <li>Widgets Jellyfin, Plex, qBittorrent, Sonarr, Radarr</li>
+            <li>Édition par glisser-déposer</li>
+            <li>Installation Docker ou systemd</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <div class="phase-head"><h3>Interface</h3><span class="tag tag-next">Prochainement</span></div>
+          <ul>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/1">Thème clair <span>#1</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/2">Mobile et glisser-déposer tactile <span>#2</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/5">Recherche rapide <span>#5</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/6">Taille des tuiles <span>#6</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/14">Catalogue d'apps connues <span>#14</span></a></li>
+          </ul>
+        </article>
+        <article class="phase">
+          <div class="phase-head"><h3>Nouveaux widgets</h3><span class="tag tag-next">Prochainement</span></div>
+          <ul>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/9">Proxmox VE <span>#9</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/4">Pi-hole / AdGuard Home <span>#4</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/10">Immich <span>#10</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/11">Nginx Proxy Manager <span>#11</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/3">Météo <span>#3</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/12">Frigate <span>#12</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/13">Home Assistant <span>#13</span></a></li>
+          </ul>
+        </article>
+        <article class="phase">
+          <div class="phase-head"><h3>Plus loin</h3><span class="tag tag-later">À l'étude</span></div>
+          <ul>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/7">Superviser plusieurs machines <span>#7</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/15">Installation en un clic via community-scripts (Proxmox) <span>#15</span></a></li>
+            <li>Traduction de l'interface (anglais…)</li>
+          </ul>
+        </article>
+      </div>
+      <p class="roadmap-note">Une idée qui manque ? <a href="https://github.com/Circule-studio/server-dashboard/issues/new/choose">Propose-la dans une issue</a>.</p>
     </div>
   </section>
 
