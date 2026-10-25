@@ -1,0 +1,28 @@
+# Service systemd de Server Dashboard, installé par packaging/install.sh
+# (@NODE_BIN@ est remplacé par le chemin de node à l'installation).
+[Unit]
+Description=Server Dashboard
+Documentation=https://github.com/Circule-studio/server-dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=server-dashboard
+Group=server-dashboard
+WorkingDirectory=/opt/server-dashboard
+Environment=NODE_ENV=production
+Environment=DATA_DIR=/var/lib/server-dashboard
+EnvironmentFile=/etc/server-dashboard/server-dashboard.env
+ExecStart=@NODE_BIN@ /opt/server-dashboard/server.js
+Restart=on-failure
+RestartSec=5
+
+# Durcissement : le code et le système restent en lecture seule pour le service.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

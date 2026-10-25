@@ -46,6 +46,31 @@ Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côt�
 
 Pour mettre à jour après une modification du code : `docker compose up -d --build`. La config reste dans `./data`.
 
+## Installation sans Docker (Debian / Ubuntu, LXC Proxmox)
+
+Une commande, en root, sur Debian 12+ ou Ubuntu 22.04+ avec systemd. Ça marche aussi dans un conteneur LXC Proxmox ou sur un Raspberry Pi :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/packaging/install.sh | sudo bash
+```
+
+Le script :
+- installe Node.js 22 si besoin ;
+- télécharge la dernière release dans `/opt/server-dashboard` ;
+- crée un utilisateur système `server-dashboard` et un service systemd du même nom ;
+- génère un mot de passe admin et l'affiche une seule fois.
+
+| Quoi | Où |
+|---|---|
+| Réglages (mot de passe, port, `REQUIRE_LOGIN`…) | `/etc/server-dashboard/server-dashboard.env`, puis `sudo systemctl restart server-dashboard` |
+| Config du dashboard (tuiles, widgets) | `/var/lib/server-dashboard/` |
+| Logs | `journalctl -u server-dashboard -f` |
+
+- **Mettre à jour** : relance la même commande. La config et les réglages sont conservés.
+- **Choisir une version, un port ou un mot de passe** à la première installation : `… | sudo SD_VERSION=v0.1.0 SD_PORT=8080 SD_ADMIN_PASSWORD=… bash`
+- **Désinstaller** : `… | sudo bash -s -- --uninstall` (ajoute `--purge` pour effacer aussi la config).
+- **Panneau Docker** : si Docker est installé sur la machine, le service est ajouté au groupe `docker`. Sinon, le panneau est simplement masqué.
+
 ## Développement en local
 
 ```bash
@@ -73,6 +98,10 @@ Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js)
 | Sonarr / Radarr | URL + clé API | Settings > General > API Key |
 
 Les URL doivent être joignables **depuis le serveur du dashboard** (par exemple `http://jellyfin:8096` si les deux sont dans le même réseau Docker). Les clés et mots de passe restent sur le serveur : ils ne sont jamais renvoyés au navigateur.
+
+## Versions
+
+Les versions stables sont publiées dans les [Releases](https://github.com/Circule-studio/server-dashboard/releases), et le détail des changements est dans le [CHANGELOG](CHANGELOG.md). Pour publier une version : mettre à jour `version` dans `package.json` et `CHANGELOG.md`, fusionner dans `main`, puis pousser un tag `vX.Y.Z`. Le workflow `release.yml` crée la release.
 
 ## Contribuer
 

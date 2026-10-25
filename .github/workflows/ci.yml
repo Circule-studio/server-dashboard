@@ -1,0 +1,68 @@
+# Vérifications automatiques à chaque push et pull request.
+name: CI
+
+on:
+  push:
+    branches: [main, preprod]
+  pull_request:
+
+jobs:
+  checks:
+    name: Syntaxe JS et script shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Syntaxe JavaScript
+        run: for f in server.js integrations.js dev/mocks.js public/app.js; do node --check "$f"; done
+      - name: ShellCheck
+        run: shellcheck packaging/install.sh
+
+  install:
+    name: Installation sans Docker (systemd)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installation
+        run: sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD=ci-test SD_PORT=7575 bash packaging/install.sh
+
+      - name: Le service tourne et répond
+        run: |
+          systemctl is-active server-dashboard
+          curl -fsS http://127.0.0.1:7575/api/me
+          curl -fsS http://127.0.0.1:7575/api/system | head -c 300; echo
+          curl -fsS http://127.0.0.1:7575/ | grep -q "Server Dashboard"
+
+      - name: Connexion et sauvegarde de la config
+        run: |
+          curl -fsS -c jar -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
+          curl -fsS http://127.0.0.1:7575/api/config > cfg.json
+          node -e 'const c=require("./cfg.json"); c.title="CI"; require("fs").writeFileSync("cfg.json", JSON.stringify(c))'
+          curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @cfg.json http://127.0.0.1:7575/api/config
+          sudo grep -q '"title": "CI"' /var/lib/server-dashboard/config.json
+
+      # Docker est installé sur les runners GitHub : l'installation doit donner l'accès au service.
+      - name: Panneau Docker accessible au service
+        run: curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"available":true'
+
+      - name: Mise à jour (2e passage) en gardant la config
+        run: |
+          sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" bash packaging/install.sh
+          systemctl is-active server-dashboard
+          sudo grep -q '"title": "CI"' /var/lib/server-dashboard/config.json
+          sudo grep -q '^ADMIN_PASSWORD=ci-test$' /etc/server-dashboard/server-dashboard.env
+
+      - name: Désinstallation
+        run: |
+          sudo bash packaging/install.sh --uninstall
+          ! systemctl is-active server-dashboard
+          test ! -d /opt/server-dashboard
+          test -f /etc/server-dashboard/server-dashboard.env
+
+      - name: Logs du service en cas d'échec
+        if: failure()
+        run: sudo journalctl -u server-dashboard -n 100 --no-pager

@@ -1,0 +1,35 @@
+# Publie une GitHub Release quand on pousse un tag vX.Y.Z (sur main).
+# Les notes de version sont prises dans CHANGELOG.md.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Le tag correspond à la version de package.json
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME ≠ package.json v$version"; exit 1; }
+
+      - name: Notes de version depuis CHANGELOG.md
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "Aucune section pour ${GITHUB_REF_NAME#v} dans CHANGELOG.md"; exit 1; }
+
+      - name: Création de la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

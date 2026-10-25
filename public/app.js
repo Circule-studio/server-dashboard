@@ -645,10 +645,15 @@ function renderDocker() {
   const d = state.docker;
   const body = $('#dockerBody');
   if (!d) return;
+  // Pas de socket Docker (installation sans Docker, LXC…) : le panneau n'a rien à montrer.
+  const notInstalled = !d.available && /ENOENT|ECONNREFUSED/.test(d.error || '');
+  $('#dockerSection').hidden = notInstalled;
+  if (notInstalled) return;
   if (!d.available) {
     $('#dockerSummary').textContent = '';
-    body.replaceChildren(h('p', { class: 'muted' },
-      'Docker non joignable. Monte le socket /var/run/docker.sock dans le conteneur pour activer ce panneau.'));
+    body.replaceChildren(h('p', { class: 'muted' }, /EACCES/.test(d.error || '')
+      ? 'Accès au socket Docker refusé : ajoute l\'utilisateur du dashboard au groupe « docker ».'
+      : `Docker non joignable : ${d.error}`));
     return;
   }
   const running = d.containers.filter((c) => c.state === 'running').length;
