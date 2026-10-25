@@ -79,7 +79,7 @@ npm install
 npm run dev
 ```
 
-Puis ouvre http://localhost:7575 (mot de passe par défaut : `admin`).
+Puis ouvre http://localhost:7575. Le mot de passe est celui de ton fichier `.env` s'il existe (attention aux majuscules), sinon `admin`.
 
 Pour travailler sur les widgets sans avoir les vrais services, lance de faux Jellyfin, qBittorrent, Sonarr et Radarr dans un second terminal :
 

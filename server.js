@@ -10,6 +10,10 @@ const http = require('http');
 const crypto = require('crypto');
 const { INTEGRATIONS, fetchWidget, resetIntegrations, request } = require('./integrations');
 
+// En local (npm start), lit le fichier .env s'il existe. Les variables déjà définies
+// (Docker, systemd) restent prioritaires.
+try { process.loadEnvFile(path.join(__dirname, '.env')); } catch { /* pas de .env */ }
+
 const PORT = Number(process.env.PORT) || 7575;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');

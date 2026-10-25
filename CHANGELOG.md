@@ -4,9 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.3.0] - 2026-10-25
+
 ### Ajouté
 - **Plusieurs disques** : bouton « Disques » en mode édition, détection automatique des disques (Windows et Linux), une carte par disque avec un nom personnalisable.
 - CI : construction et test de l'image Docker.
+
+### Corrigé
+- En local (`npm start` / `npm run dev`), le fichier `.env` est maintenant lu : le mot de passe qu'il contient est bien pris en compte (avant, seul Docker le lisait).
 
 ## [0.2.0] - 2026-10-25
 
@@ -35,6 +40,7 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.2.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Circule-studio/server-dashboard/releases/tag/v0.1.0
