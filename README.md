@@ -2,7 +2,7 @@
 
 Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page.
 
-**🌐 Site du projet : [thomas370.github.io/server-dashboard](https://thomas370.github.io/server-dashboard/)**
+**🌐 Site du projet : [circule-studio.github.io/server-dashboard](https://circule-studio.github.io/server-dashboard/)**
 
 ![Vue d'ensemble du dashboard : stats du serveur, widgets Jellyfin, qBittorrent, Sonarr, Radarr, tuiles d'applications et conteneurs Docker](docs/screenshots/dashboard.png)
 
