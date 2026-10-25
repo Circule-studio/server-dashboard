@@ -22,6 +22,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Jellyfin / Plex** : lectures en cours (utilisateur, progression, pause) et taille de la bibliothèque.
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.
   - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
+  - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
 
 Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
@@ -96,6 +97,16 @@ Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js)
 | Plex | URL + token | Valeur `X-Plex-Token` ([doc Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) |
 | qBittorrent | URL + utilisateur / mot de passe de la WebUI | Options > Interface web |
 | Sonarr / Radarr | URL + clé API | Settings > General > API Key |
+| Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
+
+**Proxmox VE** : le widget affiche les stats de l’hôte (CPU, RAM, disque), l’état de toutes les VM et conteneurs LXC, et les stockages. C’est la façon de voir la machine complète quand le dashboard tourne lui-même dans un LXC, qui ne voit que ses propres limites. Crée un jeton en **lecture seule** dans le shell de l’hôte Proxmox :
+
+```bash
+pveum user token add root@pam dashboard --privsep 1
+pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor
+```
+
+La première commande affiche le secret (une seule fois). Dans le widget : identifiant `root@pam!dashboard`, secret = la valeur `value` affichée.
 
 Les URL doivent être joignables **depuis le serveur du dashboard** (par exemple `http://jellyfin:8096` si les deux sont dans le même réseau Docker). Les clés et mots de passe restent sur le serveur : ils ne sont jamais renvoyés au navigateur.
 

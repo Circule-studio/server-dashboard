@@ -245,3 +245,17 @@ dialog input:focus, dialog select:focus { outline: 2px solid var(--accent); outl
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.error { border-color: var(--bad); }
+
+/* ---------- Widget Proxmox ---------- */
+.bar i.ok { background: var(--ok); }
+.pve-node { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.pve-node + .pve-node { margin-top: 12px; }
+.pve-node > .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.88rem; }
+.pve-node .item-title { font-weight: 600; }
+.meter { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 10px; font-size: 0.8rem; margin-bottom: 6px; }
+.meter-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meter-value { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.meter .bar { margin: 0; }
+.widget-proxmox .widget-subhead + .meter, .widget-proxmox .meter + .meter { margin-top: 0; }
+.widget-proxmox .badge { color: var(--muted); background: rgba(255, 255, 255, 0.06); padding: 0 6px; font-size: 0.68rem; }
+.widget-proxmox .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }

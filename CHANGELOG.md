@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- Widget **Proxmox VE** : CPU, RAM et disque de l’hôte, état des VM et conteneurs LXC, stockages (jeton d’API en lecture seule). Faux Proxmox dans `npm run mocks`.
+
+### Modifié
+- `install.sh` : sortie plus propre dans un LXC minimal (pas d’avertissements de locale ni de notice npm).
+
 ## [0.1.0] - 2026-10-25
 
 Première version publique.
