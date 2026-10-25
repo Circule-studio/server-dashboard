@@ -89,6 +89,19 @@ npm run mocks
 
 Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js).
 
+## Plusieurs disques
+
+En mode édition, le bouton **Disques** liste les disques détectés sur la machine (`C:\`, `D:\`… sous Windows, les partitions réelles comme `/` ou `/mnt/data` sous Linux). Coche ceux à afficher et donne-leur un nom (« Films », « Sauvegardes »…) : chacun a sa carte dans les stats. Tu peux aussi saisir un chemin à la main (partage réseau monté, dossier…).
+
+**Avec Docker**, le conteneur ne voit que ce qui est monté. `docker-compose.yml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
+
+```yaml
+    volumes:
+      - /srv/films:/host/srv/films:ro
+```
+
+**Dans un conteneur LXC Proxmox**, le dashboard ne voit que le disque du conteneur : utilise plutôt le widget Proxmox VE pour les stockages de l'hôte.
+
 ## Widgets : où trouver les identifiants
 
 | Service | Champs | Où les trouver |
@@ -126,7 +139,7 @@ Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIB
 | `ADMIN_PASSWORD` | `admin` | Mot de passe du mode édition |
 | `DATA_DIR` | `./data` | Dossier de la config et du secret de session |
 | `SERVER_NAME` | nom de la machine | Nom affiché à côté du titre (utile en Docker) |
-| `DISK_PATH` | `/` (`C:\` sous Windows) | Chemin dont on affiche l'occupation disque |
+| `DISK_PATH` | `/` (`C:\` sous Windows) | Disque affiché par défaut, tant qu'aucun disque n'est choisi en mode édition |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
 | `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
 | `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |

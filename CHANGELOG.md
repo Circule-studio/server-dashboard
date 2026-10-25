@@ -4,6 +4,10 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Plusieurs disques** : bouton « Disques » en mode édition, détection automatique des disques (Windows et Linux), une carte par disque avec un nom personnalisable.
+- CI : construction et test de l'image Docker.
+
 ## [0.2.0] - 2026-10-25
 
 ### Ajouté

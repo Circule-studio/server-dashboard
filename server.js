@@ -142,6 +142,9 @@ function sanitizeConfig(input, previous) {
   return {
     title: str(input.title, 100) || 'Mon serveur',
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
+    disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
+      .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
+      .filter((d) => d.path),
     categories: input.categories.map((c) => ({
       id: str(c.id, 64) || 'cat-' + crypto.randomUUID(),
       name: str(c.name, 100) || 'Sans nom',
@@ -290,14 +293,58 @@ async function memInfo() {
   return { total: os.totalmem(), used: os.totalmem() - os.freemem() };
 }
 
-async function diskInfo() {
+// ---------- Disques ----------
+// Systèmes de fichiers « réels » sous Linux (on ignore proc, tmpfs, overlay, cgroup…).
+const LINUX_FS = new Set(['ext2', 'ext3', 'ext4', 'xfs', 'btrfs', 'zfs', 'f2fs', 'jfs', 'ntfs', 'ntfs3', 'fuseblk',
+  'vfat', 'exfat', 'nfs', 'nfs4', 'cifs', 'smb3', 'fuse.mergerfs', 'fuse.shfs']);
+const SKIP_MOUNTS = /^\/(proc|sys|dev|run|snap|boot\/efi|var\/lib\/docker)(\/|$)/;
+
+async function statDisk(diskPath) {
+  const s = await fsp.statfs(diskPath);
+  const total = s.blocks * s.bsize;
+  return { total, used: total - s.bavail * s.bsize };
+}
+
+async function diskInfo(d) {
   try {
-    const s = await fsp.statfs(DISK_PATH);
-    const total = s.blocks * s.bsize;
-    return { total, used: total - s.bavail * s.bsize, path: DISK_PATH };
+    return { ...d, ...(await statDisk(d.path)) };
   } catch (e) {
-    return { error: e.message, path: DISK_PATH };
+    return { ...d, error: e.code === 'ENOENT' ? 'Chemin introuvable' : e.message };
   }
+}
+
+// Disques affichés : ceux choisis en mode édition, sinon DISK_PATH.
+const disksOf = (cfg) => (cfg.disks?.length ? cfg.disks : [{ path: DISK_PATH, label: '' }]);
+
+// Disques présents sur la machine, proposés dans le mode édition.
+async function detectDisks() {
+  if (process.platform === 'win32') {
+    const found = [];
+    for (const letter of 'CDEFGHIJKLMNOPQRSTUVWXYZ') {
+      const diskPath = `${letter}:\\`;
+      try { found.push({ path: diskPath, ...(await statDisk(diskPath)) }); } catch { /* lecteur absent */ }
+    }
+    return found.filter((d) => d.total > 0);
+  }
+  let mounts;
+  try {
+    mounts = await fsp.readFile('/proc/mounts', 'utf8');
+  } catch {
+    return [await diskInfo({ path: '/' })];
+  }
+  // Un même périphérique peut être monté plusieurs fois : on garde DISK_PATH, sinon le chemin le plus court.
+  const byDevice = new Map();
+  for (const line of mounts.split('\n')) {
+    const [device, rawPath, type] = line.split(' ');
+    if (!rawPath || !LINUX_FS.has(type)) continue;
+    const diskPath = rawPath.replace(/\\040/g, ' ');
+    if (SKIP_MOUNTS.test(diskPath)) continue;
+    const prev = byDevice.get(device);
+    if (prev && (prev.path === DISK_PATH || (diskPath !== DISK_PATH && prev.path.length <= diskPath.length))) continue;
+    byDevice.set(device, { path: diskPath, type });
+  }
+  const found = await Promise.all([...byDevice.values()].map(diskInfo));
+  return found.filter((d) => !d.error && d.total > 0).sort((a, b) => a.path.localeCompare(b.path));
 }
 
 // ---------- Docker (API Engine via socket unix / named pipe) ----------
@@ -387,15 +434,19 @@ app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
 app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses())));
 
 app.get('/api/system', readAuth, route(async (req, res) => {
+  const disks = await Promise.all(disksOf(await readConfig()).map(diskInfo));
   res.json({
     hostname: process.env.SERVER_NAME || os.hostname(),
     platform: `${os.type()} ${os.release()}`,
     uptime: os.uptime(),
     cpu: { usage: cpuUsage(), cores: os.cpus().length, model: os.cpus()[0]?.model, load: os.loadavg() },
     memory: await memInfo(),
-    disk: await diskInfo(),
+    disks,
+    disk: disks[0], // compatibilité avec les anciennes versions de l'interface
   });
 }));
+
+app.get('/api/disks', requireAuth, route(async (req, res) => res.json(await detectDisks())));
 
 app.get('/api/docker/containers', readAuth, route(async (req, res) => {
   try {
