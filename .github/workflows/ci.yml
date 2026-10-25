@@ -6,7 +6,30 @@ on:
     branches: [main, preprod]
   pull_request:
 
+# Lecture seule : la CI n'a jamais besoin d'écrire dans le dépôt.
+permissions:
+  contents: read
+
 jobs:
+  base-branch:
+    name: Branche cible
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # Les noms de branche viennent du contributeur : passés en variables, jamais injectés dans le script.
+      - name: Seule preprod peut être fusionnée dans main
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$BASE" = "main" ] && { [ "$HEAD" != "preprod" ] || [ "$HEAD_REPO" != "$REPO" ]; }; then
+            echo "::error::Les pull requests doivent viser la branche « preprod ». Modifie la branche de base de ta PR (bouton Edit à côté du titre)."
+            exit 1
+          fi
+
+
   checks:
     name: Syntaxe JS et script shell
     runs-on: ubuntu-latest
