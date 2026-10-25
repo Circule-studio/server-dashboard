@@ -35,10 +35,17 @@ L'interface est en HTML/CSS/JS sans framework ni étape de build : on modifie, o
 2. Dans `public/app.js`, ajoute le type à `WIDGET_TYPES` et, si besoin, un rendu dans `RENDERERS`.
 3. Ajoute un faux service dans `dev/mocks.js` pour que tout le monde puisse le tester.
 
+## Branches
+
+| Branche | Rôle |
+|---|---|
+| `preprod` | Branche de développement : **toutes les pull requests visent `preprod`**. On y teste les nouveautés avant de les publier. |
+| `main` | Version stable, celle que les gens installent. Mise à jour en fusionnant `preprod` une fois testée. Le site du projet (`docs/`) est publié depuis `main`. |
+
 ## Proposer une modification
 
 1. Ouvre une *issue* pour discuter de l'idée si c'est un gros changement.
-2. Fais un fork, crée une branche (`git checkout -b ma-fonctionnalite`), commite, puis ouvre une *pull request*.
+2. Fais un fork, crée une branche à partir de `preprod` (`git checkout -b ma-fonctionnalite origin/preprod`), commite, puis ouvre une *pull request* **vers `preprod`**.
 3. Pour un changement visuel, ajoute une capture d'écran avant / après dans la PR.
 
 ## Règles de code

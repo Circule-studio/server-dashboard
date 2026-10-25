@@ -6,6 +6,7 @@ const state = {
   draft: null,      // copie modifiée en mode édition
   status: {},       // { appId: { online, code, ms } }
   authed: false,
+  loginRequired: false, // REQUIRE_LOGIN côté serveur
   editing: false,
   docker: null,
 };
@@ -532,6 +533,7 @@ function submitApp(e) {
 async function onAuthClick() {
   if (state.authed) {
     await api('/api/logout', { method: 'POST' });
+    if (state.loginRequired) return location.reload();
     state.authed = false;
     stopEditing();
     renderDocker();
@@ -547,6 +549,8 @@ async function submitLogin(e) {
   e.preventDefault();
   try {
     await api('/api/login', { method: 'POST', body: { password: e.target.password.value } });
+    // Écran de connexion obligatoire : rien n'est encore chargé, on recharge tout.
+    if (state.loginRequired && !state.config) return location.reload();
     state.authed = true;
     $('#loginDialog').close();
     render();
@@ -688,9 +692,12 @@ async function init() {
   tickClock();
   setInterval(tickClock, 10_000);
 
-  const [cfg, me] = await Promise.all([api('/api/config'), api('/api/me')]);
-  state.config = cfg;
+  const me = await api('/api/me');
   state.authed = me.authenticated;
+  state.loginRequired = me.loginRequired;
+  if (state.loginRequired && !state.authed) return showLoginGate();
+
+  state.config = await api('/api/config');
   render();
 
   refreshSystem();
@@ -702,4 +709,19 @@ async function init() {
   setInterval(refreshDocker, 10_000);
 }
 
-init().catch((e) => toast(`Erreur de chargement : ${e.message}`, true));
+// Page vide avec un message à la place du tableau (connexion requise, erreur de chargement…).
+function showBlocker(message, action) {
+  $('#stats').hidden = true;
+  $('#widgets').hidden = true;
+  $('#dockerSection').hidden = true;
+  $('#board').replaceChildren(h('div', { class: 'empty' }, h('p', {}, message), action));
+}
+
+function showLoginGate() {
+  $('#authBtn').textContent = 'Connexion';
+  showBlocker('Ce dashboard est privé : connecte-toi pour y accéder.',
+    h('button', { class: 'btn btn-primary', onclick: onAuthClick }, 'Se connecter'));
+  onAuthClick();
+}
+
+init().catch((e) => showBlocker(`Erreur de chargement : ${e.message}`));

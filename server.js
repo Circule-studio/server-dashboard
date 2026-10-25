@@ -7,9 +7,8 @@ const fsp = require('fs/promises');
 const path = require('path');
 const os = require('os');
 const http = require('http');
-const https = require('https');
 const crypto = require('crypto');
-const { INTEGRATIONS, fetchWidget, resetIntegrations } = require('./integrations');
+const { INTEGRATIONS, fetchWidget, resetIntegrations, request } = require('./integrations');
 
 const PORT = Number(process.env.PORT) || 7575;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -18,8 +17,13 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const DISK_PATH = process.env.DISK_PATH || (process.platform === 'win32' ? 'C:\\' : '/');
 const DOCKER_SOCKET = process.env.DOCKER_SOCKET ||
   (process.platform === 'win32' ? '\\\\.\\pipe\\docker_engine' : '/var/run/docker.sock');
+// true : tout le dashboard (lecture comprise) exige d'être connecté.
+const REQUIRE_LOGIN = process.env.REQUIRE_LOGIN === 'true';
 const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
 const COOKIE_NAME = 'sd_session';
+const LOGIN_MAX_FAILS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const STATUS_CACHE_MS = 15_000;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -56,21 +60,39 @@ const DEFAULT_CONFIG = {
 };
 
 async function readConfig() {
+  let text;
   try {
-    const cfg = JSON.parse(await fsp.readFile(CONFIG_FILE, 'utf8'));
-    cfg.widgets ||= [];
-    return cfg;
+    text = await fsp.readFile(CONFIG_FILE, 'utf8');
   } catch (e) {
-    if (e.code !== 'ENOENT') console.error('Config illisible, valeurs par défaut utilisées :', e.message);
+    if (e.code !== 'ENOENT') throw e;
     await writeConfig(DEFAULT_CONFIG);
     return structuredClone(DEFAULT_CONFIG);
   }
+  // Un fichier invalide n'est jamais écrasé : on préfère une erreur à une perte de config.
+  let cfg;
+  try {
+    cfg = JSON.parse(text);
+  } catch (e) {
+    throw new Error(`data/config.json est invalide (${e.message}). Corrige le fichier : il n'a pas été modifié.`);
+  }
+  cfg.widgets ||= [];
+  cfg.categories ||= [];
+  return cfg;
 }
 
-async function writeConfig(cfg) {
-  const tmp = CONFIG_FILE + '.tmp';
-  await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2));
-  await fsp.rename(tmp, CONFIG_FILE);
+// Écritures sérialisées avec un fichier temporaire unique : deux écritures
+// simultanées ne peuvent pas se marcher dessus.
+let writeQueue = Promise.resolve();
+
+function writeConfig(cfg) {
+  const run = async () => {
+    const tmp = `${CONFIG_FILE}.${crypto.randomUUID()}.tmp`;
+    await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2));
+    await fsp.rename(tmp, CONFIG_FILE);
+  };
+  const result = writeQueue.then(run, run);
+  writeQueue = result.catch(() => {});
+  return result;
 }
 
 const str = (v, max = 500) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -99,8 +121,9 @@ function sanitizeWidgets(list, previous = []) {
   });
 }
 
-// Version envoyée au navigateur : sans clés API ni mots de passe.
-function publicConfig(cfg) {
+// Version envoyée au navigateur : jamais de clés API ni de mots de passe,
+// et les noms d'utilisateur seulement pour un admin connecté.
+function publicConfig(cfg, authed) {
   return {
     ...cfg,
     widgets: cfg.widgets.map((w) => {
@@ -108,6 +131,7 @@ function publicConfig(cfg) {
       for (const f of SECRET_FIELDS) {
         if (f in pub) { pub['has' + f[0].toUpperCase() + f.slice(1)] = !!pub[f]; delete pub[f]; }
       }
+      if (!authed) delete pub.username;
       return pub;
     }),
   };
@@ -135,22 +159,27 @@ function sanitizeConfig(input, previous) {
 }
 
 // ---------- Auth (cookie signé HMAC) ----------
+// La clé de signature dépend du mot de passe : le changer invalide toutes les sessions.
+const SIGNING_KEY = crypto.createHmac('sha256', SECRET).update(ADMIN_PASSWORD).digest();
+// Sessions fermées par « Déconnexion » (id -> expiration), gardées jusqu'à leur expiration.
+const revokedSessions = new Map();
+
 function sign(value) {
-  return crypto.createHmac('sha256', SECRET).update(value).digest('hex');
+  return crypto.createHmac('sha256', SIGNING_KEY).update(value).digest('hex');
 }
 
 function makeToken() {
-  const exp = String(Date.now() + SESSION_TTL_MS);
-  return `${exp}.${sign(exp)}`;
+  const payload = `${Date.now() + SESSION_TTL_MS}.${crypto.randomBytes(12).toString('hex')}`;
+  return `${payload}.${sign(payload)}`;
 }
 
-function verifyToken(token) {
-  if (!token) return false;
-  const [exp, sig] = token.split('.');
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const expected = Buffer.from(sign(exp));
+function parseToken(token) {
+  const [exp, id, sig] = (token || '').split('.');
+  if (!exp || !id || !sig || Number(exp) < Date.now() || revokedSessions.has(id)) return null;
+  const expected = Buffer.from(sign(`${exp}.${id}`));
   const given = Buffer.from(sig);
-  return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+  if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
+  return { exp: Number(exp), id };
 }
 
 function getCookie(req, name) {
@@ -162,12 +191,15 @@ function getCookie(req, name) {
   return null;
 }
 
-const isAuthed = (req) => verifyToken(getCookie(req, COOKIE_NAME));
+const isAuthed = (req) => !!parseToken(getCookie(req, COOKIE_NAME));
 
 function requireAuth(req, res, next) {
   if (isAuthed(req)) return next();
   res.status(401).json({ error: 'Non authentifié' });
 }
+
+// Routes de lecture : publiques, sauf si REQUIRE_LOGIN=true.
+const readAuth = REQUIRE_LOGIN ? requireAuth : (req, res, next) => next();
 
 function safeEqual(a, b) {
   const ha = crypto.createHash('sha256').update(a).digest();
@@ -175,22 +207,58 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(ha, hb);
 }
 
+// ---------- Limitation des tentatives de connexion (par IP) ----------
+const loginFailures = new Map(); // ip -> { count, reset }
+
+function loginRetryAfter(ip) {
+  const entry = loginFailures.get(ip);
+  if (!entry) return 0;
+  if (Date.now() > entry.reset) { loginFailures.delete(ip); return 0; }
+  return entry.count >= LOGIN_MAX_FAILS ? entry.reset - Date.now() : 0;
+}
+
+function recordLoginFailure(ip) {
+  const entry = loginFailures.get(ip);
+  if (entry && Date.now() <= entry.reset) entry.count++;
+  else loginFailures.set(ip, { count: 1, reset: Date.now() + LOGIN_WINDOW_MS });
+}
+
+// Nettoyage périodique des entrées expirées (échecs et sessions révoquées).
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of loginFailures) if (now > e.reset) loginFailures.delete(ip);
+  for (const [id, exp] of revokedSessions) if (now > exp) revokedSessions.delete(id);
+}, 10 * 60 * 1000).unref();
+
 // ---------- Ping des services ----------
-function ping(url, timeoutMs = 5000) {
-  return new Promise((resolve) => {
-    let u;
-    try { u = new URL(url); } catch { return resolve({ online: false, error: 'URL invalide' }); }
-    const lib = u.protocol === 'https:' ? https : http;
-    const start = Date.now();
-    const req = lib.request(u, { method: 'GET', timeout: timeoutMs, rejectUnauthorized: false }, (res) => {
-      res.destroy();
-      // Un 401/403 signifie que le service répond : on le considère en ligne.
-      resolve({ online: res.statusCode < 500, code: res.statusCode, ms: Date.now() - start });
-    });
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', (e) => resolve({ online: false, error: e.message || e.code, ms: Date.now() - start }));
-    req.end();
-  });
+async function ping(url, timeout = 5000) {
+  const start = Date.now();
+  try {
+    const { status } = await request(url, { timeout, discardBody: true });
+    // Un 401/403 signifie que le service répond : on le considère en ligne.
+    return { online: status < 500, code: status, ms: Date.now() - start };
+  } catch (e) {
+    return { online: false, error: e.message, ms: Date.now() - start };
+  }
+}
+
+// Statuts partagés entre tous les visiteurs pendant STATUS_CACHE_MS.
+let statusCache = null; // { t, promise }
+
+async function computeStatuses() {
+  const cfg = await readConfig();
+  const apps = cfg.categories.flatMap((c) => c.apps).filter((a) => a.url);
+  const results = await Promise.all(apps.map(async (a) => [a.id, await ping(a.url)]));
+  return Object.fromEntries(results);
+}
+
+function getStatuses() {
+  if (!statusCache || Date.now() - statusCache.t > STATUS_CACHE_MS) {
+    const entry = { t: Date.now(), promise: computeStatuses() };
+    entry.promise.catch(() => { if (statusCache === entry) statusCache = null; });
+    statusCache = entry;
+  }
+  return statusCache.promise;
 }
 
 // ---------- Stats système ----------
@@ -252,14 +320,28 @@ function docker(method, apiPath) {
 // ---------- App ----------
 const app = express();
 app.disable('x-powered-by');
+// Derrière un reverse proxy, indiquer TRUST_PROXY (ex. 1) pour obtenir la vraie IP des visiteurs.
+if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/api/me', (req, res) => res.json({ authenticated: isAuthed(req) }));
+// Express 4 ne capture pas les erreurs des handlers async : on les renvoie à next().
+const route = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+app.get('/api/me', (req, res) => res.json({ authenticated: isAuthed(req), loginRequired: REQUIRE_LOGIN }));
 
 app.post('/api/login', (req, res) => {
+  const retryAfter = loginRetryAfter(req.ip);
+  if (retryAfter) {
+    res.setHeader('Retry-After', Math.ceil(retryAfter / 1000));
+    return res.status(429).json({ error: `Trop de tentatives. Réessaie dans ${Math.ceil(retryAfter / 60000)} min.` });
+  }
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  if (!safeEqual(password, ADMIN_PASSWORD)) return res.status(401).json({ error: 'Mot de passe incorrect' });
+  if (!safeEqual(password, ADMIN_PASSWORD)) {
+    recordLoginFailure(req.ip);
+    return res.status(401).json({ error: 'Mot de passe incorrect' });
+  }
+  loginFailures.delete(req.ip);
   const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.setHeader('Set-Cookie',
     `${COOKIE_NAME}=${makeToken()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_MS / 1000}${secure ? '; Secure' : ''}`);
@@ -267,45 +349,44 @@ app.post('/api/login', (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
+  const session = parseToken(getCookie(req, COOKIE_NAME));
+  if (session) revokedSessions.set(session.id, session.exp);
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
   res.json({ ok: true });
 });
 
-app.get('/api/config', async (req, res) => res.json(publicConfig(await readConfig())));
+app.get('/api/config', readAuth, route(async (req, res) => {
+  res.json(publicConfig(await readConfig(), isAuthed(req)));
+}));
 
-app.put('/api/config', requireAuth, async (req, res) => {
+app.put('/api/config', requireAuth, route(async (req, res) => {
+  const previous = await readConfig();
+  let cfg;
   try {
-    const cfg = sanitizeConfig(req.body, await readConfig());
-    await writeConfig(cfg);
-    resetIntegrations();
-    res.json(publicConfig(cfg));
+    cfg = sanitizeConfig(req.body, previous);
   } catch (e) {
-    res.status(400).json({ error: e.message });
+    return res.status(400).json({ error: e.message });
   }
-});
+  await writeConfig(cfg);
+  resetIntegrations();
+  statusCache = null;
+  res.json(publicConfig(cfg, true));
+}));
 
-app.get('/api/widgets/:id', async (req, res) => {
+app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   const cfg = await readConfig();
   const widget = cfg.widgets.find((w) => w.id === req.params.id);
   if (!widget) return res.status(404).json({ error: 'Widget introuvable' });
   try {
     res.json(await fetchWidget(widget));
   } catch (e) {
-    // Les erreurs réseau (ECONNREFUSED…) n'ont souvent pas de message.
-    const error = e.code === 'ECONNREFUSED' ? 'Service injoignable (connexion refusée)'
-      : e.code === 'ENOTFOUND' ? 'Adresse introuvable' : e.message || e.code || 'Erreur inconnue';
-    res.status(502).json({ error });
+    res.status(502).json({ error: e.message || 'Erreur inconnue' });
   }
-});
+}));
 
-app.get('/api/status', async (req, res) => {
-  const cfg = await readConfig();
-  const apps = cfg.categories.flatMap((c) => c.apps).filter((a) => a.url);
-  const results = await Promise.all(apps.map(async (a) => [a.id, await ping(a.url)]));
-  res.json(Object.fromEntries(results));
-});
+app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses())));
 
-app.get('/api/system', async (req, res) => {
+app.get('/api/system', readAuth, route(async (req, res) => {
   res.json({
     hostname: process.env.SERVER_NAME || os.hostname(),
     platform: `${os.type()} ${os.release()}`,
@@ -314,9 +395,9 @@ app.get('/api/system', async (req, res) => {
     memory: await memInfo(),
     disk: await diskInfo(),
   });
-});
+}));
 
-app.get('/api/docker/containers', async (req, res) => {
+app.get('/api/docker/containers', readAuth, route(async (req, res) => {
   try {
     const list = await docker('GET', '/containers/json?all=1');
     res.json({
@@ -332,9 +413,9 @@ app.get('/api/docker/containers', async (req, res) => {
   } catch (e) {
     res.json({ available: false, error: e.message });
   }
-});
+}));
 
-app.post('/api/docker/containers/:id/:action', requireAuth, async (req, res) => {
+app.post('/api/docker/containers/:id/:action', requireAuth, route(async (req, res) => {
   const { id, action } = req.params;
   if (!/^[a-f0-9]{12,64}$/.test(id) || !['start', 'stop', 'restart'].includes(action)) {
     return res.status(400).json({ error: 'Requête invalide' });
@@ -345,6 +426,14 @@ app.post('/api/docker/containers/:id/:action', requireAuth, async (req, res) => 
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
+}));
+
+// Dernier filet : toute erreur non gérée devient une réponse JSON au lieu de faire tomber le serveur.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(`[${req.method} ${req.path}]`, err);
+  res.status(status).json({ error: status >= 500 ? err.message || 'Erreur serveur' : 'Requête invalide' });
 });
 
 app.listen(PORT, () => console.log(`Server Dashboard sur http://localhost:${PORT}`));

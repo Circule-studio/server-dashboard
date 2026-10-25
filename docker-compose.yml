@@ -9,6 +9,7 @@ services:
       # Valeurs lues dans le fichier .env (voir .env.example), jamais écrites ici
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Définis ADMIN_PASSWORD dans le fichier .env}
       - SERVER_NAME=${SERVER_NAME:-mon-serveur}
+      - REQUIRE_LOGIN=${REQUIRE_LOGIN:-false}
       # Disque affiché dans les stats : la racine de l'hôte montée en lecture seule
       - DISK_PATH=/host
     volumes:

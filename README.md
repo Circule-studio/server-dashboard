@@ -88,10 +88,14 @@ Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIB
 | `SERVER_NAME` | nom de la machine | Nom affiché à côté du titre (utile en Docker) |
 | `DISK_PATH` | `/` (`C:\` sous Windows) | Chemin dont on affiche l'occupation disque |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
+| `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
+| `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
 
 ## Sécurité
 
+- Les tentatives de connexion sont limitées à 10 par IP toutes les 15 minutes. Changer `ADMIN_PASSWORD` déconnecte toutes les sessions ouvertes.
+- Par défaut, le dashboard est lisible sans connexion (seule la modification est protégée). Si tu l’exposes en dehors de ton réseau, mets `REQUIRE_LOGIN=true`.
 - Monter `/var/run/docker.sock` donne au conteneur un accès équivalent à root sur l'hôte. Les actions Docker exigent d'être connecté, mais n'expose pas le dashboard directement sur Internet : place-le derrière un reverse proxy en HTTPS (Nginx Proxy Manager, Caddy, Traefik) ou derrière un VPN (WireGuard, Tailscale).
 - Pour un panneau Docker en lecture seule, utilise un proxy de socket comme `tecnativa/docker-socket-proxy` et pointe `DOCKER_SOCKET` dessus (ou retire simplement le volume).
 
