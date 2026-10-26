@@ -99,9 +99,13 @@ function render() {
   const board = $('#board');
   board.replaceChildren();
 
-  if (!cfg.categories.length) {
+  $('#pwBanner').hidden = !(state.authed && state.defaultPassword);
+
+  if (!cfg.categories.length && !cfg.widgets?.length && !state.editing) {
+    board.append(welcomeCard());
+  } else if (!cfg.categories.length) {
     board.append(h('div', { class: 'empty' },
-      state.authed ? 'Aucune catégorie. Passe en mode édition pour en ajouter.' : 'Aucune application configurée.'));
+      state.editing ? 'Aucune catégorie : clique sur « + Catégorie » pour en créer une.' : 'Aucune application configurée.'));
   }
 
   cfg.categories.forEach((cat, ci) => {
@@ -126,6 +130,23 @@ function render() {
   });
 
   renderWidgets();
+}
+
+// Écran d'accueil d'un dashboard encore vide (première installation).
+function welcomeCard() {
+  const step = (done, text) => h('li', { class: done ? 'done' : '' }, text);
+  return h('section', { class: 'welcome' },
+    h('h2', {}, 'Bienvenue sur Server Dashboard 👋'),
+    h('p', { class: 'muted' }, 'Ton tableau de bord est vide pour l\'instant. Trois étapes pour le remplir :'),
+    h('ol', {},
+      step(state.authed, state.authed ? 'Connexion réussie.' : 'Connecte-toi avec le mot de passe admin (bouton en haut à droite).'),
+      step(false, 'Clique sur « Éditer », puis « + Catégorie » pour regrouper tes services, et « + Ajouter une app ».'),
+      step(false, 'Ajoute des widgets (Proxmox, Pulse, Jellyfin…) avec « + Widget » et choisis tes disques avec « Disques ».')),
+    h('div', { class: 'welcome-actions' },
+      state.authed
+        ? h('button', { class: 'btn btn-primary', onclick: startEditing }, 'Commencer')
+        : h('button', { class: 'btn btn-primary', onclick: onAuthClick }, 'Se connecter'),
+      h('a', { class: 'btn btn-ghost', href: 'https://github.com/Circule-studio/server-dashboard#readme', target: '_blank', rel: 'noopener' }, 'Documentation')));
 }
 
 function statusDot(app) {
@@ -741,6 +762,7 @@ async function submitLogin(e) {
     if (state.loginRequired && !state.config) return location.reload();
     state.authed = true;
     state.config = await api('/api/config'); // inclut maintenant les champs réservés aux admins
+    state.defaultPassword = (await api('/api/me')).defaultPassword;
     $('#loginDialog').close();
     render();
     renderDocker();
@@ -943,6 +965,7 @@ async function init() {
 
   const me = await api('/api/me');
   state.authed = me.authenticated;
+  state.defaultPassword = me.defaultPassword;
   state.loginRequired = me.loginRequired;
   if (state.loginRequired && !state.authed) return showLoginGate();
 

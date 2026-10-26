@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Modifié
+- Première installation : config vide et **écran d’accueil** en trois étapes, au lieu de tuiles d’exemple qui s’affichaient en rouge (#30).
+
+### Sécurité
+- Bandeau d’avertissement pour l’admin connecté tant que le mot de passe par défaut `admin` est utilisé (jamais révélé aux visiteurs).
+
 ## [0.4.1] - 2026-10-26
 
 ### Corrigé

@@ -286,3 +286,20 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 .pulse-counts { margin: -4px 0 10px; font-size: 0.82rem; }
 .widget-pulse .badge { color: var(--muted); background: rgba(255, 255, 255, 0.06); padding: 0 6px; font-size: 0.68rem; }
 .widget-pulse .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
+
+/* ---------- Écran d'accueil et bandeau mot de passe ---------- */
+.welcome {
+  max-width: 640px; margin: 8px auto; padding: 28px 30px; border-radius: var(--radius);
+  background: var(--card); border: 1px solid var(--border);
+}
+.welcome h2 { margin: 0 0 6px; font-size: 1.35rem; }
+.welcome ol { margin: 16px 0 22px; padding-left: 22px; display: grid; gap: 10px; }
+.welcome li { padding-left: 4px; }
+.welcome li.done { color: var(--ok); }
+.welcome li.done::marker { content: "✓  "; }
+.welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.banner {
+  margin: 0 0 18px; padding: 10px 14px; border-radius: var(--radius); font-size: 0.9rem;
+  color: var(--warn); background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.banner code { color: var(--text); background: rgba(255, 255, 255, 0.06); padding: 1px 5px; border-radius: 5px; }
