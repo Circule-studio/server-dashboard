@@ -36,7 +36,9 @@ jobs:
         working-directory: server-dashboard
         run: |
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me && break; sleep 1; done
-          echo "Version dans l'image : $(docker compose exec -T dashboard node -p 'require(\"./package.json\").version')"
+          version=$(docker compose exec -T dashboard node -p "require('./package.json').version")
+          echo "Version dans l'image : $version"
+          test -n "$version"
           curl -fsS http://127.0.0.1:7575/ | grep -q "Server Dashboard"
           curl -fsS -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
           curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"available":true'
