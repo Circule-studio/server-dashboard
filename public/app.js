@@ -1,4 +1,5 @@
 // Server Dashboard — interface web
+// Les textes affichés passent par t() (voir i18n.js).
 const $ = (sel) => document.querySelector(sel);
 
 const state = {
@@ -31,30 +32,34 @@ async function api(path, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || `Erreur ${res.status}`), { status: res.status, code: data.code });
+  if (!res.ok) {
+    throw Object.assign(new Error(data.error || t('common.error', { status: res.status })),
+      { status: res.status, code: data.code, params: data.params });
+  }
   return data;
 }
 
 let toastTimer;
 function toast(msg, isError = false) {
-  const t = $('#toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (isError ? ' error' : '');
+  const el = $('#toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.className = 'toast'), 2800);
+  toastTimer = setTimeout(() => (el.className = 'toast'), 2800);
 }
+
+const BYTE_UNITS = t('unit.bytes').split(',');
 
 const fmtBytes = (b) => {
   if (!b && b !== 0) return '–';
-  const u = ['o', 'Ko', 'Mo', 'Go', 'To'];
   let i = 0;
-  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
-  return `${b.toFixed(b >= 10 || i === 0 ? 0 : 1)} ${u[i]}`;
+  while (b >= 1024 && i < BYTE_UNITS.length - 1) { b /= 1024; i++; }
+  return `${b.toFixed(b >= 10 || i === 0 ? 0 : 1)} ${BYTE_UNITS[i]}`;
 };
 
 const fmtUptime = (s) => {
   const d = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
-  return d ? `${d} j ${hh} h` : hh ? `${hh} h ${m} min` : `${m} min`;
+  return d ? `${d} ${t('unit.day')} ${hh} h` : hh ? `${hh} h ${m} min` : `${m} min`;
 };
 
 const uid = (p) => `${p}-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)}`;
@@ -94,7 +99,7 @@ function render() {
   document.body.classList.toggle('editing', state.editing);
   $('#editBar').hidden = !state.editing;
   $('#editBtn').hidden = !state.authed || state.editing;
-  $('#authBtn').textContent = state.authed ? 'Déconnexion' : 'Connexion';
+  $('#authBtn').textContent = state.authed ? t('btn.logout') : t('btn.login');
 
   const board = $('#board');
   board.replaceChildren();
@@ -104,8 +109,7 @@ function render() {
   if (!cfg.categories.length && !cfg.widgets?.length && !state.editing) {
     board.append(welcomeCard());
   } else if (!cfg.categories.length) {
-    board.append(h('div', { class: 'empty' },
-      state.editing ? 'Aucune catégorie : clique sur « + Catégorie » pour en créer une.' : 'Aucune application configurée.'));
+    board.append(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
   }
 
   cfg.categories.forEach((cat, ci) => {
@@ -113,17 +117,17 @@ function render() {
     const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
     if (state.editing) {
       head.append(h('div', { class: 'category-tools' },
-        h('button', { class: 'icon-btn', title: 'Monter', disabled: ci === 0, onclick: () => moveCategory(ci, -1) }, '↑'),
-        h('button', { class: 'icon-btn', title: 'Descendre', disabled: ci === cfg.categories.length - 1, onclick: () => moveCategory(ci, 1) }, '↓'),
-        h('button', { class: 'icon-btn', title: 'Renommer', onclick: () => renameCategory(ci) }, '✎'),
-        h('button', { class: 'icon-btn danger', title: 'Supprimer', onclick: () => deleteCategory(ci) }, '✕'),
+        h('button', { class: 'icon-btn', title: t('tool.up'), disabled: ci === 0, onclick: () => moveCategory(ci, -1) }, '↑'),
+        h('button', { class: 'icon-btn', title: t('tool.down'), disabled: ci === cfg.categories.length - 1, onclick: () => moveCategory(ci, 1) }, '↓'),
+        h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
+        h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
       ));
     }
 
     const grid = h('div', { class: 'grid', 'data-cat': ci });
     cat.apps.forEach((app, ai) => grid.append(tileEl(app, ci, ai)));
     if (state.editing) {
-      grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, '+ Ajouter une app'));
+      grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
       bindGridDrop(grid, ci);
     }
     board.append(h('section', { class: 'category' }, head, grid));
@@ -136,25 +140,28 @@ function render() {
 function welcomeCard() {
   const step = (done, text) => h('li', { class: done ? 'done' : '' }, text);
   return h('section', { class: 'welcome' },
-    h('h2', {}, 'Bienvenue sur Server Dashboard 👋'),
-    h('p', { class: 'muted' }, 'Ton tableau de bord est vide pour l\'instant. Trois étapes pour le remplir :'),
+    h('h2', {}, t('welcome.title')),
+    h('p', { class: 'muted' }, t('welcome.intro')),
     h('ol', {},
-      step(state.authed, state.authed ? 'Connexion réussie.' : 'Connecte-toi avec le mot de passe admin (bouton en haut à droite).'),
-      step(false, 'Clique sur « Éditer », puis « + Catégorie » pour regrouper tes services, et « + Ajouter une app ».'),
-      step(false, 'Ajoute des widgets (Proxmox, Pulse, Jellyfin…) avec « + Widget » et choisis tes disques avec « Disques ».')),
+      step(state.authed, state.authed ? t('welcome.step1Done') : t('welcome.step1')),
+      step(false, t('welcome.step2')),
+      step(false, t('welcome.step3'))),
     h('div', { class: 'welcome-actions' },
       state.authed
-        ? h('button', { class: 'btn btn-primary', onclick: startEditing }, 'Commencer')
-        : h('button', { class: 'btn btn-primary', onclick: onAuthClick }, 'Se connecter'),
-      h('a', { class: 'btn btn-ghost', href: 'https://github.com/Circule-studio/server-dashboard#readme', target: '_blank', rel: 'noopener' }, 'Documentation')));
+        ? h('button', { class: 'btn btn-primary', onclick: startEditing }, t('welcome.start'))
+        : h('button', { class: 'btn btn-primary', onclick: onAuthClick }, t('welcome.login')),
+      h('a', { class: 'btn btn-ghost', href: 'https://github.com/Circule-studio/server-dashboard#readme', target: '_blank', rel: 'noopener' }, t('welcome.docs'))));
 }
 
 function statusDot(app) {
   const s = state.status[app.id];
-  if (!s) return h('span', { class: 'dot', title: 'Vérification…' });
-  if (!s.online) return h('span', { class: 'dot bad', title: `Hors ligne${s.error ? ' : ' + s.error : ''}` });
+  if (!s) return h('span', { class: 'dot', title: t('status.checking') });
+  if (!s.online) {
+    const why = s.errorCode ? errMsg({ code: s.errorCode }) : s.error;
+    return h('span', { class: 'dot bad', title: `${t('status.offline')}${why ? ' : ' + why : ''}` });
+  }
   const slow = s.ms > 1500;
-  return h('span', { class: `dot ${slow ? 'warn' : 'ok'}`, title: `En ligne · HTTP ${s.code} · ${s.ms} ms` });
+  return h('span', { class: `dot ${slow ? 'warn' : 'ok'}`, title: `${t('status.online')} · HTTP ${s.code} · ${s.ms} ms` });
 }
 
 function tileEl(app, ci, ai) {
@@ -170,8 +177,8 @@ function tileEl(app, ci, ai) {
   const tile = h('div', { class: 'tile', draggable: 'true', 'data-cat': ci, 'data-app': ai },
     iconEl(app), text,
     h('div', { class: 'tile-tools' },
-      h('button', { class: 'icon-btn', title: 'Modifier', onclick: () => openAppDialog(ci, ai) }, '✎'),
-      h('button', { class: 'icon-btn danger', title: 'Supprimer', onclick: () => deleteApp(ci, ai) }, '✕')));
+      h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openAppDialog(ci, ai) }, '✎'),
+      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteApp(ci, ai) }, '✕')));
 
   tile.addEventListener('dragstart', (e) => {
     dragged = { ci, ai };
@@ -195,27 +202,24 @@ function tileEl(app, ci, ai) {
 }
 
 // ---------- Widgets d'intégration ----------
+// keyLabel, keyHelp, userLabel… sont des clés de traduction.
 const WIDGET_TYPES = {
   pulse: {
     label: 'Pulse', icon: 'pulse', kind: 'pulse', refresh: 15_000, port: 7655,
-    keyLabel: 'Jeton d\'API', keyHelp: 'Pulse > Paramètres > API Access : jeton avec le scope monitoring:read.',
-    sections: [
-      { id: 'health', label: 'Santé et compteurs', short: 'Santé' },
-      { id: 'alerts', label: 'Alertes actives', short: 'Alertes' },
-      { id: 'resources', label: 'Nœuds, VM et conteneurs LXC', short: 'VM et LXC' },
-    ],
+    keyLabel: 'key.pulse', keyHelp: 'key.pulseHelp',
+    sections: ['health', 'alerts', 'resources'],
   },
   proxmox: {
     label: 'Proxmox VE', icon: 'proxmox', kind: 'proxmox', refresh: 10_000, fields: ['url', 'username', 'apiKey'],
     scheme: 'https', port: 8006,
-    userLabel: 'Identifiant du jeton', userHelp: 'Ex. root@pam!dashboard', userRequired: true,
-    keyLabel: 'Secret du jeton', keyHelp: 'Datacenter > Permissions > API Tokens (rôle PVEAuditor, lecture seule).',
+    userLabel: 'key.proxmoxUser', userHelp: 'key.proxmoxUserHelp', userRequired: true,
+    keyLabel: 'key.proxmox', keyHelp: 'key.proxmoxHelp',
   },
-  jellyfin: { label: 'Jellyfin', icon: 'jellyfin', kind: 'media', refresh: 10_000, keyLabel: 'Clé API', keyHelp: 'Jellyfin > Tableau de bord > Clés API.', port: 8096 },
-  plex: { label: 'Plex', icon: 'plex', kind: 'media', refresh: 10_000, keyLabel: 'Token Plex', keyHelp: 'Valeur X-Plex-Token de ton compte (doc Plex : « Finding an authentication token »).', port: 32400 },
+  jellyfin: { label: 'Jellyfin', icon: 'jellyfin', kind: 'media', refresh: 10_000, keyHelp: 'key.jellyfinHelp', port: 8096 },
+  plex: { label: 'Plex', icon: 'plex', kind: 'media', refresh: 10_000, keyLabel: 'key.plex', keyHelp: 'key.plexHelp', port: 32400 },
   qbittorrent: { label: 'qBittorrent', icon: 'qbittorrent', kind: 'torrent', refresh: 5_000, fields: ['url', 'username', 'password'], port: 8080 },
-  sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyLabel: 'Clé API', keyHelp: 'Sonarr > Settings > General > API Key.', port: 8989 },
-  radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyLabel: 'Clé API', keyHelp: 'Radarr > Settings > General > API Key.', port: 7878 },
+  sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 8989 },
+  radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 7878 },
 };
 const fieldsOf = (type) => WIDGET_TYPES[type].fields || ['url', 'apiKey'];
 
@@ -234,10 +238,10 @@ function fmtDay(iso) {
   const diff = Math.round((new Date(d).setHours(0, 0, 0, 0) - today) / 864e5);
   // Les dates Radarr sont à minuit UTC : l'heure n'a pas de sens.
   const time = d.getUTCHours() || d.getUTCMinutes()
-    ? ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-  if (diff === 0) return `Aujourd'hui${time}`;
-  if (diff === 1) return `Demain${time}`;
-  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + time;
+    ? ' ' + d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }) : '';
+  if (diff === 0) return `${t('day.today')}${time}`;
+  if (diff === 1) return `${t('day.tomorrow')}${time}`;
+  return d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }) + time;
 }
 
 function progressBar(p, cls = '') {
@@ -247,7 +251,7 @@ function progressBar(p, cls = '') {
 const RENDERERS = {
   media: (d) => [
     h('div', { class: 'widget-stats' }, d.stats.map((s) =>
-      h('div', {}, h('b', {}, (s.value ?? 0).toLocaleString('fr-FR')), h('span', {}, s.label)))),
+      h('div', {}, h('b', {}, (s.value ?? 0).toLocaleString(LOCALE)), h('span', {}, t(`stat.${s.key}`))))),
     d.sessions.length
       ? h('ul', { class: 'widget-list' }, d.sessions.map((s) => h('li', {},
         h('div', { class: 'row' },
@@ -255,77 +259,73 @@ const RENDERERS = {
           h('span', { class: 'muted' }, s.user || '')),
         h('div', { class: 'item-sub' }, [s.subtitle, s.device].filter(Boolean).join(' · ')),
         progressBar(s.progress, s.paused ? 'warn' : ''))))
-      : h('p', { class: 'muted' }, 'Aucune lecture en cours.'),
+      : h('p', { class: 'muted' }, t('media.nothing')),
   ],
 
   torrent: (d) => [
     h('div', { class: 'widget-stats' },
-      h('div', {}, h('b', {}, fmtSpeed(d.download)), h('span', {}, '↓ Reçu')),
-      h('div', {}, h('b', {}, fmtSpeed(d.upload)), h('span', {}, '↑ Envoyé')),
-      h('div', {}, h('b', {}, `${d.counts.downloading} / ${d.counts.seeding}`), h('span', {}, 'DL / seed'))),
+      h('div', {}, h('b', {}, fmtSpeed(d.download)), h('span', {}, t('torrent.down'))),
+      h('div', {}, h('b', {}, fmtSpeed(d.upload)), h('span', {}, t('torrent.up'))),
+      h('div', {}, h('b', {}, `${d.counts.downloading} / ${d.counts.seeding}`), h('span', {}, t('torrent.dlSeed')))),
     d.torrents.length
-      ? h('ul', { class: 'widget-list' }, d.torrents.map((t) => h('li', {},
+      ? h('ul', { class: 'widget-list' }, d.torrents.map((tor) => h('li', {},
         h('div', { class: 'row' },
-          h('span', { class: 'item-title', title: t.name }, t.name),
-          h('span', { class: 'muted' }, pct(t.progress))),
-        h('div', { class: 'item-sub' }, t.group === 'downloading'
-          ? `↓ ${fmtSpeed(t.dlspeed)} · reste ${fmtEta(t.eta)}`
-          : t.group === 'seeding' ? `↑ ${fmtSpeed(t.upspeed)} · ${fmtBytes(t.size)}`
-            : t.group === 'error' ? 'Erreur' : `En pause · ${fmtBytes(t.size)}`),
-        progressBar(t.progress, t.group === 'error' ? 'bad' : t.group === 'paused' ? 'warn' : ''))))
-      : h('p', { class: 'muted' }, 'Aucun torrent.'),
+          h('span', { class: 'item-title', title: tor.name }, tor.name),
+          h('span', { class: 'muted' }, pct(tor.progress))),
+        h('div', { class: 'item-sub' }, tor.group === 'downloading'
+          ? `↓ ${fmtSpeed(tor.dlspeed)} · ${t('torrent.left', { eta: fmtEta(tor.eta) })}`
+          : tor.group === 'seeding' ? `↑ ${fmtSpeed(tor.upspeed)} · ${fmtBytes(tor.size)}`
+            : tor.group === 'error' ? t('torrent.error') : `${t('torrent.paused')} · ${fmtBytes(tor.size)}`),
+        progressBar(tor.progress, tor.group === 'error' ? 'bad' : tor.group === 'paused' ? 'warn' : ''))))
+      : h('p', { class: 'muted' }, t('torrent.none')),
   ],
 
   pulse: (d) => {
-    const VERDICTS = [
-      ['ok', 'OK', 'ok'], ['attention', 'Attention', 'warn'], ['critical', 'Critique', 'bad'],
-      ['stale', 'Sans données', 'warn'], ['off', 'Éteints', ''],
-    ];
-    const verdictDot = (v) => (VERDICTS.find(([k]) => k === v) || [, , ''])[2];
+    const VERDICTS = [['ok', 'ok'], ['attention', 'warn'], ['critical', 'bad'], ['stale', 'warn'], ['off', '']];
+    const verdictDot = (v) => (VERDICTS.find(([k]) => k === v) || [, ''])[1];
     const levelDot = { critical: 'bad', warning: 'warn', info: '' };
-    const reason = (code) => ({ offline: 'hors ligne', stale: 'pas de données récentes', unknown: 'état inconnu' }[code]
-      || code.replace(/[-_]/g, ' '));
+    const reason = (code) => (I18N[LANG][`pulse.reason.${code}`] ? t(`pulse.reason.${code}`) : code.replace(/[-_]/g, ' '));
+    const typeLabel = (type) => (I18N[LANG][`pulse.type.${type}`] ? t(`pulse.type.${type}`) : type);
     const ago = (iso) => {
       const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
-      return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} j`;
+      return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
     };
     const blocks = [];
     const many = d.sections.length > 1;
 
     if (d.health) {
       const { verdicts, counts, attention } = d.health;
-      if (many) blocks.push(h('div', { class: 'widget-subhead' }, 'Santé'));
+      if (many) blocks.push(h('div', { class: 'widget-subhead' }, t('pulse.health')));
       blocks.push(h('div', { class: 'widget-stats pulse-verdicts' }, VERDICTS
         .filter(([k]) => k !== 'stale' || verdicts.stale)
-        .map(([k, label, cls]) => h('div', { class: `verdict-${cls || 'off'}` },
-          h('b', {}, String(verdicts[k] || 0)), h('span', {}, label)))));
+        .map(([k, cls]) => h('div', { class: `verdict-${cls || 'off'}` },
+          h('b', {}, String(verdicts[k] || 0)), h('span', {}, t(`pulse.verdict.${k}`))))));
       blocks.push(h('p', { class: 'pulse-counts muted' }, [
-        `${counts.nodes} nœud${counts.nodes > 1 ? 's' : ''}`, `${counts.vms} VM`,
-        `${counts.containers} conteneur${counts.containers > 1 ? 's' : ''}`,
-        counts.docker ? `${counts.docker} hôte${counts.docker > 1 ? 's' : ''} Docker` : null,
+        tp('pulse.nodes', counts.nodes), t('pulse.vms', { count: counts.vms }), tp('pulse.containers', counts.containers),
+        counts.docker ? tp('pulse.docker', counts.docker) : null,
       ].filter(Boolean).join(' · ')));
       if (attention.length) {
         blocks.push(h('ul', { class: 'widget-list' }, attention.map((a) => h('li', {},
           h('div', { class: 'row' },
-            h('span', { class: 'item-title' }, h('span', { class: `dot ${verdictDot(a.verdict)}` }), ` ${a.name}`),
+            h('span', { class: 'item-title', title: typeLabel(a.type) }, h('span', { class: `dot ${verdictDot(a.verdict)}` }), ` ${a.name}`),
             h('span', { class: 'muted' }, reason(a.reason)))))));
       }
     }
 
     if (d.alerts) {
-      if (many) blocks.push(h('div', { class: 'widget-subhead' }, `Alertes actives · ${d.alerts.length}`));
+      if (many) blocks.push(h('div', { class: 'widget-subhead' }, t('pulse.alerts', { count: d.alerts.length })));
       blocks.push(d.alerts.length
         ? h('ul', { class: 'widget-list' }, d.alerts.map((a) => h('li', {},
           h('div', { class: 'row' },
             h('span', { class: 'item-title', title: a.text },
               h('span', { class: `dot ${levelDot[a.level] ?? ''}` }), ` ${a.resource}`),
-            h('span', { class: 'muted' }, a.acknowledged ? 'acquittée' : `depuis ${ago(a.since)}`)),
+            h('span', { class: 'muted' }, a.acknowledged ? t('pulse.acknowledged') : t('pulse.since', { duration: ago(a.since) }))),
           h('div', { class: 'item-sub' }, a.text))))
-        : h('p', { class: 'muted' }, '✓ Aucune alerte active.'));
+        : h('p', { class: 'muted' }, t('pulse.noAlerts')));
     }
 
     if (d.resources) {
-      if (many) blocks.push(h('div', { class: 'widget-subhead' }, 'Nœuds, VM et LXC'));
+      if (many) blocks.push(h('div', { class: 'widget-subhead' }, t('pulse.resources')));
       const fmt = (v) => (v == null ? '–' : `${Math.round(v)} %`);
       blocks.push(d.resources.length
         ? h('ul', { class: 'widget-list' }, d.resources.map((r) => {
@@ -333,10 +333,10 @@ const RENDERERS = {
           return h('li', {},
             h('div', { class: 'row' },
               h('span', { class: 'item-title', title: r.parent ? `${r.name} (${r.parent})` : r.name },
-                h('span', { class: `dot ${dot}` }), ' ', h('span', { class: 'badge' }, r.type), ` ${r.name}`),
-              h('span', { class: 'muted' }, r.status === 'offline' ? 'arrêté' : `${fmt(r.cpu)} CPU · ${fmt(r.mem)} RAM`)));
+                h('span', { class: `dot ${dot}` }), ' ', h('span', { class: 'badge' }, typeLabel(r.type)), ` ${r.name}`),
+              h('span', { class: 'muted' }, r.status === 'offline' ? t('pulse.stopped') : `${fmt(r.cpu)} CPU · ${fmt(r.mem)} RAM`)));
         }))
-        : h('p', { class: 'muted' }, 'Aucune ressource.'));
+        : h('p', { class: 'muted' }, t('pulse.noResources')));
     }
     return blocks;
   },
@@ -352,46 +352,50 @@ const RENDERERS = {
       ...d.nodes.map((n) => h('div', { class: 'pve-node' },
         h('div', { class: 'row' },
           h('span', { class: 'item-title' }, h('span', { class: `dot ${n.online ? 'ok' : 'bad'}` }), ` ${n.name}`),
-          h('span', { class: 'muted' }, n.online ? `en ligne depuis ${fmtUptime(n.uptime)}` : 'hors ligne')),
+          h('span', { class: 'muted' }, n.online ? t('pve.onlineFor', { duration: fmtUptime(n.uptime) }) : t('pve.offline'))),
         n.online ? [
-          meter('CPU', n.cpu, `${pct(n.cpu)} · ${n.cores} cœurs`),
+          meter('CPU', n.cpu, `${pct(n.cpu)} · ${t('pve.cores', { count: n.cores })}`),
           meter('RAM', n.mem / n.maxmem, `${fmtBytes(n.mem)} / ${fmtBytes(n.maxmem)}`),
-          meter('Disque', n.disk / n.maxdisk, `${fmtBytes(n.disk)} / ${fmtBytes(n.maxdisk)}`),
+          meter(t('pve.disk'), n.disk / n.maxdisk, `${fmtBytes(n.disk)} / ${fmtBytes(n.maxdisk)}`),
         ] : null)),
-      h('div', { class: 'widget-subhead' }, `VM et conteneurs · ${d.running} / ${d.guests.length} démarrés`),
+      h('div', { class: 'widget-subhead' }, t('pve.guests', { running: d.running, total: d.guests.length })),
       d.guests.length
         ? h('ul', { class: 'widget-list' }, d.guests.map((g) => h('li', {},
           h('div', { class: 'row' },
             h('span', { class: 'item-title', title: `${g.type} ${g.id} · ${g.name}` },
               h('span', { class: `dot ${g.running ? 'ok' : ''}` }), ' ',
               h('span', { class: 'badge' }, g.type), ` ${g.id} · ${g.name}`),
-            h('span', { class: 'muted' }, g.running ? `${pct(g.cpu)} CPU · ${pct(g.mem)} RAM` : 'arrêté')),
+            h('span', { class: 'muted' }, g.running ? `${pct(g.cpu)} CPU · ${pct(g.mem)} RAM` : t('pve.stopped'))),
           multiNode ? h('div', { class: 'item-sub' }, g.node) : null)))
-        : h('p', { class: 'muted' }, 'Aucune VM ni conteneur.'),
-      d.storages.length ? h('div', { class: 'widget-subhead' }, 'Stockages') : null,
+        : h('p', { class: 'muted' }, t('pve.noGuests')),
+      d.storages.length ? h('div', { class: 'widget-subhead' }, t('pve.storages')) : null,
       ...d.storages.map((s) => meter(multiNode ? `${s.name} (${s.node})` : s.name, s.used / s.total,
         `${fmtBytes(s.used)} / ${fmtBytes(s.total)}`)),
     ];
   },
 
   arr: (d) => [
-    h('div', { class: 'widget-subhead' }, 'À venir'),
+    h('div', { class: 'widget-subhead' }, t('arr.upcoming')),
     d.upcoming.length
-      ? h('ul', { class: 'widget-list' }, d.upcoming.map((e) => h('li', {},
-        h('div', { class: 'row' },
-          h('span', { class: 'item-title', title: e.title }, e.title),
-          h('span', { class: e.hasFile ? 'badge ok' : 'muted' }, e.hasFile ? 'Disponible' : fmtDay(e.date))),
-        h('div', { class: 'item-sub' }, e.subtitle))))
-      : h('p', { class: 'muted' }, 'Rien de prévu.'),
-    h('div', { class: 'widget-subhead' }, `File d'attente · ${d.queue.total}`),
+      ? h('ul', { class: 'widget-list' }, d.upcoming.map((e) => {
+        const title = e.title || t('arr.unknownSeries');
+        const sub = e.subtitle ?? [e.year, e.release && t(`arr.release.${e.release}`)].filter(Boolean).join(' · ');
+        return h('li', {},
+          h('div', { class: 'row' },
+            h('span', { class: 'item-title', title }, title),
+            h('span', { class: e.hasFile ? 'badge ok' : 'muted' }, e.hasFile ? t('arr.available') : fmtDay(e.date))),
+          h('div', { class: 'item-sub' }, sub));
+      }))
+      : h('p', { class: 'muted' }, t('arr.nothing')),
+    h('div', { class: 'widget-subhead' }, t('arr.queue', { count: d.queue.total })),
     d.queue.items.length
       ? h('ul', { class: 'widget-list' }, d.queue.items.map((q) => h('li', {},
         h('div', { class: 'row' },
           h('span', { class: 'item-title', title: q.title }, q.title),
           h('span', { class: 'muted' }, pct(q.progress))),
-        h('div', { class: 'item-sub' }, [q.status, q.timeleft && `reste ${q.timeleft}`].filter(Boolean).join(' · ')),
+        h('div', { class: 'item-sub' }, [q.status, q.timeleft && t('torrent.left', { eta: q.timeleft })].filter(Boolean).join(' · ')),
         progressBar(q.progress))))
-      : h('p', { class: 'muted' }, 'Aucun téléchargement.'),
+      : h('p', { class: 'muted' }, t('arr.noDownloads')),
   ],
 };
 
@@ -403,19 +407,19 @@ function renderWidgets() {
 }
 
 function widgetCard(w, i, count) {
-  const t = WIDGET_TYPES[w.type];
+  const type = WIDGET_TYPES[w.type];
   const head = h('div', { class: 'widget-head' },
-    iconEl({ name: w.name, icon: t.icon }),
-    h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || t.label));
-  const card = h('article', { class: `widget widget-${t.kind}`, 'data-widget': w.id }, head, widgetBody(w));
+    iconEl({ name: w.name, icon: type.icon }),
+    h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label));
+  const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
 
   // Les flèches restent utiles sur écran tactile, où le glisser-déposer HTML5 ne marche pas.
   head.append(h('div', { class: 'tile-tools' },
-    h('button', { class: 'icon-btn', title: 'Vers la gauche', disabled: i === 0, onclick: () => moveWidget(i, i - 1) }, '←'),
-    h('button', { class: 'icon-btn', title: 'Vers la droite', disabled: i === count - 1, onclick: () => moveWidget(i, i + 2) }, '→'),
-    h('button', { class: 'icon-btn', title: 'Modifier', onclick: () => openWidgetDialog(i) }, '✎'),
-    h('button', { class: 'icon-btn danger', title: 'Supprimer', onclick: () => deleteWidget(i) }, '✕')));
+    h('button', { class: 'icon-btn', title: t('tool.left'), disabled: i === 0, onclick: () => moveWidget(i, i - 1) }, '←'),
+    h('button', { class: 'icon-btn', title: t('tool.right'), disabled: i === count - 1, onclick: () => moveWidget(i, i + 2) }, '→'),
+    h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openWidgetDialog(i) }, '✎'),
+    h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteWidget(i) }, '✕')));
 
   card.draggable = true;
   card.addEventListener('dragstart', (e) => {
@@ -449,8 +453,8 @@ function widgetBody(w) {
   const entry = state.widgetData[w.id];
   const saved = state.config.widgets.some((x) => x.id === w.id);
   let content;
-  if (!saved) content = h('p', { class: 'muted' }, 'Enregistre pour charger les données.');
-  else if (!entry) content = h('p', { class: 'muted' }, 'Chargement…');
+  if (!saved) content = h('p', { class: 'muted' }, t('widget.saveToLoad'));
+  else if (!entry) content = h('p', { class: 'muted' }, t('common.loading'));
   else if (entry.error) content = h('p', { class: 'error' }, `⚠ ${entry.error}`);
   else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data);
   return h('div', { class: 'widget-body' }, content);
@@ -466,7 +470,7 @@ async function refreshWidget(id) {
   try {
     state.widgetData[id] = { data: await api(`/api/widgets/${encodeURIComponent(id)}`) };
   } catch (e) {
-    state.widgetData[id] = { error: e.message };
+    state.widgetData[id] = { error: errMsg(e) };
   }
   updateWidget(id);
 }
@@ -493,7 +497,7 @@ function moveWidget(from, to) {
 
 function deleteWidget(i) {
   const w = state.draft.widgets[i];
-  if (!confirm(`Supprimer le widget « ${w.name} » ?`)) return;
+  if (!confirm(t('widget.deleteConfirm', { name: w.name }))) return;
   state.draft.widgets.splice(i, 1);
   render();
 }
@@ -504,60 +508,60 @@ function openWidgetDialog(i) {
   widgetDialogIndex = i ?? null;
   const w = i != null ? state.draft.widgets[i] : { type: 'jellyfin' };
   const f = $('#widgetForm').elements;
-  $('#widgetDialogTitle').textContent = i != null ? 'Modifier le widget' : 'Nouveau widget';
-  f.type.replaceChildren(...Object.entries(WIDGET_TYPES).map(([k, t]) =>
-    h('option', { value: k, selected: k === w.type }, t.label)));
+  $('#widgetDialogTitle').textContent = i != null ? t('widget.edit') : t('widget.new');
+  f.type.replaceChildren(...Object.entries(WIDGET_TYPES).map(([k, type]) =>
+    h('option', { value: k, selected: k === w.type }, type.label)));
   f.type.disabled = i != null; // changer de type mélangerait les identifiants
   f.name.value = w.name || '';
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
   f.password.value = '';
-  f.apiKey.placeholder = w.hasApiKey ? '•••••••• (inchangée)' : '';
-  f.password.placeholder = w.hasPassword ? '•••••••• (inchangé)' : '';
+  f.apiKey.placeholder = w.hasApiKey ? t('widget.keyUnchanged') : '';
+  f.password.placeholder = w.hasPassword ? t('widget.passwordUnchanged') : '';
   updateWidgetFields();
   $('#widgetDialog').showModal();
 }
 
 function updateWidgetFields() {
   const form = $('#widgetForm');
-  const type = form.elements.type.value;
-  const t = WIDGET_TYPES[type];
-  const fields = fieldsOf(type);
+  const typeId = form.elements.type.value;
+  const type = WIDGET_TYPES[typeId];
+  const fields = fieldsOf(typeId);
   const w = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : {};
   form.querySelectorAll('[data-field]').forEach((label) => {
     const on = fields.includes(label.dataset.field);
     label.hidden = !on;
     label.querySelector('input').disabled = !on;
   });
-  form.querySelector('[data-key-label]').textContent = t.keyLabel || 'Clé API';
-  form.querySelector('[data-key-help]').textContent = t.keyHelp || '';
+  form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
+  form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
   form.elements.apiKey.required = fields.includes('apiKey') && !w.hasApiKey;
-  form.elements.username.required = !!t.userRequired;
-  form.querySelector('[data-user-label]').textContent = t.userLabel || 'Utilisateur';
-  form.elements.username.placeholder = t.userHelp || '';
-  form.elements.url.placeholder = `${t.scheme || 'http'}://192.168.1.10:${t.port}`;
+  form.elements.username.required = !!type.userRequired;
+  form.querySelector('[data-user-label]').textContent = t(type.userLabel || 'widget.username');
+  form.elements.username.placeholder = type.userHelp ? t(type.userHelp) : '';
+  form.elements.url.placeholder = `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
 
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
-  box.hidden = !t.sections;
-  const chosen = w.type === type && w.sections?.length ? w.sections : (t.sections || []).map((s) => s.id);
-  form.querySelector('[data-sections-list]').replaceChildren(...(t.sections || []).map((s) =>
+  box.hidden = !type.sections;
+  const chosen = w.type === typeId && w.sections?.length ? w.sections : (type.sections || []);
+  form.querySelector('[data-sections-list]').replaceChildren(...(type.sections || []).map((s) =>
     h('label', { class: 'check' },
-      h('input', { type: 'checkbox', name: 'section', value: s.id, checked: chosen.includes(s.id) }),
-      s.label)));
+      h('input', { type: 'checkbox', name: 'section', value: s, checked: chosen.includes(s) }),
+      t(`${typeId}.sec.${s}`))));
 }
 
 function submitWidget(e) {
   e.preventDefault();
   const f = e.target.elements;
-  const type = f.type.value;
-  const fields = fieldsOf(type);
+  const typeId = f.type.value;
+  const fields = fieldsOf(typeId);
   const prev = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : null;
   const w = {
     id: prev?.id || uid('wid'),
-    type,
-    name: f.name.value.trim() || WIDGET_TYPES[type].label,
+    type: typeId,
+    name: f.name.value.trim() || WIDGET_TYPES[typeId].label,
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
@@ -565,16 +569,16 @@ function submitWidget(e) {
   if (fields.includes('apiKey')) w.apiKey = f.apiKey.value.trim();
   if (fields.includes('username')) w.username = f.username.value.trim();
   if (fields.includes('password')) w.password = f.password.value;
-  const t = WIDGET_TYPES[type];
-  if (t.sections) {
+  const type = WIDGET_TYPES[typeId];
+  if (type.sections) {
     w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
     if (!w.sections.length) {
-      toast('Coche au moins un bloc à afficher', true);
+      toast(t('widget.sectionsRequired'), true);
       return;
     }
     // Un seul bloc sans nom choisi : « Pulse · Alertes » plutôt que « Pulse ».
     if (!f.name.value.trim() && w.sections.length === 1) {
-      w.name = `${t.label} · ${t.sections.find((s) => s.id === w.sections[0]).short}`;
+      w.name = `${type.label} · ${t(`${typeId}.sec.${w.sections[0]}.short`)}`;
     }
   }
   if (prev) state.draft.widgets[widgetDialogIndex] = w;
@@ -614,20 +618,20 @@ function moveCategory(ci, delta) {
 }
 
 async function renameCategory(ci) {
-  const name = await askText('Renommer la catégorie', 'Nom', state.draft.categories[ci].name);
+  const name = await askText(t('category.rename'), t('common.name'), state.draft.categories[ci].name);
   if (name) { state.draft.categories[ci].name = name; render(); }
 }
 
 function deleteCategory(ci) {
   const cat = state.draft.categories[ci];
-  if (cat.apps.length && !confirm(`Supprimer « ${cat.name} » et ses ${cat.apps.length} app(s) ?`)) return;
+  if (cat.apps.length && !confirm(t('category.deleteConfirm', { name: cat.name, count: cat.apps.length }))) return;
   state.draft.categories.splice(ci, 1);
   render();
 }
 
 function deleteApp(ci, ai) {
   const app = state.draft.categories[ci].apps[ai];
-  if (!confirm(`Supprimer « ${app.name} » ?`)) return;
+  if (!confirm(t('app.deleteConfirm', { name: app.name }))) return;
   state.draft.categories[ci].apps.splice(ai, 1);
   render();
 }
@@ -638,7 +642,7 @@ async function startEditing() {
   try {
     state.config = await api('/api/config');
   } catch (e) {
-    return toast(e.message, true);
+    return toast(errMsg(e), true);
   }
   state.draft = structuredClone(state.config);
   state.editing = true;
@@ -657,23 +661,23 @@ async function save() {
   try {
     state.config = await api('/api/config', { method: 'PUT', body: state.draft });
     stopEditing();
-    toast('Configuration enregistrée');
+    toast(t('save.done'));
     refreshSystem();
     refreshStatus();
     scheduleWidgets();
   } catch (e) {
     if (e.code === 'conflict') {
       // Quelqu'un a enregistré ailleurs : on n'écrase pas son travail.
-      if (confirm(`${e.message}\n\nRecharger la version actuelle ? Tes modifications non enregistrées seront perdues.`)) {
+      if (confirm(`${errMsg(e)}\n\n${t('save.conflictReload')}`)) {
         stopEditing();
         state.config = await api('/api/config');
         render();
         scheduleWidgets();
-        toast('Configuration rechargée');
+        toast(t('save.reloaded'));
       }
       return;
     }
-    toast(e.message, true);
+    toast(errMsg(e), true);
     if (e.status === 401) { state.authed = false; render(); }
   } finally {
     btn.disabled = false;
@@ -706,7 +710,7 @@ function openAppDialog(ci, ai) {
   appDialogTarget = { ci, ai };
   const app = ai != null ? state.draft.categories[ci].apps[ai] : {};
   const form = $('#appForm');
-  $('#appDialogTitle').textContent = ai != null ? 'Modifier l\'application' : 'Nouvelle application';
+  $('#appDialogTitle').textContent = ai != null ? t('app.edit') : t('app.new');
   form.elements.name.value = app.name || '';
   form.elements.url.value = app.url || '';
   form.elements.icon.value = app.icon || '';
@@ -746,7 +750,7 @@ async function onAuthClick() {
     state.authed = false;
     stopEditing();
     renderDocker();
-    toast('Déconnecté');
+    toast(t('login.loggedOut'));
     return;
   }
   $('#loginError').textContent = '';
@@ -766,21 +770,21 @@ async function submitLogin(e) {
     $('#loginDialog').close();
     render();
     renderDocker();
-    toast('Connecté');
+    toast(t('login.loggedIn'));
   } catch (err) {
-    $('#loginError').textContent = err.message;
+    $('#loginError').textContent = errMsg(err);
   }
 }
 
 // ---------- Stats système ----------
-function setStat(id, pct, value, sub) {
+function setStat(id, value, sub, percent = 0) {
   const el = $(id);
   el.querySelector('b').textContent = value;
   el.querySelector('small').textContent = sub;
   const bar = el.querySelector('.bar i');
   if (bar) {
-    bar.style.width = `${Math.min(100, pct)}%`;
-    bar.className = pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : '';
+    bar.style.width = `${Math.min(100, percent)}%`;
+    bar.className = percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : '';
   }
 }
 
@@ -788,13 +792,13 @@ async function refreshSystem() {
   try {
     const s = await api('/api/system');
     $('#host').textContent = s.hostname;
-    setStat('#stat-cpu', s.cpu.usage, `${s.cpu.usage.toFixed(0)} %`,
-      `${s.cpu.cores} cœurs · charge ${s.cpu.load.map((l) => l.toFixed(2)).join(' ')}`);
+    setStat('#stat-cpu', `${s.cpu.usage.toFixed(0)} %`,
+      t('stat.cpuSub', { cores: s.cpu.cores, load: s.cpu.load.map((l) => l.toFixed(2)).join(' ') }), s.cpu.usage);
     const memPct = (s.memory.used / s.memory.total) * 100;
-    setStat('#stat-mem', memPct, `${memPct.toFixed(0)} %`, `${fmtBytes(s.memory.used)} / ${fmtBytes(s.memory.total)}`);
+    setStat('#stat-mem', `${memPct.toFixed(0)} %`, `${fmtBytes(s.memory.used)} / ${fmtBytes(s.memory.total)}`, memPct);
     state.system = s;
     renderDisks(s.disks || [s.disk]);
-    setStat('#stat-up', 0, fmtUptime(s.uptime), s.platform);
+    setStat('#stat-up', fmtUptime(s.uptime), s.platform);
   } catch { /* le serveur est peut-être en train de redémarrer */ }
 }
 
@@ -803,13 +807,14 @@ function renderDisks(disks) {
   const stats = $('#stats');
   stats.querySelectorAll('.stat-disk').forEach((el) => el.remove());
   for (const d of disks) {
-    const pct = d.total ? (d.used / d.total) * 100 : 0;
-    const name = d.label || (disks.length > 1 ? d.path : 'Disque');
+    const percent = d.total ? (d.used / d.total) * 100 : 0;
+    const name = d.label || (disks.length > 1 ? d.path : t('stat.disk'));
+    const error = d.errorCode ? errMsg({ code: d.errorCode }) : d.error;
     stats.insertBefore(h('div', { class: 'stat stat-disk' },
-      h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, d.error ? '–' : `${pct.toFixed(0)} %`)),
-      h('div', { class: 'bar' }, h('i', { class: pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : '', style: `width:${Math.min(100, pct)}%` })),
+      h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, error ? '–' : `${percent.toFixed(0)} %`)),
+      h('div', { class: 'bar' }, h('i', { class: percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : '', style: `width:${Math.min(100, percent)}%` })),
       h('small', { class: 'muted', title: d.path },
-        d.error ? `${d.error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`)),
+        error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`)),
     $('#stat-up'));
   }
 }
@@ -817,14 +822,14 @@ function renderDisks(disks) {
 // ---------- Choix des disques (mode édition) ----------
 async function openDisksDialog() {
   const list = $('#disksList');
-  list.replaceChildren(h('p', { class: 'muted' }, 'Recherche des disques…'));
+  list.replaceChildren(h('p', { class: 'muted' }, t('disks.searching')));
   $('#disksForm').reset();
   $('#disksDialog').showModal();
   let detected = [];
   try {
     detected = await api('/api/disks');
   } catch (e) {
-    list.replaceChildren(h('p', { class: 'error' }, e.message));
+    list.replaceChildren(h('p', { class: 'error' }, errMsg(e)));
     return;
   }
   // Disques déjà affichés : ceux de la config, sinon le disque par défaut renvoyé par /api/system.
@@ -832,15 +837,15 @@ async function openDisksDialog() {
   const rows = [...chosen.map((c) => ({ ...detected.find((d) => d.path === c.path), ...c, checked: true }))];
   for (const d of detected) if (!rows.some((r) => r.path === d.path)) rows.push({ ...d, label: '', checked: false });
   if (!rows.length) {
-    list.replaceChildren(h('p', { class: 'muted' }, 'Aucun disque détecté.'));
+    list.replaceChildren(h('p', { class: 'muted' }, t('disks.none')));
     return;
   }
   list.replaceChildren(...rows.map((r) => h('label', { class: 'disk-row', 'data-path': r.path },
     h('input', { type: 'checkbox', checked: r.checked }),
     h('span', { class: 'disk-info' },
       h('b', {}, r.path),
-      h('small', { class: 'muted' }, r.total ? `${fmtBytes(r.used)} / ${fmtBytes(r.total)}${r.type ? ' · ' + r.type : ''}` : 'non détecté')),
-    h('input', { class: 'disk-label', placeholder: 'Nom (facultatif)', maxlength: 50, value: r.label || '' }))));
+      h('small', { class: 'muted' }, r.total ? `${fmtBytes(r.used)} / ${fmtBytes(r.total)}${r.type ? ' · ' + r.type : ''}` : t('disks.notDetected'))),
+    h('input', { class: 'disk-label', placeholder: t('disks.labelPlaceholder'), maxlength: 50, value: r.label || '' }))));
 }
 
 function submitDisks(e) {
@@ -852,7 +857,7 @@ function submitDisks(e) {
   if (extra && !disks.some((d) => d.path === extra)) disks.push({ path: extra, label: '' });
   state.draft.disks = disks;
   $('#disksDialog').close();
-  toast(disks.length ? `${disks.length} disque(s) sélectionné(s) : clique sur Enregistrer` : 'Disque par défaut rétabli : clique sur Enregistrer');
+  toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
 // ---------- Statut des services ----------
@@ -884,14 +889,14 @@ function renderDocker() {
   if (!d.available) {
     $('#dockerSummary').textContent = '';
     body.replaceChildren(h('p', { class: 'muted' }, /EACCES/.test(d.error || '')
-      ? 'Accès au socket Docker refusé : ajoute l\'utilisateur du dashboard au groupe « docker ».'
-      : `Docker non joignable : ${d.error}`));
+      ? t('docker.eacces')
+      : t('docker.unreachable', { error: d.error })));
     return;
   }
   const running = d.containers.filter((c) => c.state === 'running').length;
-  $('#dockerSummary').textContent = `${running} / ${d.containers.length} en cours d'exécution`;
+  $('#dockerSummary').textContent = t('docker.running', { running, total: d.containers.length });
   if (!d.containers.length) {
-    body.replaceChildren(h('p', { class: 'muted' }, 'Aucun conteneur.'));
+    body.replaceChildren(h('p', { class: 'muted' }, t('docker.none')));
     return;
   }
   body.replaceChildren(h('div', { class: 'containers' }, d.containers.map((c) => {
@@ -900,10 +905,10 @@ function renderDocker() {
     if (state.authed) {
       if (c.state === 'running') {
         actions.append(
-          h('button', { class: 'btn btn-sm', onclick: (e) => dockerAction(c, 'restart', e.target) }, 'Redémarrer'),
-          h('button', { class: 'btn btn-sm', onclick: (e) => dockerAction(c, 'stop', e.target) }, 'Arrêter'));
+          h('button', { class: 'btn btn-sm', onclick: (e) => dockerAction(c, 'restart', e.target) }, t('docker.restart')),
+          h('button', { class: 'btn btn-sm', onclick: (e) => dockerAction(c, 'stop', e.target) }, t('docker.stop')));
       } else {
-        actions.append(h('button', { class: 'btn btn-sm', onclick: (e) => dockerAction(c, 'start', e.target) }, 'Démarrer'));
+        actions.append(h('button', { class: 'btn btn-sm', onclick: (e) => dockerAction(c, 'start', e.target) }, t('docker.start')));
       }
     }
     return h('div', { class: 'container-row' },
@@ -915,39 +920,41 @@ function renderDocker() {
   })));
 }
 
-const ACTION_LABELS = { start: 'démarré', stop: 'arrêté', restart: 'redémarré' };
+const ACTION_DONE = { start: 'docker.started', stop: 'docker.stopped', restart: 'docker.restarted' };
 
 async function dockerAction(c, action, btn) {
   btn.disabled = true;
   btn.textContent = '…';
   try {
     await api(`/api/docker/containers/${c.id}/${action}`, { method: 'POST' });
-    toast(`${c.name} ${ACTION_LABELS[action]}`);
+    toast(t(ACTION_DONE[action], { name: c.name }));
   } catch (e) {
-    toast(e.message, true);
+    toast(errMsg(e), true);
   }
   refreshDocker();
 }
 
 // ---------- Horloge ----------
 function tickClock() {
-  $('#clock').textContent = new Date().toLocaleString('fr-FR', {
+  $('#clock').textContent = new Date().toLocaleString(LOCALE, {
     weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
   });
 }
 
 // ---------- Démarrage ----------
 async function init() {
+  applyStaticI18n();
+  $('#langBtn').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
   $('#editBtn').addEventListener('click', startEditing);
   $('#cancelBtn').addEventListener('click', stopEditing);
   $('#saveBtn').addEventListener('click', save);
   $('#authBtn').addEventListener('click', onAuthClick);
   $('#addCatBtn').addEventListener('click', async () => {
-    const name = await askText('Nouvelle catégorie', 'Nom');
+    const name = await askText(t('category.new'), t('common.name'));
     if (name) { state.draft.categories.push({ id: uid('cat'), name, apps: [] }); render(); }
   });
   $('#renameBoardBtn').addEventListener('click', async () => {
-    const title = await askText('Renommer le tableau', 'Titre', state.draft.title);
+    const title = await askText(t('board.rename'), t('common.title'), state.draft.title);
     if (title) { state.draft.title = title; render(); }
   });
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
@@ -990,10 +997,9 @@ function showBlocker(message, action) {
 }
 
 function showLoginGate() {
-  $('#authBtn').textContent = 'Connexion';
-  showBlocker('Ce dashboard est privé : connecte-toi pour y accéder.',
-    h('button', { class: 'btn btn-primary', onclick: onAuthClick }, 'Se connecter'));
+  $('#authBtn').textContent = t('btn.login');
+  showBlocker(t('gate.private'), h('button', { class: 'btn btn-primary', onclick: onAuthClick }, t('login.submit')));
   onAuthClick();
 }
 
-init().catch((e) => showBlocker(`Erreur de chargement : ${e.message}`));
+init().catch((e) => showBlocker(t('gate.loadError', { error: errMsg(e) })));

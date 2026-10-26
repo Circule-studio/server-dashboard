@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "mocks": "node dev/mocks.js"
+    "mocks": "node dev/mocks.js",
+    "check:i18n": "node dev/check-i18n.js"
   },
   "type": "commonjs",
   "dependencies": {

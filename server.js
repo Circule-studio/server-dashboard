@@ -66,7 +66,7 @@ async function readConfig() {
   try {
     cfg = JSON.parse(text);
   } catch (e) {
-    throw new Error(`data/config.json est invalide (${e.message}). Corrige le fichier : il n'a pas été modifié.`);
+    throw fail('config_invalid', `data/config.json est invalide (${e.message}). Corrige le fichier : il n'a pas été modifié.`, { detail: e.message });
   }
   cfg.widgets ||= [];
   cfg.categories ||= [];
@@ -98,12 +98,15 @@ function writeConfig(cfg) {
   return result;
 }
 
+// Erreur avec un code traduisible par l'interface (err.* dans public/i18n.js).
+const fail = (key, message, params) => Object.assign(new Error(message), { key, params });
+
 const str = (v, max = 500) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 const SECRET_FIELDS = ['apiKey', 'password'];
 
 function checkUrl(url) {
-  if (url && !/^https?:\/\//i.test(url)) throw new Error(`URL invalide : ${url}`);
+  if (url && !/^https?:\/\//i.test(url)) throw fail('invalid_url', `URL invalide : ${url}`, { url });
   return url;
 }
 
@@ -112,7 +115,7 @@ function checkUrl(url) {
 function sanitizeWidgets(list, previous = []) {
   return (Array.isArray(list) ? list : []).map((w) => {
     const type = str(w.type, 32);
-    if (!INTEGRATIONS[type]) throw new Error(`Type de widget inconnu : ${type}`);
+    if (!INTEGRATIONS[type]) throw fail('bad_request', `Type de widget inconnu : ${type}`);
     const id = str(w.id, 64) || 'wid-' + crypto.randomUUID();
     const old = previous.find((p) => p.id === id) || {};
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
@@ -150,7 +153,7 @@ function publicConfig(cfg, authed) {
 }
 
 function sanitizeConfig(input, previous) {
-  if (!input || !Array.isArray(input.categories)) throw new Error('categories manquant');
+  if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
   return {
     revision: (previous?.revision || 0) + 1,
     title: str(input.title, 100) || 'Mon serveur',
@@ -211,7 +214,7 @@ const isAuthed = (req) => !!parseToken(getCookie(req, COOKIE_NAME));
 
 function requireAuth(req, res, next) {
   if (isAuthed(req)) return next();
-  res.status(401).json({ error: 'Non authentifié' });
+  res.status(401).json({ error: 'Non authentifié', code: 'auth_required' });
 }
 
 // Routes de lecture : publiques, sauf si REQUIRE_LOGIN=true.
@@ -254,7 +257,7 @@ async function ping(url, timeout = 5000) {
     // Un 401/403 signifie que le service répond : on le considère en ligne.
     return { online: status < 500, code: status, ms: Date.now() - start };
   } catch (e) {
-    return { online: false, error: e.message, ms: Date.now() - start };
+    return { online: false, error: e.message, errorCode: e.key, ms: Date.now() - start };
   }
 }
 
@@ -322,7 +325,7 @@ async function diskInfo(d) {
   try {
     return { ...d, ...(await statDisk(d.path)) };
   } catch (e) {
-    return { ...d, error: e.code === 'ENOENT' ? 'Chemin introuvable' : e.message };
+    return { ...d, error: e.code === 'ENOENT' ? 'Chemin introuvable' : e.message, errorCode: e.code === 'ENOENT' ? 'path_not_found' : undefined };
   }
 }
 
@@ -403,12 +406,13 @@ app.post('/api/login', (req, res) => {
   const retryAfter = loginRetryAfter(req.ip);
   if (retryAfter) {
     res.setHeader('Retry-After', Math.ceil(retryAfter / 1000));
-    return res.status(429).json({ error: `Trop de tentatives. Réessaie dans ${Math.ceil(retryAfter / 60000)} min.` });
+    const minutes = Math.ceil(retryAfter / 60000);
+    return res.status(429).json({ error: `Trop de tentatives. Réessaie dans ${minutes} min.`, code: 'too_many_attempts', params: { minutes } });
   }
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
   if (!safeEqual(password, ADMIN_PASSWORD)) {
     recordLoginFailure(req.ip);
-    return res.status(401).json({ error: 'Mot de passe incorrect' });
+    return res.status(401).json({ error: 'Mot de passe incorrect', code: 'bad_password' });
   }
   loginFailures.delete(req.ip);
   const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
@@ -443,7 +447,7 @@ app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(asy
   try {
     cfg = sanitizeConfig(req.body, previous);
   } catch (e) {
-    return res.status(400).json({ error: e.message });
+    return res.status(400).json({ error: e.message, code: e.key, params: e.params });
   }
   await writeConfig(cfg);
   resetIntegrations();
@@ -454,11 +458,11 @@ app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(asy
 app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   const cfg = await readConfig();
   const widget = cfg.widgets.find((w) => w.id === req.params.id);
-  if (!widget) return res.status(404).json({ error: 'Widget introuvable' });
+  if (!widget) return res.status(404).json({ error: 'Widget introuvable', code: 'not_found' });
   try {
     res.json(await fetchWidget(widget));
   } catch (e) {
-    res.status(502).json({ error: e.message || 'Erreur inconnue' });
+    res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
   }
 }));
 
@@ -500,7 +504,7 @@ app.get('/api/docker/containers', readAuth, route(async (req, res) => {
 app.post('/api/docker/containers/:id/:action', requireAuth, route(async (req, res) => {
   const { id, action } = req.params;
   if (!/^[a-f0-9]{12,64}$/.test(id) || !['start', 'stop', 'restart'].includes(action)) {
-    return res.status(400).json({ error: 'Requête invalide' });
+    return res.status(400).json({ error: 'Requête invalide', code: 'bad_request' });
   }
   try {
     await docker('POST', `/containers/${id}/${action}`);
@@ -515,7 +519,9 @@ app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   const status = err.status || err.statusCode || 500;
   if (status >= 500) console.error(`[${req.method} ${req.path}]`, err);
-  res.status(status).json({ error: status >= 500 ? err.message || 'Erreur serveur' : 'Requête invalide' });
+  res.status(status).json(status >= 500
+    ? { error: err.message || 'Erreur serveur', code: err.key || 'server', params: err.params }
+    : { error: 'Requête invalide', code: 'bad_request' });
 });
 
 app.listen(PORT, () => console.log(`Server Dashboard sur http://localhost:${PORT}`));

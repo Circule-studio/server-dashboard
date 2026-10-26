@@ -1,6 +1,8 @@
 # Server Dashboard
 
-Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page.
+🇬🇧 [English version](README.en.md)
+
+Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page. Interface en **français et en anglais** (bouton EN / FR).
 
 ![Vue d'ensemble du dashboard : stats du serveur, widgets Jellyfin, qBittorrent, Sonarr, Radarr, tuiles d'applications et conteneurs Docker](docs/screenshots/dashboard.png)
 

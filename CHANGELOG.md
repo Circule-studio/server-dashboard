@@ -4,6 +4,13 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Interface en anglais** (et toujours en français) : langue détectée depuis le navigateur, bouton EN / FR dans la barre du haut, dates, unités et pluriels adaptés (#29).
+- README en anglais (`README.en.md`).
+
+### Modifié
+- Le serveur renvoie des codes (données des widgets, erreurs) que l'interface traduit, au lieu de textes en français.
+
 ## [0.5.0] - 2026-10-26
 
 ### Ajouté

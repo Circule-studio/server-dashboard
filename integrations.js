@@ -12,15 +12,25 @@ const NETWORK_ERRORS = {
   ETIMEDOUT: 'Délai dépassé',
 };
 
+// Erreur avec un code traduisible par l'interface (`key`, voir err.* dans public/i18n.js).
+function fail(key, message, params) {
+  return Object.assign(new Error(message), { key, params });
+}
+
+const NETWORK_KEYS = {
+  ECONNREFUSED: 'unreachable', ENOTFOUND: 'host_not_found', EHOSTUNREACH: 'host_unreachable',
+  ECONNRESET: 'connection_reset', ETIMEDOUT: 'timeout',
+};
+
 function networkError(e) {
-  return new Error(NETWORK_ERRORS[e.code] || e.message || e.code || 'Erreur réseau');
+  return fail(NETWORK_KEYS[e.code], NETWORK_ERRORS[e.code] || e.message || e.code || 'Erreur réseau');
 }
 
 // `discardBody` : on ne lit que le code HTTP (utile pour un simple ping).
 function request(url, { method = 'GET', headers = {}, body, timeout = 8000, discardBody = false } = {}) {
   return new Promise((resolve, reject) => {
     let u;
-    try { u = new URL(url); } catch { return reject(new Error('URL invalide')); }
+    try { u = new URL(url); } catch { return reject(fail('invalid_url', 'URL invalide', { url })); }
     const lib = u.protocol === 'https:' ? https : http;
     const req = lib.request(u, { method, headers, timeout, rejectUnauthorized: false }, (res) => {
       if (discardBody) {
@@ -48,9 +58,9 @@ const pad = (n) => String(n ?? 0).padStart(2, '0');
 
 async function getJson(url, headers = {}) {
   const r = await request(url, { headers: { Accept: 'application/json', ...headers } });
-  if (r.status === 401 || r.status === 403) throw new Error('Authentification refusée (vérifie la clé API)');
-  if (r.status >= 400) throw new Error(`HTTP ${r.status}`);
-  if (r.json === null) throw new Error('Réponse inattendue (vérifie l\'URL)');
+  if (r.status === 401 || r.status === 403) throw fail('auth_refused', 'Authentification refusée (vérifie la clé API)');
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
   return r.json;
 }
 
@@ -63,9 +73,9 @@ async function jellyfin(w) {
   ]);
   return {
     stats: [
-      { label: 'Films', value: counts.MovieCount },
-      { label: 'Séries', value: counts.SeriesCount },
-      { label: 'Épisodes', value: counts.EpisodeCount },
+      { key: 'movies', value: counts.MovieCount },
+      { key: 'series', value: counts.SeriesCount },
+      { key: 'episodes', value: counts.EpisodeCount },
     ],
     sessions: sessions.filter((s) => s.NowPlayingItem).map((s) => {
       const it = s.NowPlayingItem;
@@ -93,8 +103,8 @@ async function plex(w) {
   const dirs = libs.MediaContainer?.Directory || [];
   return {
     stats: [
-      { label: 'Bibliothèques', value: dirs.length },
-      { label: 'Lectures', value: items.length },
+      { key: 'libraries', value: dirs.length },
+      { key: 'streams', value: items.length },
     ],
     sessions: items.map((m) => {
       const episode = m.type === 'episode';
@@ -125,11 +135,11 @@ async function qbitLogin(w) {
       Origin: new URL(w.url).origin,
     },
   });
-  if (r.status === 403) throw new Error('IP bannie par qBittorrent (trop de tentatives)');
+  if (r.status === 403) throw fail('qbit_banned', 'IP bannie par qBittorrent (trop de tentatives)');
   const sid = (r.headers['set-cookie'] || []).map((c) => c.split(';')[0]).find((c) => c.startsWith('SID='));
   if (sid) return sid;
   if (r.text.trim() === 'Ok.') return ''; // authentification contournée (réseau local autorisé)
-  throw new Error('Identifiants qBittorrent refusés');
+  throw fail('qbit_credentials', 'Identifiants qBittorrent refusés');
 }
 
 async function qbitGet(w, path, retry = true) {
@@ -139,7 +149,7 @@ async function qbitGet(w, path, retry = true) {
     qbitSids.delete(w.id);
     return qbitGet(w, path, false);
   }
-  if (r.status >= 400) throw new Error(`HTTP ${r.status}`);
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
   return r.json;
 }
 
@@ -201,7 +211,7 @@ async function sonarr(w) {
   ]);
   return {
     upcoming: calendar.slice(0, 10).map((e) => ({
-      title: e.series?.title || 'Série inconnue',
+      title: e.series?.title || null, // null : l'interface affiche « Série inconnue »
       subtitle: `S${pad(e.seasonNumber)}E${pad(e.episodeNumber)}${e.title ? ' · ' + e.title : ''}`,
       date: e.airDateUtc,
       hasFile: !!e.hasFile,
@@ -219,10 +229,10 @@ async function radarr(w) {
   ]);
   const upcoming = calendar.map((m) => {
     // Un film a plusieurs dates de sortie : on garde la plus proche dans la période.
-    const [kind, date] = [['Cinéma', m.inCinemas], ['Numérique', m.digitalRelease], ['Physique', m.physicalRelease]]
+    const [kind, date] = [['cinema', m.inCinemas], ['digital', m.digitalRelease], ['physical', m.physicalRelease]]
       .filter(([, d]) => d && new Date(d) >= start && new Date(d) <= end)
       .sort((a, b) => new Date(a[1]) - new Date(b[1]))[0] || ['', m.inCinemas];
-    return { title: m.title, subtitle: [m.year, kind].filter(Boolean).join(' · '), date, hasFile: !!m.hasFile };
+    return { title: m.title, year: m.year, release: kind, date, hasFile: !!m.hasFile };
   });
   upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
   return { upcoming: upcoming.slice(0, 10), queue: queueSummary(queue) };
@@ -263,7 +273,6 @@ async function proxmox(w) {
 // ---------- Pulse (supervision Proxmox, Docker…) ----------
 // Jeton d'API Pulse avec le scope monitoring:read. On n'interroge que les
 // endpoints des blocs choisis dans le widget (`sections`).
-const PULSE_TYPES = { agent: 'Nœud', vm: 'VM', 'system-container': 'LXC', 'app-container': 'Docker' };
 
 async function pulse(w) {
   const h = { 'X-API-Token': w.apiKey };
@@ -278,7 +287,7 @@ async function pulse(w) {
         counts: { nodes: s.nodes || 0, vms: s.vms || 0, containers: s.containers || 0, docker: (s.dockerHosts || []).length },
         activeAlerts: s.activeAlerts || 0,
         attention: (s.attention || []).slice(0, 6).map((a) => ({
-          name: a.name, verdict: a.verdict, reason: a.topReason?.code || '', type: PULSE_TYPES[a.type] || a.type,
+          name: a.name, verdict: a.verdict, reason: a.topReason?.code || '', type: a.type,
         })),
       };
     }));
@@ -304,7 +313,7 @@ async function pulse(w) {
       const pct = (m) => (m ? (m.percent || m.value || 0) : null);
       out.resources = (r.data || [])
         .map((x) => ({
-          type: PULSE_TYPES[x.type] || x.type, rank: rank[x.type] ?? 3, name: x.name, status: x.status,
+          type: x.type, rank: rank[x.type] ?? 3, name: x.name, status: x.status,
           verdict: x.health?.verdict, parent: x.parentName || '',
           cpu: pct(x.metrics?.cpu), mem: pct(x.metrics?.memory),
         }))

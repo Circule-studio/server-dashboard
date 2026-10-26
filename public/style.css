@@ -44,7 +44,7 @@ a { color: var(--accent); }
 .clock { font-variant-numeric: tabular-nums; color: var(--muted); margin-right: 6px; }
 
 .btn {
-  font: inherit; font-size: 0.9rem; cursor: pointer;
+  font: inherit; font-size: 0.9rem; cursor: pointer; white-space: nowrap;
   padding: 8px 14px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--card); color: var(--text);
   transition: background 0.15s, border-color 0.15s;
