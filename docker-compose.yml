@@ -1,6 +1,8 @@
 services:
   dashboard:
-    build: .
+    # Image publiée à chaque version (amd64 et arm64, ex. Raspberry Pi).
+    # Pour construire depuis le code source à la place : remplace cette ligne par « build: . ».
+    image: ghcr.io/circule-studio/server-dashboard:latest
     container_name: server-dashboard
     restart: unless-stopped
     ports:

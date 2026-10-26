@@ -287,23 +287,23 @@
       <div class="steps">
         <div class="step">
           <div>
-            <h3>Récupère le projet</h3>
-            <div class="code"><pre>git clone https://github.com/Circule-studio/server-dashboard.git
-cd server-dashboard</pre><button class="copy" type="button">Copier</button></div>
+            <h3>Récupère la configuration</h3>
+            <div class="code"><pre>mkdir server-dashboard &amp;&amp; cd server-dashboard
+curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env</pre><button class="copy" type="button">Copier</button></div>
           </div>
         </div>
         <div class="step">
           <div>
             <h3>Choisis ton mot de passe admin</h3>
-            <div class="code"><pre>cp .env.example .env
-nano .env   # remplace "change-moi"</pre><button class="copy" type="button">Copier</button></div>
+            <div class="code"><pre>nano .env   # remplace "change-moi"</pre><button class="copy" type="button">Copier</button></div>
           </div>
         </div>
         <div class="step">
           <div>
             <h3>Lance-le</h3>
-            <div class="code"><pre>docker compose up -d --build</pre><button class="copy" type="button">Copier</button></div>
-            <p class="note">Puis ouvre <code>http://IP-DU-SERVEUR:7575</code>, clique sur <b>Connexion</b> puis <b>Éditer</b> pour ajouter tes services.</p>
+            <div class="code"><pre>docker compose up -d</pre><button class="copy" type="button">Copier</button></div>
+            <p class="note">Puis ouvre <code>http://IP-DU-SERVEUR:7575</code> : un écran d'accueil te guide. Image prête pour amd64 et arm64 (Raspberry Pi).</p>
           </div>
         </div>
       </div>

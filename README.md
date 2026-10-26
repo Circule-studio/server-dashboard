@@ -28,23 +28,28 @@ Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côt�
 
 ## Déploiement sur le serveur (Docker)
 
-1. Copie le dossier sur le serveur (`git clone`, `scp`…).
-2. Crée le fichier `.env` à partir du modèle et mets-y un vrai mot de passe :
+L'image est publiée à chaque version sur `ghcr.io/circule-studio/server-dashboard` (amd64 et arm64, donc Raspberry Pi compris) : pas besoin de cloner le dépôt.
+
+1. Récupère les deux fichiers de configuration :
 
    ```bash
-   cp .env.example .env
+   mkdir server-dashboard && cd server-dashboard
+   curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+   curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
    ```
 
-   `.env` est ignoré par Git : ne mets jamais de mot de passe directement dans `docker-compose.yml`.
+2. Ouvre `.env` et remplace `change-moi` par un vrai mot de passe. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `docker-compose.yml`.
 3. Lance :
 
    ```bash
-   docker compose up -d --build
+   docker compose up -d
    ```
 
-4. Ouvre `http://IP-DU-SERVEUR:7575` et clique sur **Connexion**, puis **Éditer** pour ajouter tes services.
+4. Ouvre `http://IP-DU-SERVEUR:7575` : un écran d'accueil te guide (Connexion, puis Éditer).
 
-Pour mettre à jour après une modification du code : `docker compose up -d --build`. La config reste dans `./data`.
+**Mettre à jour** : `docker compose pull && docker compose up -d`. La config reste dans `./data`.
+
+**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `docker-compose.yml` par `build: .`, puis `docker compose up -d --build`.
 
 ## Installation sans Docker (Debian / Ubuntu, LXC Proxmox)
 

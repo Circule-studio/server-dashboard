@@ -4,7 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Image Docker publiée** sur `ghcr.io/circule-studio/server-dashboard` à chaque version, pour amd64 et arm64 (Raspberry Pi) : installation Docker sans cloner le dépôt ni construire l’image (#28).
+
 ### Modifié
+- `docker-compose.yml` utilise l’image publiée ; README et site mis à jour (téléchargement des deux fichiers, `docker compose pull` pour mettre à jour).
 - Première installation : config vide et **écran d’accueil** en trois étapes, au lieu de tuiles d’exemple qui s’affichaient en rouge (#30).
 
 ### Sécurité
