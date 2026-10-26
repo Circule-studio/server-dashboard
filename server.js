@@ -81,7 +81,17 @@ async function readConfig() {
   }
   cfg.widgets ||= [];
   cfg.categories ||= [];
+  cfg.revision = Number.isInteger(cfg.revision) ? cfg.revision : 0;
   return cfg;
+}
+
+// Une seule modification de config à la fois (lecture, contrôle de version, écriture).
+let configLock = Promise.resolve();
+
+function withConfigLock(fn) {
+  const result = configLock.then(fn, fn);
+  configLock = result.catch(() => {});
+  return result;
 }
 
 // Écritures sérialisées avec un fichier temporaire unique : deux écritures
@@ -153,6 +163,7 @@ function publicConfig(cfg, authed) {
 function sanitizeConfig(input, previous) {
   if (!input || !Array.isArray(input.categories)) throw new Error('categories manquant');
   return {
+    revision: (previous?.revision || 0) + 1,
     title: str(input.title, 100) || 'Mon serveur',
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
@@ -419,8 +430,17 @@ app.get('/api/config', readAuth, route(async (req, res) => {
   res.json(publicConfig(await readConfig(), isAuthed(req)));
 }));
 
-app.put('/api/config', requireAuth, route(async (req, res) => {
+app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(async () => {
   const previous = await readConfig();
+  // Verrouillage optimiste : on refuse d'écraser une config modifiée depuis que le
+  // navigateur l'a chargée (autre onglet, autre appareil). Sans `revision`
+  // (anciens clients, scripts), l'enregistrement reste accepté.
+  if (req.body?.revision !== undefined && req.body.revision !== previous.revision) {
+    return res.status(409).json({
+      error: 'La configuration a été modifiée ailleurs (autre onglet ou appareil) depuis que tu l’as ouverte.',
+      code: 'conflict',
+    });
+  }
   let cfg;
   try {
     cfg = sanitizeConfig(req.body, previous);
@@ -431,7 +451,7 @@ app.put('/api/config', requireAuth, route(async (req, res) => {
   resetIntegrations();
   statusCache = null;
   res.json(publicConfig(cfg, true));
-}));
+})));
 
 app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   const cfg = await readConfig();

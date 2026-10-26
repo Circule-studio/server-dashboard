@@ -68,6 +68,13 @@ jobs:
           curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @cfg.json http://127.0.0.1:7575/api/config
           sudo grep -q '"title": "CI"' /var/lib/server-dashboard/config.json
 
+      # cfg.json porte maintenant une révision dépassée : le serveur doit refuser
+      # de l'enregistrer plutôt que d'écraser la config (issue #25).
+      - name: Un vieil onglet ne peut pas écraser la config
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -b jar -X PUT -H 'Content-Type: application/json' --data-binary @cfg.json http://127.0.0.1:7575/api/config)
+          test "$code" = 409
+
       - name: Détection des disques
         run: curl -fsS -b jar http://127.0.0.1:7575/api/disks | tee /dev/stderr | grep -q '"path":"/"'
 
