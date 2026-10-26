@@ -117,7 +117,16 @@ function sanitizeWidgets(list, previous = []) {
     const id = str(w.id, 64) || 'wid-' + crypto.randomUUID();
     const old = previous.find((p) => p.id === id) || {};
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
-    if (INTEGRATIONS[type].fields.includes('username')) out.username = str(w.username, 200);
+    // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
+    if (INTEGRATIONS[type].fields.includes('username')) {
+      out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
+    }
+    // Blocs à afficher, pour les intégrations qui en proposent (ex. Pulse).
+    const allowed = INTEGRATIONS[type].sections;
+    if (allowed) {
+      const chosen = (Array.isArray(w.sections) ? w.sections : []).filter((s) => allowed.includes(s));
+      out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
+    }
     for (const f of SECRET_FIELDS) {
       if (INTEGRATIONS[type].fields.includes(f)) out[f] = str(w[f], 500) || old[f] || '';
     }

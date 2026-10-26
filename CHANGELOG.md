@@ -4,6 +4,17 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.4.0] - 2026-10-26
+
+### Ajouté
+- Widget **Pulse** : santé (OK / attention / critique / éteints), alertes actives et nœuds / VM / LXC, en blocs au choix. Plusieurs widgets Pulse peuvent être placés librement. Faux Pulse dans `npm run mocks`.
+
+### Corrigé
+- Les noms d’utilisateur des widgets (Proxmox, qBittorrent) pouvaient être effacés si la page avait été ouverte avant la connexion puis enregistrée.
+
+### Modifié
+- Express 5 et actions/checkout v7 (Dependabot).
+
 ## [0.3.0] - 2026-10-25
 
 ### Ajouté
@@ -40,7 +51,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.3.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Circule-studio/server-dashboard/releases/tag/v0.1.0

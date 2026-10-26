@@ -175,6 +175,15 @@ function tileEl(app, ci, ai) {
 
 // ---------- Widgets d'intégration ----------
 const WIDGET_TYPES = {
+  pulse: {
+    label: 'Pulse', icon: 'pulse', kind: 'pulse', refresh: 15_000, port: 7655,
+    keyLabel: 'Jeton d\'API', keyHelp: 'Pulse > Paramètres > API Access : jeton avec le scope monitoring:read.',
+    sections: [
+      { id: 'health', label: 'Santé et compteurs', short: 'Santé' },
+      { id: 'alerts', label: 'Alertes actives', short: 'Alertes' },
+      { id: 'resources', label: 'Nœuds, VM et conteneurs LXC', short: 'VM et LXC' },
+    ],
+  },
   proxmox: {
     label: 'Proxmox VE', icon: 'proxmox', kind: 'proxmox', refresh: 10_000, fields: ['url', 'username', 'apiKey'],
     scheme: 'https', port: 8006,
@@ -245,6 +254,71 @@ const RENDERERS = {
         progressBar(t.progress, t.group === 'error' ? 'bad' : t.group === 'paused' ? 'warn' : ''))))
       : h('p', { class: 'muted' }, 'Aucun torrent.'),
   ],
+
+  pulse: (d) => {
+    const VERDICTS = [
+      ['ok', 'OK', 'ok'], ['attention', 'Attention', 'warn'], ['critical', 'Critique', 'bad'],
+      ['stale', 'Sans données', 'warn'], ['off', 'Éteints', ''],
+    ];
+    const verdictDot = (v) => (VERDICTS.find(([k]) => k === v) || [, , ''])[2];
+    const levelDot = { critical: 'bad', warning: 'warn', info: '' };
+    const reason = (code) => ({ offline: 'hors ligne', stale: 'pas de données récentes', unknown: 'état inconnu' }[code]
+      || code.replace(/[-_]/g, ' '));
+    const ago = (iso) => {
+      const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+      return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} j`;
+    };
+    const blocks = [];
+    const many = d.sections.length > 1;
+
+    if (d.health) {
+      const { verdicts, counts, attention } = d.health;
+      if (many) blocks.push(h('div', { class: 'widget-subhead' }, 'Santé'));
+      blocks.push(h('div', { class: 'widget-stats pulse-verdicts' }, VERDICTS
+        .filter(([k]) => k !== 'stale' || verdicts.stale)
+        .map(([k, label, cls]) => h('div', { class: `verdict-${cls || 'off'}` },
+          h('b', {}, String(verdicts[k] || 0)), h('span', {}, label)))));
+      blocks.push(h('p', { class: 'pulse-counts muted' }, [
+        `${counts.nodes} nœud${counts.nodes > 1 ? 's' : ''}`, `${counts.vms} VM`,
+        `${counts.containers} conteneur${counts.containers > 1 ? 's' : ''}`,
+        counts.docker ? `${counts.docker} hôte${counts.docker > 1 ? 's' : ''} Docker` : null,
+      ].filter(Boolean).join(' · ')));
+      if (attention.length) {
+        blocks.push(h('ul', { class: 'widget-list' }, attention.map((a) => h('li', {},
+          h('div', { class: 'row' },
+            h('span', { class: 'item-title' }, h('span', { class: `dot ${verdictDot(a.verdict)}` }), ` ${a.name}`),
+            h('span', { class: 'muted' }, reason(a.reason)))))));
+      }
+    }
+
+    if (d.alerts) {
+      if (many) blocks.push(h('div', { class: 'widget-subhead' }, `Alertes actives · ${d.alerts.length}`));
+      blocks.push(d.alerts.length
+        ? h('ul', { class: 'widget-list' }, d.alerts.map((a) => h('li', {},
+          h('div', { class: 'row' },
+            h('span', { class: 'item-title', title: a.text },
+              h('span', { class: `dot ${levelDot[a.level] ?? ''}` }), ` ${a.resource}`),
+            h('span', { class: 'muted' }, a.acknowledged ? 'acquittée' : `depuis ${ago(a.since)}`)),
+          h('div', { class: 'item-sub' }, a.text))))
+        : h('p', { class: 'muted' }, '✓ Aucune alerte active.'));
+    }
+
+    if (d.resources) {
+      if (many) blocks.push(h('div', { class: 'widget-subhead' }, 'Nœuds, VM et LXC'));
+      const fmt = (v) => (v == null ? '–' : `${Math.round(v)} %`);
+      blocks.push(d.resources.length
+        ? h('ul', { class: 'widget-list' }, d.resources.map((r) => {
+          const dot = r.verdict ? verdictDot(r.verdict) : r.status === 'online' ? 'ok' : r.status === 'warning' ? 'warn' : '';
+          return h('li', {},
+            h('div', { class: 'row' },
+              h('span', { class: 'item-title', title: r.parent ? `${r.name} (${r.parent})` : r.name },
+                h('span', { class: `dot ${dot}` }), ' ', h('span', { class: 'badge' }, r.type), ` ${r.name}`),
+              h('span', { class: 'muted' }, r.status === 'offline' ? 'arrêté' : `${fmt(r.cpu)} CPU · ${fmt(r.mem)} RAM`)));
+        }))
+        : h('p', { class: 'muted' }, 'Aucune ressource.'));
+    }
+    return blocks;
+  },
 
   proxmox: (d) => {
     const level = (r) => (r >= 0.9 ? 'bad' : r >= 0.7 ? 'warn' : 'ok');
@@ -442,6 +516,15 @@ function updateWidgetFields() {
   form.querySelector('[data-user-label]').textContent = t.userLabel || 'Utilisateur';
   form.elements.username.placeholder = t.userHelp || '';
   form.elements.url.placeholder = `${t.scheme || 'http'}://192.168.1.10:${t.port}`;
+
+  // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
+  const box = form.querySelector('[data-sections]');
+  box.hidden = !t.sections;
+  const chosen = w.type === type && w.sections?.length ? w.sections : (t.sections || []).map((s) => s.id);
+  form.querySelector('[data-sections-list]').replaceChildren(...(t.sections || []).map((s) =>
+    h('label', { class: 'check' },
+      h('input', { type: 'checkbox', name: 'section', value: s.id, checked: chosen.includes(s.id) }),
+      s.label)));
 }
 
 function submitWidget(e) {
@@ -461,6 +544,18 @@ function submitWidget(e) {
   if (fields.includes('apiKey')) w.apiKey = f.apiKey.value.trim();
   if (fields.includes('username')) w.username = f.username.value.trim();
   if (fields.includes('password')) w.password = f.password.value;
+  const t = WIDGET_TYPES[type];
+  if (t.sections) {
+    w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
+    if (!w.sections.length) {
+      toast('Coche au moins un bloc à afficher', true);
+      return;
+    }
+    // Un seul bloc sans nom choisi : « Pulse · Alertes » plutôt que « Pulse ».
+    if (!f.name.value.trim() && w.sections.length === 1) {
+      w.name = `${t.label} · ${t.sections.find((s) => s.id === w.sections[0]).short}`;
+    }
+  }
   if (prev) state.draft.widgets[widgetDialogIndex] = w;
   else state.draft.widgets.push(w);
   $('#widgetDialog').close();
@@ -516,7 +611,14 @@ function deleteApp(ci, ai) {
   render();
 }
 
-function startEditing() {
+async function startEditing() {
+  // Config fraîche et complète (noms d'utilisateur inclus, réservés aux admins
+  // connectés) : on n'édite jamais une copie chargée avant la connexion.
+  try {
+    state.config = await api('/api/config');
+  } catch (e) {
+    return toast(e.message, true);
+  }
   state.draft = structuredClone(state.config);
   state.editing = true;
   render();
@@ -627,6 +729,7 @@ async function submitLogin(e) {
     // Écran de connexion obligatoire : rien n'est encore chargé, on recharge tout.
     if (state.loginRequired && !state.config) return location.reload();
     state.authed = true;
+    state.config = await api('/api/config'); // inclut maintenant les champs réservés aux admins
     $('#loginDialog').close();
     render();
     renderDocker();

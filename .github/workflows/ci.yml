@@ -34,7 +34,7 @@ jobs:
     name: Syntaxe JS et script shell
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -48,7 +48,7 @@ jobs:
     name: Installation sans Docker (systemd)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Installation
         run: sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD=ci-test SD_PORT=7575 bash packaging/install.sh
@@ -99,7 +99,7 @@ jobs:
     name: Image Docker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Construction de l'image
         run: docker build -t server-dashboard:ci .
