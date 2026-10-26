@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Server Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='35' height='35' rx='8' fill='%237c9cff'/><rect x='55' y='10' width='35' height='35' rx='8' fill='%2334d399'/><rect x='10' y='55' width='35' height='35' rx='8' fill='%2334d399'/><rect x='55' y='55' width='35' height='35' rx='8' fill='%237c9cff'/></svg>">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,6 +17,7 @@
     </div>
     <div class="topbar-right">
       <span id="clock" class="clock"></span>
+      <button id="themeBtn" class="btn btn-ghost btn-icon"></button>
       <button id="langBtn" class="btn btn-ghost btn-lang" data-i18n="lang.switch" data-i18n-title="lang.switchTitle"></button>
       <button id="editBtn" class="btn" data-i18n="btn.edit" hidden></button>
       <button id="authBtn" class="btn btn-ghost" data-i18n="btn.login"></button>

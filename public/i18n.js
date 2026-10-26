@@ -6,6 +6,8 @@ const I18N = {
   fr: {
     'lang.switch': 'EN',
     'lang.switchTitle': 'Switch to English',
+    'theme.toLight': 'Passer au thème clair',
+    'theme.toDark': 'Passer au thème sombre',
 
     'btn.edit': 'Éditer',
     'btn.login': 'Connexion',
@@ -238,6 +240,8 @@ const I18N = {
   en: {
     'lang.switch': 'FR',
     'lang.switchTitle': 'Passer en français',
+    'theme.toLight': 'Switch to light theme',
+    'theme.toDark': 'Switch to dark theme',
 
     'btn.edit': 'Edit',
     'btn.login': 'Log in',

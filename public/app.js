@@ -941,10 +941,27 @@ function tickClock() {
   });
 }
 
+// ---------- Thème ----------
+// Le bouton montre le thème vers lequel on bascule (☀️ en sombre, 🌙 en clair).
+function renderThemeBtn() {
+  const toLight = currentTheme() === 'dark';
+  const btn = $('#themeBtn');
+  btn.textContent = toLight ? '☀️' : '🌙';
+  btn.title = t(toLight ? 'theme.toLight' : 'theme.toDark');
+  btn.setAttribute('aria-label', btn.title);
+}
+
 // ---------- Démarrage ----------
 async function init() {
   applyStaticI18n();
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
+  renderThemeBtn();
+  $('#themeBtn').addEventListener('click', () => {
+    setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    renderThemeBtn();
+  });
+  // Sans choix enregistré, suivre le système quand il change.
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', renderThemeBtn);
   $('#editBtn').addEventListener('click', startEditing);
   $('#cancelBtn').addEventListener('click', stopEditing);
   $('#saveBtn').addEventListener('click', save);
