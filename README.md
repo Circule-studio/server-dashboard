@@ -23,6 +23,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.
   - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
+  - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
 
 Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
@@ -110,7 +111,10 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Plex | URL + token | Valeur `X-Plex-Token` ([doc Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) |
 | qBittorrent | URL + utilisateur / mot de passe de la WebUI | Options > Interface web |
 | Sonarr / Radarr | URL + clé API | Settings > General > API Key |
+| Pulse | URL (`http://IP:7655`) + jeton d’API | Pulse > Paramètres > API Access, scope `monitoring:read` |
 | Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
+
+**Pulse** : coche les blocs à afficher (Santé, Alertes, Nœuds / VM / LXC). Pour les placer librement, ajoute plusieurs widgets Pulse avec chacun un bloc, puis déplace-les par glisser-déposer.
 
 **Proxmox VE** : le widget affiche les stats de l’hôte (CPU, RAM, disque), l’état de toutes les VM et conteneurs LXC, et les stockages. C’est la façon de voir la machine complète quand le dashboard tourne lui-même dans un LXC, qui ne voit que ses propres limites. Crée un jeton en **lecture seule** dans le shell de l’hôte Proxmox :
 

@@ -4,6 +4,15 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- Widget **Pulse** : santé (OK / attention / critique / éteints), alertes actives et nœuds / VM / LXC, en blocs au choix. Plusieurs widgets Pulse peuvent être placés librement. Faux Pulse dans `npm run mocks`.
+
+### Corrigé
+- Les noms d’utilisateur des widgets (Proxmox, qBittorrent) pouvaient être effacés si la page avait été ouverte avant la connexion puis enregistrée.
+
+### Modifié
+- Express 5 et actions/checkout v7 (Dependabot).
+
 ## [0.3.0] - 2026-10-25
 
 ### Ajouté
