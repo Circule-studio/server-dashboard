@@ -4,6 +4,15 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.6.1] - 2026-10-26
+
+### Ajouté
+- **Site du projet en anglais** (`/en/`) : bouton FR / EN, redirection automatique selon la langue du navigateur, roadmap dans les deux langues (#35).
+
+### Modifié
+- Image Docker basée sur **Node.js 26** (au lieu de 22) (#17).
+- CI : `actions/setup-node` v7 (#16).
+
 ## [0.6.0] - 2026-10-26
 
 ### Ajouté
@@ -80,7 +89,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.0...v0.4.1
