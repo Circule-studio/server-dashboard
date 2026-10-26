@@ -11,6 +11,7 @@ const state = {
   editing: false,
   docker: null,
   search: '',       // texte de la recherche rapide (ignoré en mode édition)
+  searchOpen: false, // champ ouvert avec « / » alors que la barre est masquée
 };
 
 // ---------- Utilitaires ----------
@@ -105,9 +106,16 @@ function render() {
   $('#editBar').hidden = !state.editing;
   $('#editBtn').hidden = !state.authed || state.editing;
   $('#authBtn').textContent = state.authed ? t('btn.logout') : t('btn.login');
+  const display = displayOptions(cfg);
+  // Sans bouton de thème, le choix enregistré est ignoré : le CSS suit le système.
+  if (display.theme && savedTheme()) document.documentElement.dataset.theme = savedTheme();
+  else delete document.documentElement.dataset.theme;
+  $('#themeBtn').hidden = !display.theme;
+  $('#langBtn').hidden = !display.lang;
   const hasApps = cfg.categories.some((cat) => cat.apps.length);
-  $('#search').hidden = state.editing || !hasApps;
-  const q = $('#search').hidden ? '' : fold(state.search.trim());
+  state.searchEnabled = !state.editing && hasApps;
+  $('#search').hidden = !state.searchEnabled || !(display.search || state.searchOpen);
+  const q = state.searchEnabled ? fold(state.search.trim()) : '';
 
   const board = $('#board');
   board.replaceChildren();
@@ -875,6 +883,22 @@ function submitDisks(e) {
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
+// ---------- Options d'affichage (mode édition) ----------
+function openDisplayDialog() {
+  const form = $('#displayForm');
+  const display = displayOptions(state.draft);
+  for (const key of Object.keys(display)) form.elements[key].checked = display[key];
+  $('#displayDialog').showModal();
+}
+
+function submitDisplay(e) {
+  e.preventDefault();
+  const form = e.target;
+  state.draft.display = Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked]));
+  $('#displayDialog').close();
+  render();
+}
+
 // ---------- Statut des services ----------
 async function refreshStatus() {
   try {
@@ -966,25 +990,32 @@ function renderThemeBtn() {
   btn.setAttribute('aria-label', btn.title);
 }
 
+// Éléments de la barre du haut que l'admin a choisi d'afficher (tous par défaut).
+const displayOptions = (cfg) => ({ search: true, theme: true, lang: true, ...cfg.display });
+
 // ---------- Recherche rapide ----------
-// « / » place le curseur dans le champ, Échap le vide, Entrée ouvre la première tuile.
+// « / » place le curseur dans le champ (et l'ouvre si la barre est masquée),
+// Échap le vide, Entrée ouvre la première tuile.
 function bindSearch() {
   const input = $('#search');
+  const close = () => { state.searchOpen = false; render(); };
   input.addEventListener('input', () => { state.search = input.value; render(); });
+  input.addEventListener('blur', () => { if (!input.value) close(); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       input.value = state.search = '';
       input.blur();
-      render();
+      close();
     } else if (e.key === 'Enter') {
       e.preventDefault();
       $('#board a.tile')?.click();
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || input.hidden) return;
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || !state.searchEnabled) return;
     if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
     e.preventDefault();
+    if (input.hidden) { state.searchOpen = true; render(); }
     input.focus();
   });
 }
@@ -1016,6 +1047,8 @@ async function init() {
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
   $('#disksBtn').addEventListener('click', openDisksDialog);
   $('#disksForm').addEventListener('submit', submitDisks);
+  $('#displayBtn').addEventListener('click', openDisplayDialog);
+  $('#displayForm').addEventListener('submit', submitDisplay);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
   $('#loginForm').addEventListener('submit', submitLogin);
@@ -1033,6 +1066,7 @@ async function init() {
   if (state.loginRequired && !state.authed) return showLoginGate();
 
   state.config = await api('/api/config');
+  if (!displayOptions(state.config).lang) followBrowserLang();
   render();
 
   refreshSystem();

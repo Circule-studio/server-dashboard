@@ -29,6 +29,13 @@ const I18N = {
     'edit.renameBoard': 'Renommer le tableau',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disques',
+    'edit.display': 'Affichage',
+    'display.title': 'Affichage',
+    'display.legend': 'Barre du haut',
+    'display.search': 'Barre de recherche',
+    'display.theme': 'Bouton thème clair / sombre',
+    'display.lang': 'Bouton de langue (EN / FR)',
+    'display.help': 'Masquée, la recherche s’ouvre quand même avec la touche /. Sans bouton, le thème suit le système et la langue celle du navigateur.',
     'edit.addCategory': '+ Catégorie',
 
     'stats.aria': 'Ressources du serveur',
@@ -266,6 +273,13 @@ const I18N = {
     'edit.renameBoard': 'Rename dashboard',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disks',
+    'edit.display': 'Display',
+    'display.title': 'Display',
+    'display.legend': 'Top bar',
+    'display.search': 'Search bar',
+    'display.theme': 'Light / dark theme button',
+    'display.lang': 'Language button (EN / FR)',
+    'display.help': 'When hidden, search still opens with the / key. Without the buttons, the theme follows the system and the language follows the browser.',
     'edit.addCategory': '+ Category',
 
     'stats.aria': 'Server resources',
@@ -478,12 +492,14 @@ const I18N = {
   },
 };
 
+const browserLang = () => ((navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+
 // Langue choisie (enregistrée dans le navigateur), sinon celle du navigateur.
 const LANG = (() => {
   let saved = null;
   try { saved = localStorage.getItem('sd-lang'); } catch { /* stockage indisponible */ }
   if (I18N[saved]) return saved;
-  return (navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  return browserLang();
 })();
 const LOCALE = LANG === 'fr' ? 'fr-FR' : 'en-US';
 
@@ -501,6 +517,13 @@ function tp(key, count, vars = {}) {
 // Message d'une erreur de l'API : traduit si le serveur a fourni un code connu.
 function errMsg(e) {
   return e?.code && I18N[LANG][`err.${e.code}`] ? t(`err.${e.code}`, e.params || {}) : (e?.message || String(e));
+}
+
+// Bouton de langue masqué par l'admin : on oublie le choix enregistré
+// et on revient à la langue du navigateur.
+function followBrowserLang() {
+  try { localStorage.removeItem('sd-lang'); } catch { /* stockage indisponible */ }
+  if (LANG !== browserLang()) location.reload();
 }
 
 function setLang(lang) {

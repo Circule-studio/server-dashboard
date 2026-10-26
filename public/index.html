@@ -33,6 +33,7 @@
       <button id="renameBoardBtn" class="btn btn-ghost" data-i18n="edit.renameBoard"></button>
       <button id="addWidgetBtn" class="btn btn-ghost" data-i18n="edit.addWidget"></button>
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
+      <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
       <button id="cancelBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
       <button id="saveBtn" class="btn btn-primary" data-i18n="common.save"></button>
@@ -123,6 +124,23 @@
         <input name="extra" data-i18n-placeholder="disks.extraPlaceholder">
         <small class="muted" data-i18n="disks.extraHelp"></small>
       </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="displayDialog">
+    <form method="dialog" id="displayForm">
+      <h3 data-i18n="display.title"></h3>
+      <fieldset class="sections">
+        <legend data-i18n="display.legend"></legend>
+        <label class="check"><input type="checkbox" name="search"><span data-i18n="display.search"></span></label>
+        <label class="check"><input type="checkbox" name="theme"><span data-i18n="display.theme"></span></label>
+        <label class="check"><input type="checkbox" name="lang"><span data-i18n="display.lang"></span></label>
+        <small class="muted" data-i18n="display.help"></small>
+      </fieldset>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
