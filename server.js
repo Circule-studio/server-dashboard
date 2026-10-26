@@ -45,22 +45,11 @@ if (!process.env.ADMIN_PASSWORD) {
 }
 
 // ---------- Config ----------
+// Première installation : config vide, l'interface affiche un écran d'accueil.
 const DEFAULT_CONFIG = {
   title: 'Mon serveur',
   widgets: [],
-  categories: [
-    {
-      id: 'cat-media', name: 'Média', apps: [
-        { id: 'app-jellyfin', name: 'Jellyfin', url: 'http://localhost:8096', icon: 'jellyfin', description: 'Films & séries' },
-      ],
-    },
-    {
-      id: 'cat-admin', name: 'Administration', apps: [
-        { id: 'app-portainer', name: 'Portainer', url: 'http://localhost:9000', icon: 'portainer', description: 'Gestion Docker' },
-        { id: 'app-google', name: 'Google', url: 'https://www.google.com', icon: 'google', description: 'Test de statut' },
-      ],
-    },
-  ],
+  categories: [],
 };
 
 async function readConfig() {
@@ -399,7 +388,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Express 4 ne capture pas les erreurs des handlers async : on les renvoie à next().
 const route = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-app.get('/api/me', (req, res) => res.json({ authenticated: isAuthed(req), loginRequired: REQUIRE_LOGIN }));
+app.get('/api/me', (req, res) => {
+  const authenticated = isAuthed(req);
+  res.json({
+    authenticated,
+    loginRequired: REQUIRE_LOGIN,
+    // Révélé seulement à un admin connecté : inutile d'indiquer aux visiteurs
+    // que le mot de passe par défaut fonctionne.
+    defaultPassword: authenticated && ADMIN_PASSWORD === 'admin',
+  });
+});
 
 app.post('/api/login', (req, res) => {
   const retryAfter = loginRetryAfter(req.ip);

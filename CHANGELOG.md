@@ -4,6 +4,18 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.5.0] - 2026-10-26
+
+### Ajouté
+- **Image Docker publiée** sur `ghcr.io/circule-studio/server-dashboard` à chaque version, pour amd64 et arm64 (Raspberry Pi) : installation Docker sans cloner le dépôt ni construire l’image (#28).
+
+### Modifié
+- `docker-compose.yml` utilise l’image publiée ; README et site mis à jour (téléchargement des deux fichiers, `docker compose pull` pour mettre à jour).
+- Première installation : config vide et **écran d’accueil** en trois étapes, au lieu de tuiles d’exemple qui s’affichaient en rouge (#30).
+
+### Sécurité
+- Bandeau d’avertissement pour l’admin connecté tant que le mot de passe par défaut `admin` est utilisé (jamais révélé aux visiteurs).
+
 ## [0.4.1] - 2026-10-26
 
 ### Corrigé
@@ -59,7 +71,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.2.0...v0.3.0

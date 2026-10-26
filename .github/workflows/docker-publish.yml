@@ -1,0 +1,64 @@
+# Image Docker publiée sur GitHub Container Registry (ghcr.io) pour amd64 et arm64.
+# - Tag vX.Y.Z : publie X.Y.Z, X.Y et latest.
+# - Push de code sur preprod, pull request ou lancement manuel : construit les deux
+#   architectures sans rien publier (vérification).
+name: Image Docker publiée
+
+on:
+  push:
+    tags: ['v*.*.*']
+    branches: [preprod]
+    paths: ['Dockerfile', 'package*.json', '*.js', 'public/**', '.github/workflows/docker-publish.yml']
+  pull_request:
+    paths: ['Dockerfile', 'package*.json', '*.js', 'public/**', '.github/workflows/docker-publish.yml']
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/circule-studio/server-dashboard
+  # On ne publie que sur un tag de version.
+  PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') }}
+
+jobs:
+  image:
+    name: Image multi-architecture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Connexion à ghcr.io
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags et labels de l'image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ env.PUBLISH }}
+          labels: |
+            org.opencontainers.image.title=Server Dashboard
+            org.opencontainers.image.description=Dashboard auto-hébergé pour homelab : services, stats, Docker, Proxmox, Pulse
+            org.opencontainers.image.licenses=MIT
+
+      - name: Construction (et publication sur un tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
