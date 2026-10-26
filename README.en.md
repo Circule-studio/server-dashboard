@@ -4,7 +4,7 @@
 
 A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of your homelab from a single page. The interface is available in **English and French** (switch with the EN / FR button).
 
-**🌐 Project website: [circule-studio.github.io/server-dashboard](https://circule-studio.github.io/server-dashboard/)**
+**🌐 Project website: [circule-studio.github.io/server-dashboard/en](https://circule-studio.github.io/server-dashboard/en/)**
 
 ![Dashboard overview: server stats, Proxmox, Jellyfin, qBittorrent, Sonarr, Radarr widgets, app tiles and Docker containers](docs/screenshots/dashboard.png)
 
