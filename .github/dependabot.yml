@@ -1,11 +1,19 @@
 # Mises à jour automatiques des dépendances, proposées en PR vers preprod.
 version: 2
 updates:
+  # Les « mises à jour de sécurité » de GitHub visent toujours main : elles sont
+  # désactivées dans les réglages du dépôt. Ce sont ces mises à jour, vers preprod,
+  # qui apportent les correctifs (dépendances indirectes comprises).
   - package-ecosystem: npm
     directory: /
     target-branch: preprod
     schedule:
-      interval: weekly
+      interval: daily
+    allow:
+      - dependency-type: all
+    groups:
+      correctifs:
+        update-types: [minor, patch]
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps"
