@@ -6,6 +6,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ### Ajouté
 - **Thème clair** : suit le thème du système par défaut, bouton ☀️ / 🌙 dans la barre du haut pour forcer l’un ou l’autre (choix mémorisé) (#1).
+- **Recherche rapide** dans les tuiles : touche `/`, filtre sur le nom, la description et la catégorie (sans accents ni majuscules), Entrée ouvre la première tuile, Échap vide le champ (#5).
 
 ## [0.6.1] - 2026-10-26
 

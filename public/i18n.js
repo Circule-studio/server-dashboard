@@ -6,6 +6,9 @@ const I18N = {
   fr: {
     'lang.switch': 'EN',
     'lang.switchTitle': 'Switch to English',
+    'search.placeholder': 'Rechercher…  /',
+    'search.aria': 'Rechercher une application',
+    'search.none': 'Aucune application ne correspond à « {query} ».',
     'theme.toLight': 'Passer au thème clair',
     'theme.toDark': 'Passer au thème sombre',
 
@@ -240,6 +243,9 @@ const I18N = {
   en: {
     'lang.switch': 'FR',
     'lang.switchTitle': 'Passer en français',
+    'search.placeholder': 'Search…  /',
+    'search.aria': 'Search apps',
+    'search.none': 'No app matches “{query}”.',
     'theme.toLight': 'Switch to light theme',
     'theme.toDark': 'Switch to dark theme',
 

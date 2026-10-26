@@ -10,6 +10,7 @@ const state = {
   loginRequired: false, // REQUIRE_LOGIN côté serveur
   editing: false,
   docker: null,
+  search: '',       // texte de la recherche rapide (ignoré en mode édition)
 };
 
 // ---------- Utilitaires ----------
@@ -91,6 +92,10 @@ function iconEl(app) {
 // ---------- Rendu du tableau ----------
 const current = () => (state.editing ? state.draft : state.config);
 
+// Recherche sans tenir compte des majuscules ni des accents.
+const fold = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+const matchesSearch = (app, q) => fold(`${app.name} ${app.description || ''}`).includes(q);
+
 function render() {
   const cfg = current();
   if (!cfg) return;
@@ -100,6 +105,9 @@ function render() {
   $('#editBar').hidden = !state.editing;
   $('#editBtn').hidden = !state.authed || state.editing;
   $('#authBtn').textContent = state.authed ? t('btn.logout') : t('btn.login');
+  const hasApps = cfg.categories.some((cat) => cat.apps.length);
+  $('#search').hidden = state.editing || !hasApps;
+  const q = $('#search').hidden ? '' : fold(state.search.trim());
 
   const board = $('#board');
   board.replaceChildren();
@@ -112,8 +120,14 @@ function render() {
     board.append(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
   }
 
+  let found = 0;
   cfg.categories.forEach((cat, ci) => {
-    if (!state.editing && !cat.apps.length) return;
+    // Les index d'origine (ai) servent à l'édition, où la recherche est désactivée.
+    // Une catégorie dont le nom correspond est affichée en entier.
+    const catMatch = !q || fold(cat.name).includes(q);
+    const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
+    found += apps.length;
+    if (!state.editing && !apps.length) return;
     const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
     if (state.editing) {
       head.append(h('div', { class: 'category-tools' },
@@ -125,13 +139,14 @@ function render() {
     }
 
     const grid = h('div', { class: 'grid', 'data-cat': ci });
-    cat.apps.forEach((app, ai) => grid.append(tileEl(app, ci, ai)));
+    apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
     if (state.editing) {
       grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
       bindGridDrop(grid, ci);
     }
     board.append(h('section', { class: 'category' }, head, grid));
   });
+  if (q && !found) board.append(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
   renderWidgets();
 }
@@ -951,11 +966,35 @@ function renderThemeBtn() {
   btn.setAttribute('aria-label', btn.title);
 }
 
+// ---------- Recherche rapide ----------
+// « / » place le curseur dans le champ, Échap le vide, Entrée ouvre la première tuile.
+function bindSearch() {
+  const input = $('#search');
+  input.addEventListener('input', () => { state.search = input.value; render(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = state.search = '';
+      input.blur();
+      render();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      $('#board a.tile')?.click();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || input.hidden) return;
+    if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    e.preventDefault();
+    input.focus();
+  });
+}
+
 // ---------- Démarrage ----------
 async function init() {
   applyStaticI18n();
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
   renderThemeBtn();
+  bindSearch();
   $('#themeBtn').addEventListener('click', () => {
     setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     renderThemeBtn();
