@@ -31,7 +31,7 @@ async function api(path, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(data.error || `Erreur ${res.status}`), { status: res.status, code: data.code });
   return data;
 }
 
@@ -641,8 +641,19 @@ async function save() {
     refreshStatus();
     scheduleWidgets();
   } catch (e) {
+    if (e.code === 'conflict') {
+      // Quelqu'un a enregistré ailleurs : on n'écrase pas son travail.
+      if (confirm(`${e.message}\n\nRecharger la version actuelle ? Tes modifications non enregistrées seront perdues.`)) {
+        stopEditing();
+        state.config = await api('/api/config');
+        render();
+        scheduleWidgets();
+        toast('Configuration rechargée');
+      }
+      return;
+    }
     toast(e.message, true);
-    if (e.message === 'Non authentifié') { state.authed = false; render(); }
+    if (e.status === 401) { state.authed = false; render(); }
   } finally {
     btn.disabled = false;
   }

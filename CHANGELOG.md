@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.4.1] - 2026-10-26
+
+### Corrigé
+- Un onglet resté ouvert (ou un autre appareil) ne peut plus écraser la config sans prévenir : l’enregistrement est refusé avec un message, et l’interface propose de recharger la version actuelle (#25).
+
+### Sécurité
+- body-parser 2.4.0 (dépendance d’Express). Dependabot vérifie chaque jour toutes les dépendances, indirectes comprises, vers `preprod`.
+
 ## [0.4.0] - 2026-10-26
 
 ### Ajouté
@@ -51,7 +59,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.1.0...v0.2.0
