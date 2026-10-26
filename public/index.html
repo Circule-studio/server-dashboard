@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Les textes sont traduits par i18n.js (attributs data-i18n*). -->
   <header class="topbar">
     <div class="brand">
       <h1 id="title">Server Dashboard</h1>
@@ -15,31 +16,30 @@
     </div>
     <div class="topbar-right">
       <span id="clock" class="clock"></span>
-      <button id="editBtn" class="btn" hidden>Éditer</button>
-      <button id="authBtn" class="btn btn-ghost">Connexion</button>
+      <button id="langBtn" class="btn btn-ghost btn-lang" data-i18n="lang.switch" data-i18n-title="lang.switchTitle"></button>
+      <button id="editBtn" class="btn" data-i18n="btn.edit" hidden></button>
+      <button id="authBtn" class="btn btn-ghost" data-i18n="btn.login"></button>
     </div>
   </header>
 
-  <div id="pwBanner" class="banner" role="alert" hidden>
-    ⚠ Tu utilises le mot de passe par défaut <b>admin</b>. Change-le : variable <code>ADMIN_PASSWORD</code> dans <code>.env</code> (Docker ou en local) ou dans <code>/etc/server-dashboard/server-dashboard.env</code> (installation sans Docker), puis redémarre le dashboard.
-  </div>
+  <div id="pwBanner" class="banner" role="alert" data-i18n-html="banner.defaultPassword" hidden></div>
 
   <div id="editBar" class="editbar" hidden>
-    <span>Mode édition : glisse les tuiles pour les réordonner ou les déplacer.</span>
+    <span data-i18n="edit.hint"></span>
     <div class="editbar-actions">
-      <button id="renameBoardBtn" class="btn btn-ghost">Renommer le tableau</button>
-      <button id="addWidgetBtn" class="btn btn-ghost">+ Widget</button>
-      <button id="disksBtn" class="btn btn-ghost">Disques</button>
-      <button id="addCatBtn" class="btn btn-ghost">+ Catégorie</button>
-      <button id="cancelBtn" class="btn btn-ghost">Annuler</button>
-      <button id="saveBtn" class="btn btn-primary">Enregistrer</button>
+      <button id="renameBoardBtn" class="btn btn-ghost" data-i18n="edit.renameBoard"></button>
+      <button id="addWidgetBtn" class="btn btn-ghost" data-i18n="edit.addWidget"></button>
+      <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
+      <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
+      <button id="cancelBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
+      <button id="saveBtn" class="btn btn-primary" data-i18n="common.save"></button>
     </div>
   </div>
 
-  <section id="stats" class="stats" aria-label="Ressources du serveur">
-    <div class="stat" id="stat-cpu"><div class="stat-head"><span>CPU</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
-    <div class="stat" id="stat-mem"><div class="stat-head"><span>Mémoire</span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
-    <div class="stat" id="stat-up"><div class="stat-head"><span>Uptime</span><b>–</b></div><small class="muted"></small></div>
+  <section id="stats" class="stats" data-i18n-aria="stats.aria">
+    <div class="stat" id="stat-cpu"><div class="stat-head"><span data-i18n="stat.cpu"></span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-mem"><div class="stat-head"><span data-i18n="stat.memory"></span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-up"><div class="stat-head"><span data-i18n="stat.uptime"></span><b>–</b></div><small class="muted"></small></div>
   </section>
 
   <section id="widgets" class="widgets" aria-label="Widgets"></section>
@@ -48,7 +48,7 @@
 
   <section id="dockerSection" class="panel">
     <div class="panel-head">
-      <h2>Conteneurs Docker</h2>
+      <h2 data-i18n="docker.title"></h2>
       <span id="dockerSummary" class="muted"></span>
     </div>
     <div id="dockerBody"></div>
@@ -56,73 +56,73 @@
 
   <dialog id="loginDialog">
     <form method="dialog" id="loginForm">
-      <h3>Connexion admin</h3>
-      <label>Mot de passe<input type="password" name="password" required autocomplete="current-password"></label>
+      <h3 data-i18n="login.title"></h3>
+      <label><span data-i18n="login.password"></span><input type="password" name="password" required autocomplete="current-password"></label>
       <p class="error" id="loginError"></p>
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
-        <button class="btn btn-primary">Se connecter</button>
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="login.submit"></button>
       </div>
     </form>
   </dialog>
 
   <dialog id="appDialog">
     <form method="dialog" id="appForm">
-      <h3 id="appDialogTitle">Application</h3>
-      <label>Nom<input name="name" required maxlength="100"></label>
-      <label>URL<input name="url" type="url" required placeholder="http://192.168.1.10:8096"></label>
-      <label>Icône
-        <input name="icon" placeholder="jellyfin, plex, portainer… ou URL d'image">
-        <small class="muted">Nom d'icône de <a href="https://dashboardicons.com" target="_blank" rel="noopener">dashboardicons.com</a> ou URL complète.</small>
+      <h3 id="appDialogTitle" data-i18n="app.dialogTitle"></h3>
+      <label><span data-i18n="common.name"></span><input name="name" required maxlength="100"></label>
+      <label><span data-i18n="app.url"></span><input name="url" type="url" required placeholder="http://192.168.1.10:8096"></label>
+      <label><span data-i18n="app.icon"></span>
+        <input name="icon" data-i18n-placeholder="app.iconPlaceholder">
+        <small class="muted" data-i18n-html="app.iconHelp"></small>
       </label>
-      <label>Description<input name="description" maxlength="200"></label>
-      <label>Catégorie<select name="category"></select></label>
+      <label><span data-i18n="app.description"></span><input name="description" maxlength="200"></label>
+      <label><span data-i18n="app.category"></span><select name="category"></select></label>
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
-        <button class="btn btn-primary">Valider</button>
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
       </div>
     </form>
   </dialog>
 
   <dialog id="widgetDialog">
     <form method="dialog" id="widgetForm">
-      <h3 id="widgetDialogTitle">Widget</h3>
-      <label>Type<select name="type"></select></label>
-      <label>Nom<input name="name" maxlength="100" placeholder="Laisser vide pour utiliser le type"></label>
-      <label data-field="url">URL du service
+      <h3 id="widgetDialogTitle" data-i18n="widget.dialogTitle"></h3>
+      <label><span data-i18n="widget.type"></span><select name="type"></select></label>
+      <label><span data-i18n="common.name"></span><input name="name" maxlength="100" data-i18n-placeholder="widget.namePlaceholder"></label>
+      <label data-field="url"><span data-i18n="widget.url"></span>
         <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
-        <small class="muted">Adresse joignable depuis le serveur du dashboard.</small>
+        <small class="muted" data-i18n="widget.urlHelp"></small>
       </label>
-      <label data-field="apiKey"><span data-key-label>Clé API</span>
+      <label data-field="apiKey"><span data-key-label></span>
         <input name="apiKey" type="password" autocomplete="off">
         <small class="muted" data-key-help></small>
       </label>
-      <label data-field="username"><span data-user-label>Utilisateur</span><input name="username" autocomplete="off"></label>
-      <label data-field="password">Mot de passe<input name="password" type="password" autocomplete="new-password"></label>
+      <label data-field="username"><span data-user-label></span><input name="username" autocomplete="off"></label>
+      <label data-field="password"><span data-i18n="widget.password"></span><input name="password" type="password" autocomplete="new-password"></label>
       <fieldset class="sections" data-sections hidden>
-        <legend>Blocs à afficher</legend>
+        <legend data-i18n="widget.sections"></legend>
         <div data-sections-list></div>
-        <small class="muted">Astuce : ajoute plusieurs widgets avec des blocs différents pour les placer où tu veux.</small>
+        <small class="muted" data-i18n="widget.sectionsHelp"></small>
       </fieldset>
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
-        <button class="btn btn-primary">Valider</button>
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
       </div>
     </form>
   </dialog>
 
   <dialog id="disksDialog">
     <form method="dialog" id="disksForm">
-      <h3>Disques affichés</h3>
-      <p class="muted dialog-help">Coche les disques à afficher dans les stats. Le nom est facultatif.</p>
-      <div id="disksList" class="disks-list"><p class="muted">Recherche des disques…</p></div>
-      <label>Ajouter un autre chemin
-        <input name="extra" placeholder="/mnt/data, /host/mnt/nas ou D:\">
-        <small class="muted">Partage réseau, dossier monté dans Docker… Il doit exister sur le serveur.</small>
+      <h3 data-i18n="disks.title"></h3>
+      <p class="muted dialog-help" data-i18n="disks.help"></p>
+      <div id="disksList" class="disks-list"></div>
+      <label><span data-i18n="disks.extra"></span>
+        <input name="extra" data-i18n-placeholder="disks.extraPlaceholder">
+        <small class="muted" data-i18n="disks.extraHelp"></small>
       </label>
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
-        <button class="btn btn-primary">Valider</button>
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
       </div>
     </form>
   </dialog>
@@ -130,16 +130,17 @@
   <dialog id="textDialog">
     <form method="dialog" id="textForm">
       <h3 id="textDialogTitle"></h3>
-      <label><span id="textDialogLabel">Nom</span><input name="value" required maxlength="100"></label>
+      <label><span id="textDialogLabel"></span><input name="value" required maxlength="100"></label>
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" data-close>Annuler</button>
-        <button class="btn btn-primary">Valider</button>
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
       </div>
     </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

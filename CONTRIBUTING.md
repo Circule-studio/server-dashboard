@@ -29,6 +29,10 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 
 L'interface est en HTML/CSS/JS sans framework ni étape de build : on modifie, on recharge la page.
 
+## Traductions
+
+L'interface est en français et en anglais. Tous les textes sont dans [`public/i18n.js`](public/i18n.js) : on les affiche avec `t('clé')` dans `public/app.js`, ou avec un attribut `data-i18n="clé"` dans `public/index.html`. **Ajoute toujours la clé dans les deux langues.** Le serveur renvoie des codes (`movies`, `unreachable`…) que l'interface traduit : pas de texte affiché en dur côté serveur. Pour ajouter une langue, copie le bloc `en` et traduis-le.
+
 ## Ajouter un widget
 
 1. Dans `integrations.js`, écris une fonction `async (widget) => données` et ajoute-la à `INTEGRATIONS` avec ses champs (`url`, `apiKey`, `username`, `password`).

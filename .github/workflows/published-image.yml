@@ -1,0 +1,50 @@
+# Teste l'image publiée sur ghcr.io comme un nouvel utilisateur : procédure du
+# README, sans cloner le dépôt ni se connecter au registre (téléchargement anonyme).
+name: Test de l'image publiée
+
+on:
+  # Après chaque publication d'image (tag vX.Y.Z).
+  workflow_run:
+    workflows: ['Image Docker publiée']
+    types: [completed]
+  # Quand ce test lui-même change.
+  push:
+    branches: [preprod]
+    paths: ['.github/workflows/published-image.yml']
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  install:
+    name: Installation Docker depuis ghcr.io
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Procédure du README
+        run: |
+          mkdir server-dashboard && cd server-dashboard
+          curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+          curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
+          sed -i 's/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=ci-test/' .env
+          docker compose pull
+          docker compose up -d
+
+      - name: Le dashboard répond
+        working-directory: server-dashboard
+        run: |
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me && break; sleep 1; done
+          version=$(docker compose exec -T dashboard node -p "require('./package.json').version")
+          echo "Version dans l'image : $version"
+          test -n "$version"
+          curl -fsS http://127.0.0.1:7575/ | grep -q "Server Dashboard"
+          curl -fsS -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
+          curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"available":true'
+          curl -fsS http://127.0.0.1:7575/api/system | grep -q '"path":"/host"'
+
+      - name: Logs en cas d'échec
+        if: failure()
+        working-directory: server-dashboard
+        run: docker compose logs
