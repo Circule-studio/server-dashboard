@@ -588,11 +588,25 @@ function updateWidget(id) {
   if (card && w) card.querySelector('.widget-body').replaceWith(widgetBody(w));
 }
 
+// Après une erreur, on réessaie sans attendre l'intervalle normal (10 min pour la météo) :
+// 30 s, puis 1 min, 2 min… sans dépasser cet intervalle. Un succès remet le compteur à zéro.
+const RETRY_MS = 30_000;
+const retries = {}; // id du widget -> { timer, attempt }
+
 async function refreshWidget(id) {
+  clearTimeout(retries[id]?.timer);
   try {
     state.widgetData[id] = { data: await api(`/api/widgets/${encodeURIComponent(id)}`) };
+    delete retries[id];
   } catch (e) {
     state.widgetData[id] = { error: errMsg(e) };
+    const w = state.config.widgets.find((x) => x.id === id);
+    const every = w && WIDGET_TYPES[w.type]?.refresh;
+    if (every > RETRY_MS) {
+      const attempt = retries[id]?.attempt ?? 0;
+      const delay = Math.min(RETRY_MS * 2 ** attempt, every);
+      if (delay < every) retries[id] = { attempt: attempt + 1, timer: setTimeout(() => refreshWidget(id), delay) };
+    }
   }
   updateWidget(id);
 }
@@ -600,6 +614,8 @@ async function refreshWidget(id) {
 function scheduleWidgets() {
   widgetTimers.forEach(clearInterval);
   widgetTimers = [];
+  for (const r of Object.values(retries)) clearTimeout(r.timer);
+  for (const id of Object.keys(retries)) delete retries[id];
   state.widgetData = {};
   for (const w of state.config.widgets) {
     refreshWidget(w.id);

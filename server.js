@@ -47,6 +47,8 @@ if (!process.env.ADMIN_PASSWORD) {
 // ---------- Config ----------
 // Première installation : config vide, l'interface affiche un écran d'accueil.
 const DEFAULT_CONFIG = {
+  // Présent dès le départ : le contrôle « modifiée ailleurs » marche aussi au tout premier enregistrement.
+  revision: 0,
   title: 'Mon serveur',
   widgets: [],
   categories: [],
@@ -110,14 +112,36 @@ function checkUrl(url) {
   return url;
 }
 
+// Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
+// (avant, l'erreur JavaScript brute était renvoyée au navigateur).
+function item(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw fail('bad_request', 'Élément invalide dans la configuration');
+  return v;
+}
+
+// Identifiant unique dans la liste : absent ou déjà vu, il est remplacé. Les données des
+// widgets et le statut des apps sont rangés par identifiant : un doublon mélangeait les deux.
+function uniqueId(seen, raw, prefix) {
+  let id = str(raw, 64);
+  if (!id || seen.has(id)) id = `${prefix}-${crypto.randomUUID()}`;
+  seen.add(id);
+  return id;
+}
+
 // `previous` sert à conserver les secrets : le navigateur ne les reçoit jamais,
 // donc un champ vide signifie « inchangé ».
 function sanitizeWidgets(list, previous = []) {
-  return (Array.isArray(list) ? list : []).map((w) => {
+  const seen = new Set();
+  const occurrences = new Map(); // identifiant reçu -> nombre de fois déjà vu
+  return (Array.isArray(list) ? list : []).map(item).map((w) => {
     const type = str(w.type, 32);
     if (!INTEGRATIONS[type]) throw fail('bad_request', `Type de widget inconnu : ${type}`);
-    const id = str(w.id, 64) || 'wid-' + crypto.randomUUID();
-    const old = previous.find((p) => p.id === id) || {};
+    const raw = str(w.id, 64);
+    const id = uniqueId(seen, raw, 'wid');
+    // Doublon venu d'un config.json modifié à la main : le n-ième garde les secrets du n-ième.
+    const n = occurrences.get(raw) || 0;
+    occurrences.set(raw, n + 1);
+    const old = (raw && previous.filter((p) => p.id === raw)[n]) || {};
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
     // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
     if (INTEGRATIONS[type].fields.includes('username')) {
@@ -167,6 +191,8 @@ function sanitizeDisplay(display) {
 
 function sanitizeConfig(input, previous) {
   if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
+  const catIds = new Set();
+  const appIds = new Set(); // uniques sur tout le tableau : /api/status les range par identifiant
   return {
     revision: (previous?.revision || 0) + 1,
     title: str(input.title, 100) || 'Mon serveur',
@@ -176,12 +202,12 @@ function sanitizeConfig(input, previous) {
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
       .filter((d) => d.path),
-    categories: input.categories.map((c) => ({
-      id: str(c.id, 64) || 'cat-' + crypto.randomUUID(),
+    categories: input.categories.map(item).map((c) => ({
+      id: uniqueId(catIds, c.id, 'cat'),
       name: str(c.name, 100) || 'Sans nom',
-      apps: (Array.isArray(c.apps) ? c.apps : []).map((a) => {
+      apps: (Array.isArray(c.apps) ? c.apps : []).map(item).map((a) => {
         return {
-          id: str(a.id, 64) || 'app-' + crypto.randomUUID(),
+          id: uniqueId(appIds, a.id, 'app'),
           name: str(a.name, 100) || 'App',
           url: checkUrl(str(a.url, 2000)),
           icon: str(a.icon, 2000),
@@ -517,7 +543,11 @@ app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(asy
   try {
     cfg = sanitizeConfig(req.body, previous);
   } catch (e) {
-    return res.status(400).json({ error: e.message, code: e.key, params: e.params });
+    // Seules nos erreurs prévues (avec un code) sont détaillées ; les autres restent dans les logs.
+    if (!e.key) console.error('[PUT /api/config]', e);
+    return res.status(400).json(e.key
+      ? { error: e.message, code: e.key, params: e.params }
+      : { error: 'Requête invalide', code: 'bad_request' });
   }
   await writeConfig(cfg);
   resetIntegrations();

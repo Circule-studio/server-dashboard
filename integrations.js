@@ -379,7 +379,17 @@ async function weatherPlace(w) {
   const key = `${w.url}|${location}`;
   if (places.has(key)) return places.get(key);
   // Sans résultat, l'API omet le tableau `results` (et non un tableau vide).
-  const { results } = await getJson(join(w.url || OPEN_METEO_GEOCODING, `/v1/search?count=1&name=${encodeURIComponent(location)}`));
+  const search = `/v1/search?count=1&name=${encodeURIComponent(location)}`;
+  let found;
+  try {
+    found = await getJson(join(w.url || OPEN_METEO_GEOCODING, search));
+  } catch (e) {
+    // Une instance Open-Meteo auto-hébergée ne fait que les prévisions : le géocodage est un
+    // service à part (open-meteo/geocoding-api). Sans lui (404), on cherche sur le service public.
+    if (!w.url || e.key !== 'http' || e.params?.status !== 404) throw e;
+    found = await getJson(join(OPEN_METEO_GEOCODING, search));
+  }
+  const { results } = found;
   const p = results?.[0];
   if (!p) throw fail('location_not_found', `Lieu introuvable : ${location}`, { location });
   const place = { name: p.name, region: p.admin1 || '', country: p.country_code || '', latitude: p.latitude, longitude: p.longitude };
