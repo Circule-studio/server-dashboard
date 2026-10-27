@@ -56,8 +56,10 @@ function request(url, { method = 'GET', headers = {}, body, timeout = 8000, disc
 const join = (base, p) => base.replace(/\/+$/, '') + p;
 const pad = (n) => String(n ?? 0).padStart(2, '0');
 
-async function getJson(url, headers = {}) {
+// `forbidden` : code d'erreur plus précis pour un 403 (clé valide mais droits insuffisants).
+async function getJson(url, headers = {}, { forbidden } = {}) {
   const r = await request(url, { headers: { Accept: 'application/json', ...headers } });
+  if (r.status === 403 && forbidden) throw fail(forbidden, 'Droits insuffisants');
   if (r.status === 401 || r.status === 403) throw fail('auth_refused', 'Authentification refusée (vérifie la clé API)');
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
   if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
@@ -384,9 +386,24 @@ async function weather(w) {
   };
 }
 
+// ---------- Immich ----------
+// Clé API d'un compte administrateur : la route est réservée aux admins et une clé
+// limitée doit avoir la permission server.statistics (sinon HTTP 403).
+async function immich(w) {
+  const s = await getJson(join(w.url, '/api/server/statistics'), { 'x-api-key': w.apiKey }, { forbidden: 'immich_admin' });
+  return {
+    photos: s.photos, videos: s.videos, usage: s.usage,
+    users: (s.usageByUser || [])
+      .map((u) => ({ name: u.userName, photos: u.photos, videos: u.videos, usage: u.usage, quota: u.quotaSizeInBytes ?? null }))
+      .sort((a, b) => b.usage - a.usage)
+      .slice(0, 8),
+  };
+}
+
 const INTEGRATIONS = {
   // `cacheMs` : durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS).
   weather: { fields: ['location', 'url'], cacheMs: 10 * 60_000, fetch: weather },
+  immich: { fields: ['url', 'apiKey'], cacheMs: 60_000, fetch: immich },
   proxmox: { fields: ['url', 'username', 'apiKey'], fetch: proxmox },
   pulse: { fields: ['url', 'apiKey'], sections: ['health', 'alerts', 'resources'], fetch: pulse },
   jellyfin: { fields: ['url', 'apiKey'], fetch: jellyfin },

@@ -43,7 +43,7 @@ for (const lang of langs) {
   }
 }
 // Les codes d'erreur renvoyés par le serveur doivent être traduits.
-const serverCodes = new Set([...`${read('server.js')}\n${read('integrations.js')}`.matchAll(/(?:fail\(|code: )'([a-z_]+)'/g)].map((m) => m[1]));
+const serverCodes = new Set([...`${read('server.js')}\n${read('integrations.js')}`.matchAll(/(?:fail\(|code: |forbidden: )'([a-z_]+)'/g)].map((m) => m[1]));
 for (const code of serverCodes) {
   for (const lang of langs) {
     if (!(`err.${code}` in ctx.I18N[lang])) { errors++; console.error(`[${lang}] code serveur non traduit : err.${code}`); }
