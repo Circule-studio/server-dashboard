@@ -193,7 +193,32 @@ function sanitizeConfig(input, previous) {
 // La clé de signature dépend du mot de passe : le changer invalide toutes les sessions.
 const SIGNING_KEY = crypto.createHmac('sha256', SECRET).update(ADMIN_PASSWORD).digest();
 // Sessions fermées par « Déconnexion » (id -> expiration), gardées jusqu'à leur expiration.
-const revokedSessions = new Map();
+// Enregistrées sur disque : sans cela, un redémarrage rendait valides les cookies déconnectés.
+const REVOKED_FILE = path.join(DATA_DIR, '.revoked-sessions.json');
+
+function loadRevoked() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(REVOKED_FILE, 'utf8'));
+    return Object.entries(saved).filter(([id, exp]) => typeof id === 'string' && Number(exp) > Date.now());
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.warn(`[!] ${REVOKED_FILE} illisible, ignoré : ${e.message}`);
+    return [];
+  }
+}
+
+const revokedSessions = new Map(loadRevoked());
+
+// Écriture synchrone et atomique : rare (déconnexion, nettoyage) et doit survivre à un arrêt brutal.
+function saveRevoked() {
+  const tmp = `${REVOKED_FILE}.${crypto.randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(revokedSessions)), { mode: 0o600 });
+    fs.renameSync(tmp, REVOKED_FILE);
+  } catch (e) {
+    console.error(`[!] Impossible d'enregistrer les sessions fermées : ${e.message}`);
+    try { fs.unlinkSync(tmp); } catch { /* déjà absent */ }
+  }
+}
 
 function sign(value) {
   return crypto.createHmac('sha256', SIGNING_KEY).update(value).digest('hex');
@@ -258,7 +283,9 @@ function recordLoginFailure(ip) {
 setInterval(() => {
   const now = Date.now();
   for (const [ip, e] of loginFailures) if (now > e.reset) loginFailures.delete(ip);
-  for (const [id, exp] of revokedSessions) if (now > exp) revokedSessions.delete(id);
+  let pruned = false;
+  for (const [id, exp] of revokedSessions) if (now > exp) { revokedSessions.delete(id); pruned = true; }
+  if (pruned) saveRevoked();
 }, 10 * 60 * 1000).unref();
 
 // ---------- Ping des services ----------
@@ -376,18 +403,43 @@ async function detectDisks() {
 }
 
 // ---------- Docker (API Engine via socket unix / named pipe) ----------
+// Comme request() dans integrations.js : taille et durée totale bornées, une seule issue.
+const DOCKER_MAX_BYTES = 20 * 1024 * 1024;
+
 function docker(method, apiPath) {
   return new Promise((resolve, reject) => {
+    let done = false;
+    let timer;
+    const finish = (fn, value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      fn(value);
+    };
     const req = http.request({ socketPath: DOCKER_SOCKET, path: apiPath, method, timeout: 5000 }, (res) => {
-      let body = '';
-      res.on('data', (d) => (body += d));
+      const chunks = [];
+      let size = 0;
+      res.on('error', (e) => finish(reject, e));
+      res.on('data', (d) => {
+        size += d.length;
+        if (size > DOCKER_MAX_BYTES) {
+          finish(reject, new Error('Docker : réponse trop volumineuse'));
+          req.destroy();
+          return;
+        }
+        chunks.push(d);
+      });
       res.on('end', () => {
-        if (res.statusCode >= 400) return reject(new Error(`Docker ${res.statusCode}: ${body}`));
-        try { resolve(body ? JSON.parse(body) : null); } catch { resolve(null); }
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (res.statusCode >= 400) return finish(reject, new Error(`Docker ${res.statusCode}: ${body.slice(0, 500)}`));
+        let data = null;
+        try { data = body ? JSON.parse(body) : null; } catch { /* pas du JSON */ }
+        finish(resolve, data);
       });
     });
+    timer = setTimeout(() => req.destroy(new Error('timeout')), 15_000);
     req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', reject);
+    req.on('error', (e) => finish(reject, e));
     req.end();
   });
 }
@@ -435,7 +487,10 @@ app.post('/api/login', (req, res) => {
 
 app.post('/api/logout', (req, res) => {
   const session = parseToken(getCookie(req, COOKIE_NAME));
-  if (session) revokedSessions.set(session.id, session.exp);
+  if (session) {
+    revokedSessions.set(session.id, session.exp);
+    saveRevoked();
+  }
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
   res.json({ ok: true });
 });

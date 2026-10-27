@@ -26,28 +26,59 @@ function networkError(e) {
   return fail(NETWORK_KEYS[e.code], NETWORK_ERRORS[e.code] || e.message || e.code || 'Erreur réseau');
 }
 
+// Taille maximale d'une réponse : au-delà, la requête est abandonnée. Sans limite, une URL
+// pointant par erreur vers un gros fichier faisait planter tout le dashboard (chaîne trop longue).
+const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+
 // `discardBody` : on ne lit que le code HTTP (utile pour un simple ping).
-function request(url, { method = 'GET', headers = {}, body, timeout = 8000, discardBody = false } = {}) {
+// `timeout` : inactivité maximale ; `deadline` : durée totale maximale. Le `timeout` de Node
+// ne mesure que l'inactivité : un service qui envoie un octet de temps en temps le contournait.
+function request(url, {
+  method = 'GET', headers = {}, body, timeout = 8000, deadline = 20_000, maxBytes = MAX_RESPONSE_BYTES, discardBody = false,
+} = {}) {
   return new Promise((resolve, reject) => {
     let u;
     try { u = new URL(url); } catch { return reject(fail('invalid_url', 'URL invalide', { url })); }
+    let done = false;
+    let timer;
+    // Une seule issue par requête, même si plusieurs événements arrivent ensuite (erreur après abandon…).
+    const finish = (fn, value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      fn(value);
+    };
     const lib = u.protocol === 'https:' ? https : http;
     const req = lib.request(u, { method, headers, timeout, rejectUnauthorized: false }, (res) => {
+      res.on('error', (e) => finish(reject, networkError(e)));
       if (discardBody) {
         res.destroy();
-        return resolve({ status: res.statusCode, headers: res.headers });
+        return finish(resolve, { status: res.statusCode, headers: res.headers });
       }
-      let text = '';
-      res.setEncoding('utf8');
-      res.on('data', (d) => (text += d));
+      const chunks = [];
+      let size = 0;
+      res.on('data', (d) => {
+        size += d.length;
+        if (size > maxBytes) {
+          finish(reject, fail('response_too_large', 'Réponse trop volumineuse (vérifie l\'URL)', { max: Math.round(maxBytes / 1048576) }));
+          req.destroy();
+          return;
+        }
+        chunks.push(d);
+      });
       res.on('end', () => {
+        if (done) return;
+        // Décodage en une fois : un caractère accentué coupé entre deux morceaux reste correct.
+        const text = Buffer.concat(chunks).toString('utf8');
         let json = null;
         try { json = text ? JSON.parse(text) : null; } catch { /* pas du JSON */ }
-        resolve({ status: res.statusCode, headers: res.headers, text, json });
+        finish(resolve, { status: res.statusCode, headers: res.headers, text, json });
       });
     });
-    req.on('timeout', () => req.destroy(Object.assign(new Error('Délai dépassé'), { code: 'ETIMEDOUT' })));
-    req.on('error', (e) => reject(networkError(e)));
+    const expire = () => req.destroy(Object.assign(new Error('Délai dépassé'), { code: 'ETIMEDOUT' }));
+    timer = setTimeout(expire, deadline);
+    req.on('timeout', expire);
+    req.on('error', (e) => finish(reject, networkError(e)));
     if (body) req.write(body);
     req.end();
   });
