@@ -10,6 +10,8 @@ const state = {
   loginRequired: false, // REQUIRE_LOGIN côté serveur
   editing: false,
   docker: null,
+  search: '',       // texte de la recherche rapide (ignoré en mode édition)
+  searchOpen: false, // champ ouvert avec « / » alors que la barre est masquée
 };
 
 // ---------- Utilitaires ----------
@@ -91,6 +93,10 @@ function iconEl(app) {
 // ---------- Rendu du tableau ----------
 const current = () => (state.editing ? state.draft : state.config);
 
+// Recherche sans tenir compte des majuscules ni des accents.
+const fold = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+const matchesSearch = (app, q) => fold(`${app.name} ${app.description || ''}`).includes(q);
+
 function render() {
   const cfg = current();
   if (!cfg) return;
@@ -100,6 +106,16 @@ function render() {
   $('#editBar').hidden = !state.editing;
   $('#editBtn').hidden = !state.authed || state.editing;
   $('#authBtn').textContent = state.authed ? t('btn.logout') : t('btn.login');
+  const display = displayOptions(cfg);
+  // Sans bouton de thème, le choix enregistré est ignoré : le CSS suit le système.
+  if (display.theme && savedTheme()) document.documentElement.dataset.theme = savedTheme();
+  else delete document.documentElement.dataset.theme;
+  $('#themeBtn').hidden = !display.theme;
+  $('#langBtn').hidden = !display.lang;
+  const hasApps = cfg.categories.some((cat) => cat.apps.length);
+  state.searchEnabled = !state.editing && hasApps;
+  $('#search').hidden = !state.searchEnabled || !(display.search || state.searchOpen);
+  const q = state.searchEnabled ? fold(state.search.trim()) : '';
 
   const board = $('#board');
   board.replaceChildren();
@@ -112,8 +128,14 @@ function render() {
     board.append(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
   }
 
+  let found = 0;
   cfg.categories.forEach((cat, ci) => {
-    if (!state.editing && !cat.apps.length) return;
+    // Les index d'origine (ai) servent à l'édition, où la recherche est désactivée.
+    // Une catégorie dont le nom correspond est affichée en entier.
+    const catMatch = !q || fold(cat.name).includes(q);
+    const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
+    found += apps.length;
+    if (!state.editing && !apps.length) return;
     const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
     if (state.editing) {
       head.append(h('div', { class: 'category-tools' },
@@ -125,13 +147,14 @@ function render() {
     }
 
     const grid = h('div', { class: 'grid', 'data-cat': ci });
-    cat.apps.forEach((app, ai) => grid.append(tileEl(app, ci, ai)));
+    apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
     if (state.editing) {
       grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
       bindGridDrop(grid, ci);
     }
     board.append(h('section', { class: 'category' }, head, grid));
   });
+  if (q && !found) board.append(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
   renderWidgets();
 }
@@ -220,6 +243,21 @@ const WIDGET_TYPES = {
   qbittorrent: { label: 'qBittorrent', icon: 'qbittorrent', kind: 'torrent', refresh: 5_000, fields: ['url', 'username', 'password'], port: 8080 },
   sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 8989 },
   radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 7878 },
+  immich: { label: 'Immich', icon: 'immich', kind: 'immich', refresh: 5 * 60_000, keyHelp: 'key.immichHelp', port: 2283 },
+  pihole: {
+    label: 'Pi-hole', icon: 'pi-hole', kind: 'dns', refresh: 30_000, fields: ['url', 'password'],
+    placeholder: 'http://192.168.1.10', passwordLabel: 'key.piholePassword', passwordHelp: 'key.piholePasswordHelp',
+  },
+  adguard: {
+    label: 'AdGuard Home', icon: 'adguard-home', kind: 'dns', refresh: 30_000, fields: ['url', 'username', 'password'],
+    placeholder: 'http://192.168.1.10', passwordHelp: 'key.adguardHelp',
+  },
+  // Sans URL, le serveur utilise le service public open-meteo.com.
+  weather: {
+    label: t('weather.label'), icon: '/icons/weather.svg', kind: 'weather', refresh: 10 * 60_000,
+    fields: ['location', 'url'], nameFrom: 'location', urlOptional: true, urlLabel: 'weather.url', urlHelp: 'weather.urlHelp',
+    scheme: 'https', placeholder: 'https://api.open-meteo.com',
+  },
 };
 const fieldsOf = (type) => WIDGET_TYPES[type].fields || ['url', 'apiKey'];
 
@@ -242,6 +280,22 @@ function fmtDay(iso) {
   if (diff === 0) return `${t('day.today')}${time}`;
   if (diff === 1) return `${t('day.tomorrow')}${time}`;
   return d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }) + time;
+}
+
+// Codes météo WMO (doc Open-Meteo) -> icône ; le texte est dans weather.code.<code>.
+const WEATHER_ICONS = [
+  [[0], '☀️', '🌙'], [[1], '🌤️', '🌙'], [[2], '⛅', '☁️'], [[3], '☁️'], [[45, 48], '🌫️'],
+  [[51, 53, 55, 56, 57, 80, 81, 82], '🌦️', '🌧️'], [[61, 63, 65, 66, 67], '🌧️'],
+  [[71, 73, 75, 77, 85, 86], '🌨️'], [[95, 96, 97, 99], '⛈️'],
+];
+function weatherIcon(code, day = true) {
+  const entry = WEATHER_ICONS.find(([codes]) => codes.includes(code));
+  return entry ? (day ? entry[1] : entry[2] || entry[1]) : '🌡️';
+}
+const weatherText = (code) => (I18N[LANG][`weather.code.${code}`] ? t(`weather.code.${code}`) : '–');
+
+function regionName(code) {
+  try { return code ? new Intl.DisplayNames([LOCALE], { type: 'region' }).of(code) : ''; } catch { return code; }
 }
 
 function progressBar(p, cls = '') {
@@ -397,6 +451,71 @@ const RENDERERS = {
         progressBar(q.progress))))
       : h('p', { class: 'muted' }, t('arr.noDownloads')),
   ],
+
+  immich: (d) => [
+    h('div', { class: 'widget-stats' },
+      h('div', {}, h('b', {}, (d.photos ?? 0).toLocaleString(LOCALE)), h('span', {}, t('stat.photos'))),
+      h('div', {}, h('b', {}, (d.videos ?? 0).toLocaleString(LOCALE)), h('span', {}, t('stat.videos'))),
+      h('div', {}, h('b', {}, fmtBytes(d.usage)), h('span', {}, t('stat.usage')))),
+    // Le détail par utilisateur n'a d'intérêt qu'à partir de deux comptes.
+    ...(d.users.length > 1 ? [
+      h('div', { class: 'widget-subhead' }, t('immich.users')),
+      h('ul', { class: 'widget-list' }, d.users.map((u) => h('li', {},
+        h('div', { class: 'row' },
+          h('span', { class: 'item-title', title: u.name }, u.name),
+          h('span', { class: 'muted' }, u.quota ? `${fmtBytes(u.usage)} / ${fmtBytes(u.quota)}` : fmtBytes(u.usage))),
+        h('div', { class: 'item-sub' }, t('immich.userLine', { photos: u.photos.toLocaleString(LOCALE), videos: u.videos.toLocaleString(LOCALE) })),
+        u.quota ? progressBar(u.usage / u.quota, u.usage / u.quota >= 0.9 ? 'bad' : u.usage / u.quota >= 0.7 ? 'warn' : '') : null))),
+    ] : []),
+  ],
+
+  dns: (d) => {
+    const STATES = { enabled: 'ok', disabled: 'bad', failed: 'bad' };
+    const protection = STATES[d.protection] ? d.protection : 'unknown';
+    const extra = d.extra.filter((e) => e.value != null).map((e) => (e.key === 'avgTime'
+      ? t('dns.avgTime', { ms: (e.value * 1000).toLocaleString(LOCALE, { maximumFractionDigits: 1 }) })
+      : tp(`dns.${e.key}`, e.value, { n: e.value.toLocaleString(LOCALE) })));
+    return [
+      h('div', { class: 'widget-stats' },
+        h('div', {}, h('b', {}, d.queries.toLocaleString(LOCALE)), h('span', {}, t('dns.queries'))),
+        h('div', {}, h('b', {}, d.blocked.toLocaleString(LOCALE)), h('span', {}, t('dns.blocked'))),
+        h('div', {}, h('b', {}, `${d.percent.toLocaleString(LOCALE, { maximumFractionDigits: 1 })} %`), h('span', {}, t('dns.percent')))),
+      h('p', { class: 'dns-status' },
+        h('span', { class: `dot ${STATES[protection] || ''}` }), ' ', t(`dns.${protection}`),
+        // Pause temporaire : la protection revient d'elle-même.
+        protection === 'disabled' && d.timer ? h('span', { class: 'muted' }, ` · ${t('dns.timer', { duration: fmtEta(Math.round(d.timer)) })}`) : null),
+      extra.length ? h('p', { class: 'muted dns-extra' }, extra.join(' · ')) : null,
+    ];
+  },
+
+  weather: (d) => {
+    const c = d.current;
+    const deg = (v) => (v == null ? '–' : `${Math.round(v)}°`);
+    const place = d.place.name
+      ? [d.place.name, regionName(d.place.country)].filter(Boolean).join(', ')
+      : `${d.place.latitude}, ${d.place.longitude}`;
+    const today = new Date().toLocaleDateString('sv'); // AAAA-MM-JJ, comme l'API
+    return [
+      h('div', { class: 'weather-now' },
+        h('span', { class: 'weather-icon', role: 'img', 'aria-label': weatherText(c.code) }, weatherIcon(c.code, c.day)),
+        h('div', { class: 'weather-main' },
+          h('b', { class: 'weather-temp' }, c.temp == null ? '–' : `${Math.round(c.temp)} ${d.units.temp}`),
+          h('div', {}, weatherText(c.code)),
+          h('div', { class: 'item-sub' }, [
+            c.feels != null ? t('weather.feels', { temp: deg(c.feels) }) : null,
+            c.wind != null ? t('weather.wind', { speed: `${Math.round(c.wind)} ${d.units.wind}` }) : null,
+          ].filter(Boolean).join(' · ')),
+          h('div', { class: 'item-sub', title: place }, `📍 ${place}`))),
+      h('div', { class: 'weather-days' }, d.days.map((day) => h('div', { title: weatherText(day.code) },
+        h('span', { class: 'weather-day' }, day.date === today
+          ? t('weather.today')
+          : new Date(`${day.date}T12:00`).toLocaleDateString(LOCALE, { weekday: 'short' })),
+        h('span', { class: 'weather-icon-sm', role: 'img', 'aria-label': weatherText(day.code) }, weatherIcon(day.code)),
+        h('b', {}, deg(day.max)),
+        h('span', { class: 'muted' }, deg(day.min)),
+        day.rain ? h('small', { class: 'weather-rain', title: t('weather.rainChance') }, `💧 ${day.rain} %`) : null))),
+    ];
+  },
 };
 
 function renderWidgets() {
@@ -408,9 +527,12 @@ function renderWidgets() {
 
 function widgetCard(w, i, count) {
   const type = WIDGET_TYPES[w.type];
+  // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
   const head = h('div', { class: 'widget-head' },
     iconEl({ name: w.name, icon: type.icon }),
-    h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label));
+    w.url
+      ? h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
+      : h('span', { class: 'widget-title' }, w.name || type.label));
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
 
@@ -513,6 +635,7 @@ function openWidgetDialog(i) {
     h('option', { value: k, selected: k === w.type }, type.label)));
   f.type.disabled = i != null; // changer de type mélangerait les identifiants
   f.name.value = w.name || '';
+  f.location.value = w.location || '';
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
@@ -532,15 +655,22 @@ function updateWidgetFields() {
   form.querySelectorAll('[data-field]').forEach((label) => {
     const on = fields.includes(label.dataset.field);
     label.hidden = !on;
-    label.querySelector('input').disabled = !on;
+    label.querySelector('input, textarea').disabled = !on;
   });
+  form.querySelector('[data-url-label]').textContent = t(type.urlLabel || 'widget.url');
+  form.querySelector('[data-url-help]').textContent = t(type.urlHelp || 'widget.urlHelp');
+  form.querySelector('[data-password-label]').textContent = t(type.passwordLabel || 'widget.password');
+  form.querySelector('[data-password-help]').textContent = type.passwordHelp ? t(type.passwordHelp) : '';
+  form.elements.url.required = !type.urlOptional;
+  form.elements.name.placeholder = t(type.nameFrom ? 'widget.namePlaceholderLocation' : 'widget.namePlaceholder');
+  form.elements.location.required = fields.includes('location');
   form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
   form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
   form.elements.apiKey.required = fields.includes('apiKey') && !w.hasApiKey;
   form.elements.username.required = !!type.userRequired;
   form.querySelector('[data-user-label]').textContent = t(type.userLabel || 'widget.username');
   form.elements.username.placeholder = type.userHelp ? t(type.userHelp) : '';
-  form.elements.url.placeholder = `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
+  form.elements.url.placeholder = type.placeholder || `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
 
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
@@ -558,14 +688,17 @@ function submitWidget(e) {
   const typeId = f.type.value;
   const fields = fieldsOf(typeId);
   const prev = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : null;
+  // Nom par défaut : le lieu pour la météo (« Nantes »), sinon le type.
+  const nameFrom = WIDGET_TYPES[typeId].nameFrom;
   const w = {
     id: prev?.id || uid('wid'),
     type: typeId,
-    name: f.name.value.trim() || WIDGET_TYPES[typeId].label,
+    name: f.name.value.trim() || (nameFrom && f[nameFrom].value.trim()) || WIDGET_TYPES[typeId].label,
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
   };
+  if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('apiKey')) w.apiKey = f.apiKey.value.trim();
   if (fields.includes('username')) w.username = f.username.value.trim();
   if (fields.includes('password')) w.password = f.password.value;
@@ -860,6 +993,22 @@ function submitDisks(e) {
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
+// ---------- Options d'affichage (mode édition) ----------
+function openDisplayDialog() {
+  const form = $('#displayForm');
+  const display = displayOptions(state.draft);
+  for (const key of Object.keys(display)) form.elements[key].checked = display[key];
+  $('#displayDialog').showModal();
+}
+
+function submitDisplay(e) {
+  e.preventDefault();
+  const form = e.target;
+  state.draft.display = Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked]));
+  $('#displayDialog').close();
+  render();
+}
+
 // ---------- Statut des services ----------
 async function refreshStatus() {
   try {
@@ -941,10 +1090,58 @@ function tickClock() {
   });
 }
 
+// ---------- Thème ----------
+// Le bouton montre le thème vers lequel on bascule (☀️ en sombre, 🌙 en clair).
+function renderThemeBtn() {
+  const toLight = currentTheme() === 'dark';
+  const btn = $('#themeBtn');
+  btn.textContent = toLight ? '☀️' : '🌙';
+  btn.title = t(toLight ? 'theme.toLight' : 'theme.toDark');
+  btn.setAttribute('aria-label', btn.title);
+}
+
+// Éléments de la barre du haut que l'admin a choisi d'afficher (tous par défaut).
+const displayOptions = (cfg) => ({ search: true, theme: true, lang: true, ...cfg.display });
+
+// ---------- Recherche rapide ----------
+// « / » place le curseur dans le champ (et l'ouvre si la barre est masquée),
+// Échap le vide, Entrée ouvre la première tuile.
+function bindSearch() {
+  const input = $('#search');
+  const close = () => { state.searchOpen = false; render(); };
+  input.addEventListener('input', () => { state.search = input.value; render(); });
+  input.addEventListener('blur', () => { if (!input.value) close(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = state.search = '';
+      input.blur();
+      close();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      $('#board a.tile')?.click();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || !state.searchEnabled) return;
+    if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    e.preventDefault();
+    if (input.hidden) { state.searchOpen = true; render(); }
+    input.focus();
+  });
+}
+
 // ---------- Démarrage ----------
 async function init() {
   applyStaticI18n();
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
+  renderThemeBtn();
+  bindSearch();
+  $('#themeBtn').addEventListener('click', () => {
+    setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    renderThemeBtn();
+  });
+  // Sans choix enregistré, suivre le système quand il change.
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', renderThemeBtn);
   $('#editBtn').addEventListener('click', startEditing);
   $('#cancelBtn').addEventListener('click', stopEditing);
   $('#saveBtn').addEventListener('click', save);
@@ -960,6 +1157,8 @@ async function init() {
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
   $('#disksBtn').addEventListener('click', openDisksDialog);
   $('#disksForm').addEventListener('submit', submitDisks);
+  $('#displayBtn').addEventListener('click', openDisplayDialog);
+  $('#displayForm').addEventListener('submit', submitDisplay);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
   $('#loginForm').addEventListener('submit', submitLogin);
@@ -977,6 +1176,7 @@ async function init() {
   if (state.loginRequired && !state.authed) return showLoginGate();
 
   state.config = await api('/api/config');
+  if (!displayOptions(state.config).lang) followBrowserLang();
   render();
 
   refreshSystem();

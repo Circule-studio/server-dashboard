@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Thème clair** : suit le thème du système par défaut, bouton ☀️ / 🌙 dans la barre du haut pour forcer l’un ou l’autre (choix mémorisé) (#1).
+- **Recherche rapide** dans les tuiles : touche `/`, filtre sur le nom, la description et la catégorie (sans accents ni majuscules), Entrée ouvre la première tuile, Échap vide le champ (#5).
+- Widget **Météo** : température actuelle, ressenti, vent et prévisions sur 5 jours avec [Open-Meteo](https://open-meteo.com) (gratuit, sans clé API). Le lieu est un nom de ville ou des coordonnées ; une instance Open-Meteo auto-hébergée peut être utilisée. Faux Open-Meteo dans `npm run mocks` (#3).
+- Widget **Immich** : nombre de photos et de vidéos, stockage utilisé et détail par utilisateur (avec la jauge du quota s’il y en a un). Message clair si la clé n’est pas celle d’un administrateur. Faux Immich dans `npm run mocks` (#10).
+- Widgets **Pi-hole** (v6) et **AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection et pause en cours ; domaines bloqués et clients actifs (Pi-hole), temps de réponse moyen (AdGuard). La session Pi-hole est réutilisée et fermée quand la config change, pour ne pas épuiser les places limitées de son API. Faux Pi-hole et AdGuard dans `npm run mocks` (#4).
+- **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
+
 ## [0.6.1] - 2026-10-26
 
 ### Ajouté

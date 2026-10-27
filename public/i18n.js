@@ -6,6 +6,11 @@ const I18N = {
   fr: {
     'lang.switch': 'EN',
     'lang.switchTitle': 'Switch to English',
+    'search.placeholder': 'Rechercher…  /',
+    'search.aria': 'Rechercher une application',
+    'search.none': 'Aucune application ne correspond à « {query} ».',
+    'theme.toLight': 'Passer au thème clair',
+    'theme.toDark': 'Passer au thème sombre',
 
     'btn.edit': 'Éditer',
     'btn.login': 'Connexion',
@@ -24,6 +29,13 @@ const I18N = {
     'edit.renameBoard': 'Renommer le tableau',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disques',
+    'edit.display': 'Affichage',
+    'display.title': 'Affichage',
+    'display.legend': 'Barre du haut',
+    'display.search': 'Barre de recherche',
+    'display.theme': 'Bouton thème clair / sombre',
+    'display.lang': 'Bouton de langue (EN / FR)',
+    'display.help': 'Masquée, la recherche s’ouvre quand même avec la touche /. Sans bouton, le thème suit le système et la langue celle du navigateur.',
     'edit.addCategory': '+ Catégorie',
 
     'stats.aria': 'Ressources du serveur',
@@ -108,6 +120,7 @@ const I18N = {
     'widget.edit': 'Modifier le widget',
     'widget.type': 'Type',
     'widget.namePlaceholder': 'Laisser vide pour utiliser le type',
+    'widget.namePlaceholderLocation': 'Laisser vide pour utiliser le lieu',
     'widget.url': 'URL du service',
     'widget.urlHelp': 'Adresse joignable depuis le serveur du dashboard.',
     'widget.username': 'Utilisateur',
@@ -119,6 +132,9 @@ const I18N = {
     'widget.sectionsRequired': 'Coche au moins un bloc à afficher',
     'widget.deleteConfirm': 'Supprimer le widget « {name} » ?',
     'widget.saveToLoad': 'Enregistre pour charger les données.',
+    'widget.location': 'Lieu',
+    'widget.locationPlaceholder': 'Nantes, ou Paris, France, ou 47.21, -1.55',
+    'widget.locationHelp': 'Nom de ville (ajoute le pays après une virgule en cas d’homonyme) ou latitude, longitude.',
 
     'key.apiKey': 'Clé API',
     'key.pulse': 'Jeton d\'API',
@@ -131,6 +147,10 @@ const I18N = {
     'key.plex': 'Token Plex',
     'key.plexHelp': 'Valeur X-Plex-Token de ton compte (doc Plex : « Finding an authentication token »).',
     'key.arrHelp': 'Settings > General > API Key.',
+    'key.immichHelp': 'Immich > Paramètres du compte > Clés API. Clé d’un compte administrateur (permission server.statistics).',
+    'key.piholePassword': 'Mot de passe (ou mot de passe d’application)',
+    'key.piholePasswordHelp': 'Vide si ton Pi-hole n’a pas de mot de passe. Avec la 2FA, utilise un mot de passe d’application : Paramètres > Web interface / API, en mode Expert, « Configure app password ».',
+    'key.adguardHelp': 'Identifiants de l’interface web d’AdGuard Home. Laisse vide si elle n’a pas de mot de passe.',
 
     'stat.movies': 'Films',
     'stat.series': 'Séries',
@@ -138,6 +158,11 @@ const I18N = {
     'stat.libraries': 'Bibliothèques',
     'stat.streams': 'Lectures',
     'media.nothing': 'Aucune lecture en cours.',
+    'stat.photos': 'Photos',
+    'stat.videos': 'Vidéos',
+    'stat.usage': 'Stockage',
+    'immich.users': 'Par utilisateur',
+    'immich.userLine': '{photos} photos · {videos} vidéos',
 
     'torrent.down': '↓ Reçu',
     'torrent.up': '↑ Envoyé',
@@ -201,6 +226,57 @@ const I18N = {
     'pulse.type.app-container': 'Docker',
     'pulse.type.storage': 'Stockage',
 
+    'dns.queries': 'Requêtes',
+    'dns.blocked': 'Bloquées',
+    'dns.percent': '% bloquées',
+    'dns.enabled': 'Protection activée',
+    'dns.disabled': 'Protection désactivée',
+    'dns.failed': 'Blocage indisponible',
+    'dns.unknown': 'État inconnu',
+    'dns.timer': 'réactivation dans {duration}',
+    'dns.avgTime': 'réponse moyenne en {ms} ms',
+    'dns.blocklist.one': '{n} domaine bloqué',
+    'dns.blocklist.other': '{n} domaines bloqués',
+    'dns.clients.one': '{n} client actif',
+    'dns.clients.other': '{n} clients actifs',
+
+    'weather.label': 'Météo',
+    'weather.url': 'Serveur Open-Meteo (facultatif)',
+    'weather.urlHelp': 'Laisse vide pour utiliser le service public open-meteo.com (gratuit, sans clé). À remplir seulement pour une instance auto-hébergée.',
+    'weather.feels': 'ressenti {temp}',
+    'weather.wind': 'vent {speed}',
+    'weather.today': 'Auj.',
+    'weather.rainChance': 'Probabilité de précipitations',
+    'weather.code.0': 'Ciel dégagé',
+    'weather.code.1': 'Plutôt dégagé',
+    'weather.code.2': 'Partiellement nuageux',
+    'weather.code.3': 'Couvert',
+    'weather.code.45': 'Brouillard',
+    'weather.code.48': 'Brouillard givrant',
+    'weather.code.51': 'Bruine légère',
+    'weather.code.53': 'Bruine',
+    'weather.code.55': 'Bruine dense',
+    'weather.code.56': 'Bruine verglaçante légère',
+    'weather.code.57': 'Bruine verglaçante dense',
+    'weather.code.61': 'Pluie faible',
+    'weather.code.63': 'Pluie modérée',
+    'weather.code.65': 'Forte pluie',
+    'weather.code.66': 'Pluie verglaçante faible',
+    'weather.code.67': 'Forte pluie verglaçante',
+    'weather.code.71': 'Neige faible',
+    'weather.code.73': 'Neige modérée',
+    'weather.code.75': 'Forte neige',
+    'weather.code.77': 'Grains de neige',
+    'weather.code.80': 'Averses faibles',
+    'weather.code.81': 'Averses',
+    'weather.code.82': 'Fortes averses',
+    'weather.code.85': 'Averses de neige faibles',
+    'weather.code.86': 'Fortes averses de neige',
+    'weather.code.95': 'Orage',
+    'weather.code.96': 'Orage avec grêle faible',
+    'weather.code.97': 'Orage violent',
+    'weather.code.99': 'Orage avec forte grêle',
+
     'disks.title': 'Disques affichés',
     'disks.help': 'Coche les disques à afficher dans les stats. Le nom est facultatif.',
     'disks.searching': 'Recherche des disques…',
@@ -233,11 +309,23 @@ const I18N = {
     'err.qbit_credentials': 'Identifiants qBittorrent refusés',
     'err.qbit_banned': 'IP bannie par qBittorrent (trop de tentatives)',
     'err.path_not_found': 'Chemin introuvable',
+    'err.location_missing': 'Lieu manquant',
+    'err.location_not_found': 'Lieu introuvable : {location}',
+    'err.immich_admin': 'Clé refusée par Immich : utilise la clé d’un compte administrateur, avec la permission server.statistics',
+    'err.pihole_password': 'Mot de passe Pi-hole refusé',
+    'err.adguard_credentials': 'Identifiants AdGuard Home refusés',
+    'err.pihole_totp': 'Pi-hole demande un code 2FA : utilise un mot de passe d’application',
+    'err.pihole_seats': 'Pi-hole refuse une nouvelle session (trop de sessions ou de tentatives). Réessaie dans quelques minutes.',
   },
 
   en: {
     'lang.switch': 'FR',
     'lang.switchTitle': 'Passer en français',
+    'search.placeholder': 'Search…  /',
+    'search.aria': 'Search apps',
+    'search.none': 'No app matches “{query}”.',
+    'theme.toLight': 'Switch to light theme',
+    'theme.toDark': 'Switch to dark theme',
 
     'btn.edit': 'Edit',
     'btn.login': 'Log in',
@@ -256,6 +344,13 @@ const I18N = {
     'edit.renameBoard': 'Rename dashboard',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disks',
+    'edit.display': 'Display',
+    'display.title': 'Display',
+    'display.legend': 'Top bar',
+    'display.search': 'Search bar',
+    'display.theme': 'Light / dark theme button',
+    'display.lang': 'Language button (EN / FR)',
+    'display.help': 'When hidden, search still opens with the / key. Without the buttons, the theme follows the system and the language follows the browser.',
     'edit.addCategory': '+ Category',
 
     'stats.aria': 'Server resources',
@@ -340,6 +435,7 @@ const I18N = {
     'widget.edit': 'Edit widget',
     'widget.type': 'Type',
     'widget.namePlaceholder': 'Leave empty to use the type',
+    'widget.namePlaceholderLocation': 'Leave empty to use the location',
     'widget.url': 'Service URL',
     'widget.urlHelp': 'Address reachable from the dashboard server.',
     'widget.username': 'Username',
@@ -351,6 +447,9 @@ const I18N = {
     'widget.sectionsRequired': 'Check at least one block to show',
     'widget.deleteConfirm': 'Delete the "{name}" widget?',
     'widget.saveToLoad': 'Save to load the data.',
+    'widget.location': 'Location',
+    'widget.locationPlaceholder': 'London, or Paris, France, or 51.5, -0.12',
+    'widget.locationHelp': 'City name (add the country after a comma if several places share the name) or latitude, longitude.',
 
     'key.apiKey': 'API key',
     'key.pulse': 'API token',
@@ -363,6 +462,10 @@ const I18N = {
     'key.plex': 'Plex token',
     'key.plexHelp': 'Your account\'s X-Plex-Token value (Plex docs: "Finding an authentication token").',
     'key.arrHelp': 'Settings > General > API Key.',
+    'key.immichHelp': 'Immich > Account Settings > API Keys. Key from an admin account (server.statistics permission).',
+    'key.piholePassword': 'Password (or app password)',
+    'key.piholePasswordHelp': 'Leave empty if your Pi-hole has no password. With 2FA, use an app password: Settings > Web interface / API, in Expert mode, "Configure app password".',
+    'key.adguardHelp': 'AdGuard Home web interface credentials. Leave empty if it has no password.',
 
     'stat.movies': 'Movies',
     'stat.series': 'Series',
@@ -370,6 +473,11 @@ const I18N = {
     'stat.libraries': 'Libraries',
     'stat.streams': 'Streams',
     'media.nothing': 'Nothing playing.',
+    'stat.photos': 'Photos',
+    'stat.videos': 'Videos',
+    'stat.usage': 'Storage',
+    'immich.users': 'By user',
+    'immich.userLine': '{photos} photos · {videos} videos',
 
     'torrent.down': '↓ Down',
     'torrent.up': '↑ Up',
@@ -433,6 +541,57 @@ const I18N = {
     'pulse.type.app-container': 'Docker',
     'pulse.type.storage': 'Storage',
 
+    'dns.queries': 'Queries',
+    'dns.blocked': 'Blocked',
+    'dns.percent': '% blocked',
+    'dns.enabled': 'Protection enabled',
+    'dns.disabled': 'Protection disabled',
+    'dns.failed': 'Blocking unavailable',
+    'dns.unknown': 'Unknown state',
+    'dns.timer': 'back on in {duration}',
+    'dns.avgTime': 'average response {ms} ms',
+    'dns.blocklist.one': '{n} domain on blocklists',
+    'dns.blocklist.other': '{n} domains on blocklists',
+    'dns.clients.one': '{n} active client',
+    'dns.clients.other': '{n} active clients',
+
+    'weather.label': 'Weather',
+    'weather.url': 'Open-Meteo server (optional)',
+    'weather.urlHelp': 'Leave empty to use the public open-meteo.com service (free, no key). Only fill this in for a self-hosted instance.',
+    'weather.feels': 'feels like {temp}',
+    'weather.wind': 'wind {speed}',
+    'weather.today': 'Today',
+    'weather.rainChance': 'Chance of precipitation',
+    'weather.code.0': 'Clear sky',
+    'weather.code.1': 'Mainly clear',
+    'weather.code.2': 'Partly cloudy',
+    'weather.code.3': 'Overcast',
+    'weather.code.45': 'Fog',
+    'weather.code.48': 'Rime fog',
+    'weather.code.51': 'Light drizzle',
+    'weather.code.53': 'Moderate drizzle',
+    'weather.code.55': 'Dense drizzle',
+    'weather.code.56': 'Light freezing drizzle',
+    'weather.code.57': 'Dense freezing drizzle',
+    'weather.code.61': 'Slight rain',
+    'weather.code.63': 'Moderate rain',
+    'weather.code.65': 'Heavy rain',
+    'weather.code.66': 'Light freezing rain',
+    'weather.code.67': 'Heavy freezing rain',
+    'weather.code.71': 'Slight snowfall',
+    'weather.code.73': 'Moderate snowfall',
+    'weather.code.75': 'Heavy snowfall',
+    'weather.code.77': 'Snow grains',
+    'weather.code.80': 'Slight rain showers',
+    'weather.code.81': 'Rain showers',
+    'weather.code.82': 'Violent rain showers',
+    'weather.code.85': 'Slight snow showers',
+    'weather.code.86': 'Heavy snow showers',
+    'weather.code.95': 'Thunderstorm',
+    'weather.code.96': 'Thunderstorm with slight hail',
+    'weather.code.97': 'Heavy thunderstorm',
+    'weather.code.99': 'Thunderstorm with heavy hail',
+
     'disks.title': 'Displayed disks',
     'disks.help': 'Check the disks to show in the stats. The name is optional.',
     'disks.searching': 'Looking for disks…',
@@ -465,15 +624,24 @@ const I18N = {
     'err.qbit_credentials': 'qBittorrent credentials refused',
     'err.qbit_banned': 'IP banned by qBittorrent (too many attempts)',
     'err.path_not_found': 'Path not found',
+    'err.location_missing': 'Location missing',
+    'err.location_not_found': 'Location not found: {location}',
+    'err.immich_admin': 'Key refused by Immich: use a key from an admin account, with the server.statistics permission',
+    'err.pihole_password': 'Pi-hole password refused',
+    'err.adguard_credentials': 'AdGuard Home credentials refused',
+    'err.pihole_totp': 'Pi-hole asks for a 2FA code: use an app password',
+    'err.pihole_seats': 'Pi-hole refused a new session (too many sessions or attempts). Try again in a few minutes.',
   },
 };
+
+const browserLang = () => ((navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en');
 
 // Langue choisie (enregistrée dans le navigateur), sinon celle du navigateur.
 const LANG = (() => {
   let saved = null;
   try { saved = localStorage.getItem('sd-lang'); } catch { /* stockage indisponible */ }
   if (I18N[saved]) return saved;
-  return (navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  return browserLang();
 })();
 const LOCALE = LANG === 'fr' ? 'fr-FR' : 'en-US';
 
@@ -491,6 +659,13 @@ function tp(key, count, vars = {}) {
 // Message d'une erreur de l'API : traduit si le serveur a fourni un code connu.
 function errMsg(e) {
   return e?.code && I18N[LANG][`err.${e.code}`] ? t(`err.${e.code}`, e.params || {}) : (e?.message || String(e));
+}
+
+// Bouton de langue masqué par l'admin : on oublie le choix enregistré
+// et on revient à la langue du navigateur.
+function followBrowserLang() {
+  try { localStorage.removeItem('sd-lang'); } catch { /* stockage indisponible */ }
+  if (LANG !== browserLang()) location.reload();
 }
 
 function setLang(lang) {

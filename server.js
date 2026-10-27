@@ -123,6 +123,8 @@ function sanitizeWidgets(list, previous = []) {
     if (INTEGRATIONS[type].fields.includes('username')) {
       out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
     }
+    // Lieu de la météo : nom de ville ou coordonnées.
+    if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     // Blocs à afficher, pour les intégrations qui en proposent (ex. Pulse).
     const allowed = INTEGRATIONS[type].sections;
     if (allowed) {
@@ -152,11 +154,21 @@ function publicConfig(cfg, authed) {
   };
 }
 
+// Éléments de la barre du haut que l'admin peut masquer (tous visibles par défaut).
+const DISPLAY_OPTIONS = ['search', 'theme', 'lang'];
+
+function sanitizeDisplay(display) {
+  const src = display && typeof display === 'object' ? display : {};
+  return Object.fromEntries(DISPLAY_OPTIONS.map((k) => [k, src[k] !== false]));
+}
+
 function sanitizeConfig(input, previous) {
   if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
   return {
     revision: (previous?.revision || 0) + 1,
     title: str(input.title, 100) || 'Mon serveur',
+    // Absent de la requête (ancienne interface) = inchangé.
+    display: sanitizeDisplay(input.display ?? previous?.display),
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))

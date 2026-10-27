@@ -1,4 +1,4 @@
-// Intégrations : récupère et normalise les données des services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr).
+// Intégrations : récupère et normalise les données des services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr, météo…).
 
 const http = require('http');
 const https = require('https');
@@ -56,8 +56,10 @@ function request(url, { method = 'GET', headers = {}, body, timeout = 8000, disc
 const join = (base, p) => base.replace(/\/+$/, '') + p;
 const pad = (n) => String(n ?? 0).padStart(2, '0');
 
-async function getJson(url, headers = {}) {
+// `forbidden` : code d'erreur plus précis pour un 403 (clé valide mais droits insuffisants).
+async function getJson(url, headers = {}, { forbidden } = {}) {
   const r = await request(url, { headers: { Accept: 'application/json', ...headers } });
+  if (r.status === 403 && forbidden) throw fail(forbidden, 'Droits insuffisants');
   if (r.status === 401 || r.status === 403) throw fail('auth_refused', 'Authentification refusée (vérifie la clé API)');
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
   if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
@@ -326,7 +328,169 @@ async function pulse(w) {
   return out;
 }
 
+// ---------- Météo (Open-Meteo, sans clé API) ----------
+// `location` : un nom de ville, géocodé une seule fois, ou des coordonnées « 47.21, -1.55 ».
+// `url` : facultative, pour une instance Open-Meteo auto-hébergée (ou les faux services).
+const OPEN_METEO = 'https://api.open-meteo.com';
+const OPEN_METEO_GEOCODING = 'https://geocoding-api.open-meteo.com';
+const places = new Map(); // `${url}|${location}` -> lieu géocodé
+
+async function weatherPlace(w) {
+  const location = (w.location || '').trim();
+  if (!location) throw fail('location_missing', 'Lieu manquant');
+  const coords = location.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+  if (coords) {
+    const [latitude, longitude] = [Number(coords[1]), Number(coords[2])];
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) throw fail('location_not_found', `Lieu introuvable : ${location}`, { location });
+    return { name: '', latitude, longitude };
+  }
+  const key = `${w.url}|${location}`;
+  if (places.has(key)) return places.get(key);
+  // Sans résultat, l'API omet le tableau `results` (et non un tableau vide).
+  const { results } = await getJson(join(w.url || OPEN_METEO_GEOCODING, `/v1/search?count=1&name=${encodeURIComponent(location)}`));
+  const p = results?.[0];
+  if (!p) throw fail('location_not_found', `Lieu introuvable : ${location}`, { location });
+  const place = { name: p.name, region: p.admin1 || '', country: p.country_code || '', latitude: p.latitude, longitude: p.longitude };
+  places.set(key, place);
+  return place;
+}
+
+async function weather(w) {
+  const place = await weatherPlace(w);
+  const q = new URLSearchParams({
+    latitude: place.latitude,
+    longitude: place.longitude,
+    current: 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    timezone: 'auto',
+    forecast_days: 5,
+  });
+  const d = await getJson(join(w.url || OPEN_METEO, `/v1/forecast?${q}`));
+  const c = d.current || {};
+  const daily = d.daily || {};
+  return {
+    place,
+    units: { temp: d.current_units?.temperature_2m || '°C', wind: d.current_units?.wind_speed_10m || 'km/h' },
+    current: {
+      temp: c.temperature_2m, feels: c.apparent_temperature, code: c.weather_code,
+      wind: c.wind_speed_10m, day: c.is_day !== 0,
+    },
+    // Dates locales du lieu (AAAA-MM-JJ), grâce à timezone=auto.
+    days: (daily.time || []).map((date, i) => ({
+      date,
+      code: daily.weather_code?.[i],
+      max: daily.temperature_2m_max?.[i],
+      min: daily.temperature_2m_min?.[i],
+      rain: daily.precipitation_probability_max?.[i] ?? null,
+    })),
+  };
+}
+
+// ---------- Immich ----------
+// Clé API d'un compte administrateur : la route est réservée aux admins et une clé
+// limitée doit avoir la permission server.statistics (sinon HTTP 403).
+async function immich(w) {
+  const s = await getJson(join(w.url, '/api/server/statistics'), { 'x-api-key': w.apiKey }, { forbidden: 'immich_admin' });
+  return {
+    photos: s.photos, videos: s.videos, usage: s.usage,
+    users: (s.usageByUser || [])
+      .map((u) => ({ name: u.userName, photos: u.photos, videos: u.videos, usage: u.usage, quota: u.quotaSizeInBytes ?? null }))
+      .sort((a, b) => b.usage - a.usage)
+      .slice(0, 8),
+  };
+}
+
+// ---------- Bloqueurs DNS : Pi-hole v6 et AdGuard Home ----------
+// Format commun : protection (enabled / disabled / failed / unknown), minuteur (s),
+// requêtes, bloquées, pourcentage, plus quelques compteurs propres au service.
+
+// Pi-hole limite le nombre de sessions ouvertes (« API seats ») : on garde la
+// session tant qu'elle est valide au lieu de se reconnecter à chaque appel.
+// La promesse de connexion est mémorisée : deux appels simultanés ne consomment qu'une session.
+const piholeSids = new Map(); // id du widget -> { url, sid: Promise<SID> } (SID '' : Pi-hole sans mot de passe)
+
+async function piholeLogin(w) {
+  const body = JSON.stringify({ password: w.password || '' });
+  const r = await request(join(w.url, '/api/auth'), {
+    method: 'POST', body,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  });
+  const session = r.json?.session;
+  if (r.status === 200 && session?.valid) return session.sid || '';
+  // 2FA activée : seul un mot de passe d'application évite le code TOTP.
+  if (r.status === 400 && /2FA|totp/i.test(r.json?.error?.message || '')) throw fail('pihole_totp', 'Pi-hole demande un code 2FA');
+  if (r.status === 429) throw fail('pihole_seats', 'Pi-hole refuse une nouvelle session (trop de sessions ou de tentatives)');
+  if (r.status === 401 || session) throw fail('pihole_password', 'Mot de passe Pi-hole refusé');
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
+}
+
+async function piholeGet(w, path, retry = true) {
+  if (!piholeSids.has(w.id)) {
+    const entry = { url: w.url, sid: piholeLogin(w) };
+    entry.sid.catch(() => { if (piholeSids.get(w.id) === entry) piholeSids.delete(w.id); });
+    piholeSids.set(w.id, entry);
+  }
+  const sid = await piholeSids.get(w.id).sid;
+  const r = await request(join(w.url, path), { headers: { Accept: 'application/json', ...(sid ? { 'X-FTL-SID': sid } : {}) } });
+  if (r.status === 401 && retry) { // session expirée (30 min sans activité par défaut)
+    piholeSids.delete(w.id);
+    return piholeGet(w, path, false);
+  }
+  if (r.status === 401 || r.status === 403) throw fail('pihole_password', 'Mot de passe Pi-hole refusé');
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
+  return r.json;
+}
+
+async function pihole(w) {
+  // Séquentiel : la première requête ouvre la session, la seconde la réutilise.
+  const s = await piholeGet(w, '/api/stats/summary');
+  const b = await piholeGet(w, '/api/dns/blocking');
+  return {
+    protection: b.blocking || 'unknown',
+    timer: b.timer ?? null,
+    queries: s.queries?.total ?? 0,
+    blocked: s.queries?.blocked ?? 0,
+    percent: s.queries?.percent_blocked ?? 0,
+    extra: [
+      { key: 'blocklist', value: s.gravity?.domains_being_blocked ?? null },
+      { key: 'clients', value: s.clients?.active ?? null },
+    ],
+  };
+}
+
+// AdGuard Home : authentification HTTP Basic (facultative si l'interface n'a pas de mot de passe).
+async function adguard(w) {
+  const h = w.username || w.password
+    ? { Authorization: 'Basic ' + Buffer.from(`${w.username || ''}:${w.password || ''}`).toString('base64') }
+    : {};
+  const [stats, status] = await Promise.all([
+    getJson(join(w.url, '/control/stats'), h),
+    getJson(join(w.url, '/control/status'), h),
+  ]).catch((e) => {
+    // Pas de clé API ici : un refus vient de l'utilisateur ou du mot de passe.
+    throw e.key === 'auth_refused' ? fail('adguard_credentials', 'Identifiants AdGuard Home refusés') : e;
+  });
+  const queries = stats.num_dns_queries || 0;
+  // Bloquées = filtres + navigation sécurisée + contrôle parental (comme le tableau de bord d'AdGuard).
+  const blocked = (stats.num_blocked_filtering || 0) + (stats.num_replaced_safebrowsing || 0) + (stats.num_replaced_parental || 0);
+  return {
+    protection: !status.running ? 'failed' : status.protection_enabled ? 'enabled' : 'disabled',
+    timer: status.protection_disabled_duration ? status.protection_disabled_duration / 1000 : null,
+    queries,
+    blocked,
+    percent: queries ? (blocked / queries) * 100 : 0,
+    extra: [{ key: 'avgTime', value: stats.avg_processing_time ?? null }],
+  };
+}
+
 const INTEGRATIONS = {
+  // `cacheMs` : durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS).
+  weather: { fields: ['location', 'url'], cacheMs: 10 * 60_000, fetch: weather },
+  immich: { fields: ['url', 'apiKey'], cacheMs: 60_000, fetch: immich },
+  pihole: { fields: ['url', 'password'], fetch: pihole },
+  adguard: { fields: ['url', 'username', 'password'], fetch: adguard },
   proxmox: { fields: ['url', 'username', 'apiKey'], fetch: proxmox },
   pulse: { fields: ['url', 'apiKey'], sections: ['health', 'alerts', 'resources'], fetch: pulse },
   jellyfin: { fields: ['url', 'apiKey'], fetch: jellyfin },
@@ -344,7 +508,7 @@ async function fetchWidget(w) {
   const integration = INTEGRATIONS[w.type];
   if (!integration) throw new Error(`Type inconnu : ${w.type}`);
   const hit = cache.get(w.id);
-  if (hit && Date.now() - hit.t < CACHE_MS) return hit.promise;
+  if (hit && Date.now() - hit.t < (integration.cacheMs || CACHE_MS)) return hit.promise;
   const promise = integration.fetch(w);
   cache.set(w.id, { t: Date.now(), promise });
   promise.catch(() => cache.delete(w.id));
@@ -355,6 +519,13 @@ async function fetchWidget(w) {
 function resetIntegrations() {
   cache.clear();
   qbitSids.clear();
+  places.clear();
+  // Ferme les sessions Pi-hole devenues inutiles pour libérer leurs places (sans attendre la réponse).
+  for (const { url, sid } of piholeSids.values()) {
+    sid.then((s) => s && request(join(url, '/api/auth'), { method: 'DELETE', headers: { 'X-FTL-SID': s }, discardBody: true }))
+      .catch(() => {});
+  }
+  piholeSids.clear();
 }
 
 module.exports = { INTEGRATIONS, fetchWidget, resetIntegrations, request };

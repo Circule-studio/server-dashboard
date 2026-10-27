@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Server Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='35' height='35' rx='8' fill='%237c9cff'/><rect x='55' y='10' width='35' height='35' rx='8' fill='%2334d399'/><rect x='10' y='55' width='35' height='35' rx='8' fill='%2334d399'/><rect x='55' y='55' width='35' height='35' rx='8' fill='%237c9cff'/></svg>">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +16,9 @@
       <span id="host" class="muted"></span>
     </div>
     <div class="topbar-right">
+      <input id="search" class="search" type="search" autocomplete="off" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria" hidden>
       <span id="clock" class="clock"></span>
+      <button id="themeBtn" class="btn btn-ghost btn-icon"></button>
       <button id="langBtn" class="btn btn-ghost btn-lang" data-i18n="lang.switch" data-i18n-title="lang.switchTitle"></button>
       <button id="editBtn" class="btn" data-i18n="btn.edit" hidden></button>
       <button id="authBtn" class="btn btn-ghost" data-i18n="btn.login"></button>
@@ -30,6 +33,7 @@
       <button id="renameBoardBtn" class="btn btn-ghost" data-i18n="edit.renameBoard"></button>
       <button id="addWidgetBtn" class="btn btn-ghost" data-i18n="edit.addWidget"></button>
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
+      <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
       <button id="cancelBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
       <button id="saveBtn" class="btn btn-primary" data-i18n="common.save"></button>
@@ -89,16 +93,23 @@
       <h3 id="widgetDialogTitle" data-i18n="widget.dialogTitle"></h3>
       <label><span data-i18n="widget.type"></span><select name="type"></select></label>
       <label><span data-i18n="common.name"></span><input name="name" maxlength="100" data-i18n-placeholder="widget.namePlaceholder"></label>
-      <label data-field="url"><span data-i18n="widget.url"></span>
+      <label data-field="location"><span data-i18n="widget.location"></span>
+        <input name="location" maxlength="200" autocomplete="off" data-i18n-placeholder="widget.locationPlaceholder">
+        <small class="muted" data-i18n="widget.locationHelp"></small>
+      </label>
+      <label data-field="url"><span data-url-label></span>
         <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
-        <small class="muted" data-i18n="widget.urlHelp"></small>
+        <small class="muted" data-url-help></small>
       </label>
       <label data-field="apiKey"><span data-key-label></span>
         <input name="apiKey" type="password" autocomplete="off">
         <small class="muted" data-key-help></small>
       </label>
       <label data-field="username"><span data-user-label></span><input name="username" autocomplete="off"></label>
-      <label data-field="password"><span data-i18n="widget.password"></span><input name="password" type="password" autocomplete="new-password"></label>
+      <label data-field="password"><span data-password-label></span>
+        <input name="password" type="password" autocomplete="new-password">
+        <small class="muted" data-password-help></small>
+      </label>
       <fieldset class="sections" data-sections hidden>
         <legend data-i18n="widget.sections"></legend>
         <div data-sections-list></div>
@@ -120,6 +131,23 @@
         <input name="extra" data-i18n-placeholder="disks.extraPlaceholder">
         <small class="muted" data-i18n="disks.extraHelp"></small>
       </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="displayDialog">
+    <form method="dialog" id="displayForm">
+      <h3 data-i18n="display.title"></h3>
+      <fieldset class="sections">
+        <legend data-i18n="display.legend"></legend>
+        <label class="check"><input type="checkbox" name="search"><span data-i18n="display.search"></span></label>
+        <label class="check"><input type="checkbox" name="theme"><span data-i18n="display.theme"></span></label>
+        <label class="check"><input type="checkbox" name="lang"><span data-i18n="display.lang"></span></label>
+        <small class="muted" data-i18n="display.help"></small>
+      </fieldset>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
