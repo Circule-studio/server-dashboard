@@ -13,6 +13,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
 
 ### Corrigé
+- `install.sh` : un mot de passe contenant `"` `'` `\\` `$` ou `\`` (ou des espaces en début ou fin) est refusé avec un message clair, avant toute installation, au lieu d’être enregistré modifié (#44).
 - Widget Météo : les coordonnées avec une virgule décimale (`47,21 ; -1,55`) sont reconnues au lieu d’être cherchées comme un nom de ville (#43).
 
 ### Sécurité

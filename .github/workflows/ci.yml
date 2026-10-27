@@ -127,6 +127,19 @@ jobs:
           sudo test -f /etc/server-dashboard/server-dashboard.env
           ! test -r /etc/server-dashboard/server-dashboard.env
 
+      # Issue #44 : le mot de passe est relu par systemd. Les caractères qu'il modifierait
+      # sont refusés avant toute installation ; les autres (espaces, accents…) doivent marcher.
+      - name: Mot de passe passé à l'installation
+        run: |
+          sudo bash packaging/install.sh --uninstall --purge
+          if sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD='mon"mot\de$passe' bash packaging/install.sh; then
+            echo "::error::un mot de passe avec \" \\ \$ aurait dû être refusé"; exit 1
+          fi
+          test ! -d /opt/server-dashboard
+          sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD='ci test àé !@#%&*()+=' bash packaging/install.sh
+          curl -fsS -H 'Content-Type: application/json' -d '{"password":"ci test àé !@#%&*()+="}' http://127.0.0.1:7575/api/login
+          sudo bash packaging/install.sh --uninstall --purge
+
       - name: Logs du service en cas d'échec
         if: failure()
         run: sudo journalctl -u server-dashboard -n 100 --no-pager
