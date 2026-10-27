@@ -132,7 +132,10 @@ function sanitizeWidgets(list, previous = []) {
       out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
     }
     for (const f of SECRET_FIELDS) {
-      if (INTEGRATIONS[type].fields.includes(f)) out[f] = str(w[f], 500) || old[f] || '';
+      if (!INTEGRATIONS[type].fields.includes(f)) continue;
+      // Vide = inchangé ; clearApiKey / clearPassword = effacer (ex. Pi-hole sans mot de passe).
+      const clear = w[`clear${f[0].toUpperCase()}${f.slice(1)}`] === true;
+      out[f] = clear ? '' : str(w[f], 500) || old[f] || '';
     }
     return out;
   });

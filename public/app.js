@@ -640,6 +640,8 @@ function openWidgetDialog(i) {
   f.username.value = w.username || '';
   f.apiKey.value = '';
   f.password.value = '';
+  f.clearApiKey.checked = false;
+  f.clearPassword.checked = false;
   f.apiKey.placeholder = w.hasApiKey ? t('widget.keyUnchanged') : '';
   f.password.placeholder = w.hasPassword ? t('widget.passwordUnchanged') : '';
   updateWidgetFields();
@@ -657,6 +659,13 @@ function updateWidgetFields() {
     label.hidden = !on;
     label.querySelector('input, textarea').disabled = !on;
   });
+  // Secret déjà enregistré : un champ vide veut dire « inchangé », d'où une case pour l'effacer.
+  for (const field of ['apiKey', 'password']) {
+    const saved = w.type === typeId && w[`has${field[0].toUpperCase()}${field.slice(1)}`];
+    const box = form.querySelector(`[data-clear="${field}"]`);
+    box.hidden = !(fields.includes(field) && saved);
+    if (box.hidden) box.querySelector('input').checked = false;
+  }
   form.querySelector('[data-url-label]').textContent = t(type.urlLabel || 'widget.url');
   form.querySelector('[data-url-help]').textContent = t(type.urlHelp || 'widget.urlHelp');
   form.querySelector('[data-password-label]').textContent = t(type.passwordLabel || 'widget.password');
@@ -672,6 +681,8 @@ function updateWidgetFields() {
   form.elements.username.placeholder = type.userHelp ? t(type.userHelp) : '';
   form.elements.url.placeholder = type.placeholder || `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
 
+  syncClearBoxes();
+
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
   box.hidden = !type.sections;
@@ -680,6 +691,19 @@ function updateWidgetFields() {
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', name: 'section', value: s, checked: chosen.includes(s) }),
       t(`${typeId}.sec.${s}`))));
+}
+
+// Case « Effacer » cochée : le champ du secret est vidé et désactivé.
+function syncClearBoxes() {
+  const f = $('#widgetForm').elements;
+  const unchanged = { apiKey: 'widget.keyUnchanged', password: 'widget.passwordUnchanged' };
+  for (const [box, input] of [[f.clearApiKey, f.apiKey], [f.clearPassword, f.password]]) {
+    if (input.closest('[data-field]').hidden) continue;
+    input.disabled = box.checked;
+    if (box.checked) input.value = '';
+    // « inchangé » n'a plus de sens quand le secret va être effacé.
+    if (!box.closest('[data-clear]').hidden) input.placeholder = box.checked ? '' : t(unchanged[input.name]);
+  }
 }
 
 function submitWidget(e) {
@@ -699,9 +723,15 @@ function submitWidget(e) {
     hasPassword: prev?.hasPassword,
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
-  if (fields.includes('apiKey')) w.apiKey = f.apiKey.value.trim();
+  if (fields.includes('apiKey')) {
+    if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });
+    else w.apiKey = f.apiKey.value.trim();
+  }
   if (fields.includes('username')) w.username = f.username.value.trim();
-  if (fields.includes('password')) w.password = f.password.value;
+  if (fields.includes('password')) {
+    if (f.clearPassword.checked) Object.assign(w, { clearPassword: true, hasPassword: false });
+    else w.password = f.password.value;
+  }
   const type = WIDGET_TYPES[typeId];
   if (type.sections) {
     w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
@@ -1161,6 +1191,8 @@ async function init() {
   $('#displayForm').addEventListener('submit', submitDisplay);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
+  $('#widgetForm').elements.clearApiKey.addEventListener('change', syncClearBoxes);
+  $('#widgetForm').elements.clearPassword.addEventListener('change', syncClearBoxes);
   $('#loginForm').addEventListener('submit', submitLogin);
   $('#appForm').addEventListener('submit', submitApp);
   $('#textForm').addEventListener('submit', (e) => { e.preventDefault(); $('#textDialog').close('ok'); });
