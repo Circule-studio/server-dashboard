@@ -29,7 +29,14 @@ jobs:
           ' CHANGELOG.md > notes.md
           test -s notes.md || { echo "Aucune section pour ${GITHUB_REF_NAME#v} dans CHANGELOG.md"; exit 1; }
 
-      - name: Création de la release
+      # Une release créée à la main dans l'interface GitHub crée aussi le tag, donc lance ce
+      # workflow : on met alors à jour ses notes depuis le CHANGELOG au lieu d'échouer.
+      - name: Création (ou mise à jour) de la release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+          fi
