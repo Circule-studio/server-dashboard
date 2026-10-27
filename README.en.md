@@ -16,6 +16,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 - **Widgets**:
   - **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
   - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
+  - **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
   - **Immich**: photo and video counts, storage used, per-user breakdown with quotas.
   - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
   - **Jellyfin / Plex**: now playing, library size.
@@ -66,6 +67,8 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 |---|---|---|
 | Proxmox VE | URL (`https://IP:8006`) + API token ID and secret | `pveum user token add root@pam dashboard --privsep 1` then `pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor` (read-only) |
 | Pulse | URL (`http://IP:7655`) + API token | Pulse > Settings > API Access, `monitoring:read` scope only |
+| Pi-hole (v6) | URL (`http://IP`) + password | The web interface password. With 2FA: an app password (Settings > Web interface / API, Expert mode, "Configure app password"). Empty if Pi-hole has no password |
+| AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
 | Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
 | Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
 | Jellyfin | URL + API key | Dashboard > API Keys |
@@ -95,6 +98,6 @@ URLs must be reachable **from the dashboard server**.
 
 ## Contributing
 
-Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
+Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
 License: [MIT](LICENSE).
