@@ -4,6 +4,8 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.7.0] - 2026-10-27
+
 ### Ajouté
 - **Thème clair** : suit le thème du système par défaut, bouton ☀️ / 🌙 dans la barre du haut pour forcer l’un ou l’autre (choix mémorisé) (#1).
 - **Recherche rapide** dans les tuiles : touche `/`, filtre sur le nom, la description et la catégorie (sans accents ni majuscules), Entrée ouvre la première tuile, Échap vide le champ (#5).
@@ -109,7 +111,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.1...v0.5.0
