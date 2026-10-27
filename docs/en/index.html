@@ -262,6 +262,9 @@
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/qbittorrent.svg" alt="" loading="lazy">qBittorrent</span>
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sonarr.svg" alt="" loading="lazy">Sonarr</span>
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/radarr.svg" alt="" loading="lazy">Radarr</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/immich.svg" alt="" loading="lazy">Immich</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pi-hole.svg" alt="" loading="lazy">Pi-hole</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/adguard-home.svg" alt="" loading="lazy">AdGuard Home</span>
         </div>
         <ul class="checks">
           <li><b>Proxmox VE:</b> host CPU, RAM and disk, and the state of every VM and LXC container.</li>
@@ -269,7 +272,10 @@
           <li><b>Jellyfin and Plex:</b> who is watching what, on which device, with progress.</li>
           <li><b>qBittorrent:</b> speeds, active torrents and time left.</li>
           <li><b>Sonarr and Radarr:</b> upcoming episodes and movies, download queue.</li>
-          <li><b>Coming soon:</b> Pi-hole / AdGuard, Immich, weather… and the widget you suggest.</li>
+          <li><b>Pi-hole and AdGuard Home:</b> DNS queries, blocked queries and protection status.</li>
+          <li><b>Immich:</b> photos, videos and storage, per user with quotas.</li>
+          <li><b>Weather:</b> current conditions and a 5-day forecast, no API key (Open-Meteo).</li>
+          <li><b>Coming soon:</b> Nginx Proxy Manager, Home Assistant, Frigate… and the widget you suggest.</li>
         </ul>
       </div>
       <div class="phone">
@@ -320,13 +326,15 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
       <p class="section-lead">Where the project stands and what's coming. Each item is a GitHub issue: pick one and dive in!</p>
       <div class="roadmap">
         <article class="phase phase-done">
-          <div class="phase-head"><h3>Versions 0.1 – 0.6</h3><span class="tag tag-done">Available</span></div>
+          <div class="phase-head"><h3>Versions 0.1 – 0.7</h3><span class="tag tag-done">Available</span></div>
           <ul>
             <li>App tiles with online status</li>
             <li>CPU, memory, uptime and multiple disks</li>
             <li>Docker panel</li>
             <li>Proxmox VE and Pulse widgets</li>
             <li>Jellyfin, Plex, qBittorrent, Sonarr, Radarr widgets</li>
+            <li>Weather, Immich, Pi-hole and AdGuard Home widgets</li>
+            <li>Light theme and quick search (/ key)</li>
             <li>Drag and drop editing</li>
             <li>Docker (amd64 / arm64 image) or systemd install</li>
             <li>Welcome screen on first launch</li>
@@ -336,9 +344,7 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
         <article class="phase">
           <div class="phase-head"><h3>Interface</h3><span class="tag tag-next">Up next</span></div>
           <ul>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/1">Light theme <span>#1</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/2">Mobile and touch drag and drop <span>#2</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/5">Quick search <span>#5</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/6">Tile sizes <span>#6</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/14">Catalog of well-known apps <span>#14</span></a></li>
           </ul>
@@ -346,10 +352,7 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
         <article class="phase">
           <div class="phase-head"><h3>New widgets</h3><span class="tag tag-next">Up next</span></div>
           <ul>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/4">Pi-hole / AdGuard Home <span>#4</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/10">Immich <span>#10</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/11">Nginx Proxy Manager <span>#11</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/3">Weather <span>#3</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/12">Frigate <span>#12</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/13">Home Assistant <span>#13</span></a></li>
           </ul>

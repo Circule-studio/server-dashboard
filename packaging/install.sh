@@ -54,6 +54,18 @@ fi
 
 command -v apt-get >/dev/null || fail "seules Debian et Ubuntu sont prises en charge pour l'instant."
 
+# Vérifié avant toute installation : le mot de passe est écrit dans un fichier relu par systemd,
+# qui interprète guillemets, antislash et espaces de bord (et $ ou ` prêtent à confusion).
+if [[ -n "${SD_ADMIN_PASSWORD:-}" && ! -f "$ENV_FILE" ]]; then
+  case "$SD_ADMIN_PASSWORD" in
+    *\"* | *\'* | *\\* | *\$* | *\`*)
+      fail "SD_ADMIN_PASSWORD ne doit pas contenir \" ' \\ \$ ni \` : ils seraient modifiés à la lecture du fichier de réglages. Choisis-en un autre, ou n'indique rien pour en générer un." ;;
+  esac
+  if [[ "$SD_ADMIN_PASSWORD" == [[:space:]]* || "$SD_ADMIN_PASSWORD" == *[[:space:]] || "$SD_ADMIN_PASSWORD" == *$'\n'* ]]; then
+    fail "SD_ADMIN_PASSWORD ne doit pas commencer ni finir par un espace, ni contenir de retour à la ligne."
+  fi
+fi
+
 UPDATE=false
 [[ -f "$APP_DIR/server.js" ]] && UPDATE=true
 

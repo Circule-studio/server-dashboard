@@ -47,6 +47,8 @@ if (!process.env.ADMIN_PASSWORD) {
 // ---------- Config ----------
 // Première installation : config vide, l'interface affiche un écran d'accueil.
 const DEFAULT_CONFIG = {
+  // Présent dès le départ : le contrôle « modifiée ailleurs » marche aussi au tout premier enregistrement.
+  revision: 0,
   title: 'Mon serveur',
   widgets: [],
   categories: [],
@@ -110,14 +112,36 @@ function checkUrl(url) {
   return url;
 }
 
+// Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
+// (avant, l'erreur JavaScript brute était renvoyée au navigateur).
+function item(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw fail('bad_request', 'Élément invalide dans la configuration');
+  return v;
+}
+
+// Identifiant unique dans la liste : absent ou déjà vu, il est remplacé. Les données des
+// widgets et le statut des apps sont rangés par identifiant : un doublon mélangeait les deux.
+function uniqueId(seen, raw, prefix) {
+  let id = str(raw, 64);
+  if (!id || seen.has(id)) id = `${prefix}-${crypto.randomUUID()}`;
+  seen.add(id);
+  return id;
+}
+
 // `previous` sert à conserver les secrets : le navigateur ne les reçoit jamais,
 // donc un champ vide signifie « inchangé ».
 function sanitizeWidgets(list, previous = []) {
-  return (Array.isArray(list) ? list : []).map((w) => {
+  const seen = new Set();
+  const occurrences = new Map(); // identifiant reçu -> nombre de fois déjà vu
+  return (Array.isArray(list) ? list : []).map(item).map((w) => {
     const type = str(w.type, 32);
     if (!INTEGRATIONS[type]) throw fail('bad_request', `Type de widget inconnu : ${type}`);
-    const id = str(w.id, 64) || 'wid-' + crypto.randomUUID();
-    const old = previous.find((p) => p.id === id) || {};
+    const raw = str(w.id, 64);
+    const id = uniqueId(seen, raw, 'wid');
+    // Doublon venu d'un config.json modifié à la main : le n-ième garde les secrets du n-ième.
+    const n = occurrences.get(raw) || 0;
+    occurrences.set(raw, n + 1);
+    const old = (raw && previous.filter((p) => p.id === raw)[n]) || {};
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
     // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
     if (INTEGRATIONS[type].fields.includes('username')) {
@@ -132,7 +156,10 @@ function sanitizeWidgets(list, previous = []) {
       out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
     }
     for (const f of SECRET_FIELDS) {
-      if (INTEGRATIONS[type].fields.includes(f)) out[f] = str(w[f], 500) || old[f] || '';
+      if (!INTEGRATIONS[type].fields.includes(f)) continue;
+      // Vide = inchangé ; clearApiKey / clearPassword = effacer (ex. Pi-hole sans mot de passe).
+      const clear = w[`clear${f[0].toUpperCase()}${f.slice(1)}`] === true;
+      out[f] = clear ? '' : str(w[f], 500) || old[f] || '';
     }
     return out;
   });
@@ -164,6 +191,8 @@ function sanitizeDisplay(display) {
 
 function sanitizeConfig(input, previous) {
   if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
+  const catIds = new Set();
+  const appIds = new Set(); // uniques sur tout le tableau : /api/status les range par identifiant
   return {
     revision: (previous?.revision || 0) + 1,
     title: str(input.title, 100) || 'Mon serveur',
@@ -173,12 +202,12 @@ function sanitizeConfig(input, previous) {
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
       .filter((d) => d.path),
-    categories: input.categories.map((c) => ({
-      id: str(c.id, 64) || 'cat-' + crypto.randomUUID(),
+    categories: input.categories.map(item).map((c) => ({
+      id: uniqueId(catIds, c.id, 'cat'),
       name: str(c.name, 100) || 'Sans nom',
-      apps: (Array.isArray(c.apps) ? c.apps : []).map((a) => {
+      apps: (Array.isArray(c.apps) ? c.apps : []).map(item).map((a) => {
         return {
-          id: str(a.id, 64) || 'app-' + crypto.randomUUID(),
+          id: uniqueId(appIds, a.id, 'app'),
           name: str(a.name, 100) || 'App',
           url: checkUrl(str(a.url, 2000)),
           icon: str(a.icon, 2000),
@@ -193,7 +222,32 @@ function sanitizeConfig(input, previous) {
 // La clé de signature dépend du mot de passe : le changer invalide toutes les sessions.
 const SIGNING_KEY = crypto.createHmac('sha256', SECRET).update(ADMIN_PASSWORD).digest();
 // Sessions fermées par « Déconnexion » (id -> expiration), gardées jusqu'à leur expiration.
-const revokedSessions = new Map();
+// Enregistrées sur disque : sans cela, un redémarrage rendait valides les cookies déconnectés.
+const REVOKED_FILE = path.join(DATA_DIR, '.revoked-sessions.json');
+
+function loadRevoked() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(REVOKED_FILE, 'utf8'));
+    return Object.entries(saved).filter(([id, exp]) => typeof id === 'string' && Number(exp) > Date.now());
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.warn(`[!] ${REVOKED_FILE} illisible, ignoré : ${e.message}`);
+    return [];
+  }
+}
+
+const revokedSessions = new Map(loadRevoked());
+
+// Écriture synchrone et atomique : rare (déconnexion, nettoyage) et doit survivre à un arrêt brutal.
+function saveRevoked() {
+  const tmp = `${REVOKED_FILE}.${crypto.randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(revokedSessions)), { mode: 0o600 });
+    fs.renameSync(tmp, REVOKED_FILE);
+  } catch (e) {
+    console.error(`[!] Impossible d'enregistrer les sessions fermées : ${e.message}`);
+    try { fs.unlinkSync(tmp); } catch { /* déjà absent */ }
+  }
+}
 
 function sign(value) {
   return crypto.createHmac('sha256', SIGNING_KEY).update(value).digest('hex');
@@ -258,7 +312,9 @@ function recordLoginFailure(ip) {
 setInterval(() => {
   const now = Date.now();
   for (const [ip, e] of loginFailures) if (now > e.reset) loginFailures.delete(ip);
-  for (const [id, exp] of revokedSessions) if (now > exp) revokedSessions.delete(id);
+  let pruned = false;
+  for (const [id, exp] of revokedSessions) if (now > exp) { revokedSessions.delete(id); pruned = true; }
+  if (pruned) saveRevoked();
 }, 10 * 60 * 1000).unref();
 
 // ---------- Ping des services ----------
@@ -376,18 +432,43 @@ async function detectDisks() {
 }
 
 // ---------- Docker (API Engine via socket unix / named pipe) ----------
+// Comme request() dans integrations.js : taille et durée totale bornées, une seule issue.
+const DOCKER_MAX_BYTES = 20 * 1024 * 1024;
+
 function docker(method, apiPath) {
   return new Promise((resolve, reject) => {
+    let done = false;
+    let timer;
+    const finish = (fn, value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      fn(value);
+    };
     const req = http.request({ socketPath: DOCKER_SOCKET, path: apiPath, method, timeout: 5000 }, (res) => {
-      let body = '';
-      res.on('data', (d) => (body += d));
+      const chunks = [];
+      let size = 0;
+      res.on('error', (e) => finish(reject, e));
+      res.on('data', (d) => {
+        size += d.length;
+        if (size > DOCKER_MAX_BYTES) {
+          finish(reject, new Error('Docker : réponse trop volumineuse'));
+          req.destroy();
+          return;
+        }
+        chunks.push(d);
+      });
       res.on('end', () => {
-        if (res.statusCode >= 400) return reject(new Error(`Docker ${res.statusCode}: ${body}`));
-        try { resolve(body ? JSON.parse(body) : null); } catch { resolve(null); }
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (res.statusCode >= 400) return finish(reject, new Error(`Docker ${res.statusCode}: ${body.slice(0, 500)}`));
+        let data = null;
+        try { data = body ? JSON.parse(body) : null; } catch { /* pas du JSON */ }
+        finish(resolve, data);
       });
     });
+    timer = setTimeout(() => req.destroy(new Error('timeout')), 15_000);
     req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', reject);
+    req.on('error', (e) => finish(reject, e));
     req.end();
   });
 }
@@ -435,7 +516,10 @@ app.post('/api/login', (req, res) => {
 
 app.post('/api/logout', (req, res) => {
   const session = parseToken(getCookie(req, COOKIE_NAME));
-  if (session) revokedSessions.set(session.id, session.exp);
+  if (session) {
+    revokedSessions.set(session.id, session.exp);
+    saveRevoked();
+  }
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
   res.json({ ok: true });
 });
@@ -459,7 +543,11 @@ app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(asy
   try {
     cfg = sanitizeConfig(req.body, previous);
   } catch (e) {
-    return res.status(400).json({ error: e.message, code: e.key, params: e.params });
+    // Seules nos erreurs prévues (avec un code) sont détaillées ; les autres restent dans les logs.
+    if (!e.key) console.error('[PUT /api/config]', e);
+    return res.status(400).json(e.key
+      ? { error: e.message, code: e.key, params: e.params }
+      : { error: 'Requête invalide', code: 'bad_request' });
   }
   await writeConfig(cfg);
   resetIntegrations();

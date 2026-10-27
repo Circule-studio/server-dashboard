@@ -4,6 +4,8 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.7.0] - 2026-10-27
+
 ### Ajouté
 - **Thème clair** : suit le thème du système par défaut, bouton ☀️ / 🌙 dans la barre du haut pour forcer l’un ou l’autre (choix mémorisé) (#1).
 - **Recherche rapide** dans les tuiles : touche `/`, filtre sur le nom, la description et la catégorie (sans accents ni majuscules), Entrée ouvre la première tuile, Échap vide le champ (#5).
@@ -11,6 +13,18 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - Widget **Immich** : nombre de photos et de vidéos, stockage utilisé et détail par utilisateur (avec la jauge du quota s’il y en a un). Message clair si la clé n’est pas celle d’un administrateur. Faux Immich dans `npm run mocks` (#10).
 - Widgets **Pi-hole** (v6) et **AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection et pause en cours ; domaines bloqués et clients actifs (Pi-hole), temps de réponse moyen (AdGuard). La session Pi-hole est réutilisée et fermée quand la config change, pour ne pas épuiser les places limitées de son API. Faux Pi-hole et AdGuard dans `npm run mocks` (#4).
 - **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
+
+### Corrigé
+- Config : un élément invalide (`null`, texte…) renvoie une erreur « Requête invalide » au lieu de l’erreur JavaScript brute, et un identifiant en double (widget, catégorie, app) est remplacé à l’enregistrement au lieu de mélanger les données (#51, #52). Une installation neuve est aussi protégée contre l’écrasement par un autre onglet dès le premier enregistrement.
+- Un widget en erreur réessaie au bout de 30 s, puis 1 min, 2 min… au lieu d’attendre son intervalle normal (jusqu’à 10 min pour la météo) (#54).
+- Widget Météo avec une instance Open-Meteo auto-hébergée : un nom de ville fonctionne (la ville est cherchée sur le service public de géocodage quand l’instance ne le propose pas) (#53).
+- Un mot de passe ou une clé API enregistré peut être effacé : case « Effacer » sous le champ (utile pour Pi-hole, AdGuard ou qBittorrent sans mot de passe). Avant, un champ vide voulait toujours dire « inchangé » (#42).
+- `install.sh` : un mot de passe contenant des guillemets, une apostrophe, un antislash, un dollar ou un accent grave (ou des espaces en début ou fin) est refusé avec un message clair, avant toute installation, au lieu d’être enregistré modifié (#44).
+- Widget Météo : les coordonnées avec une virgule décimale (`47,21 ; -1,55`) sont reconnues au lieu d’être cherchées comme un nom de ville (#43).
+
+### Sécurité
+- Une session fermée avec « Déconnexion » reste fermée après un redémarrage du dashboard (les sessions fermées sont maintenant enregistrées dans `data/.revoked-sessions.json`). Avant, son cookie redevenait valide jusqu’à son expiration.
+- Les réponses des services sont limitées à 10 Mo et à 20 s au total. Une URL de widget pointant vers un gros fichier faisait planter tout le dashboard, et un service très lent pouvait bloquer une requête indéfiniment.
 
 ## [0.6.1] - 2026-10-26
 
@@ -97,7 +111,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.4.1...v0.5.0

@@ -82,6 +82,31 @@ jobs:
       - name: Détection des disques
         run: curl -fsS -b jar http://127.0.0.1:7575/api/disks | tee /dev/stderr | grep -q '"path":"/"'
 
+      # Avant la correction, une URL de widget pointant vers un gros fichier faisait planter le
+      # serveur (chaîne trop longue). La réponse doit être refusée et le service rester actif.
+      - name: Une réponse trop volumineuse ne fait pas tomber le serveur
+        run: |
+          node -e 'require("http").createServer((q, r) => { r.writeHead(200); const c = Buffer.alloc(1 << 20, 32); let n = 0; const w = () => { while (n < 300 && r.write(c)) n++; if (n >= 300) r.end(); }; r.on("drain", w); w(); }).listen(9999)' &
+          curl -fsS -b jar http://127.0.0.1:7575/api/config > big.json
+          node -e 'const c=require("./big.json"); c.widgets=[{id:"big",type:"jellyfin",url:"http://127.0.0.1:9999",apiKey:"x"}]; require("fs").writeFileSync("big.json", JSON.stringify(c))'
+          curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @big.json http://127.0.0.1:7575/api/config > /dev/null
+          curl -s http://127.0.0.1:7575/api/widgets/big | tee /dev/stderr | grep -q '"code":"response_too_large"'
+          systemctl is-active server-dashboard
+          curl -fsS http://127.0.0.1:7575/api/me
+
+      # Avant la correction, les sessions fermées n'étaient retenues qu'en mémoire :
+      # un redémarrage rendait de nouveau valide un cookie déconnecté.
+      - name: Une session fermée le reste après un redémarrage
+        run: |
+          curl -fsS -c old-jar -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
+          curl -fsS -b old-jar -X POST http://127.0.0.1:7575/api/logout
+          sudo systemctl restart server-dashboard
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me >/dev/null 2>&1 && break; sleep 1; done
+          code=$(curl -s -o /dev/null -w '%{http_code}' -b old-jar http://127.0.0.1:7575/api/disks)
+          test "$code" = 401
+          # Le fichier contient des identifiants de session : lisible par le service seulement.
+          test "$(sudo stat -c '%a %U' /var/lib/server-dashboard/.revoked-sessions.json)" = "600 server-dashboard"
+
       # Docker est installé sur les runners GitHub : l'installation doit donner l'accès au service.
       - name: Panneau Docker accessible au service
         run: curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"available":true'
@@ -101,6 +126,19 @@ jobs:
           # Le dossier n'est lisible que par root et le service : il contient le mot de passe.
           sudo test -f /etc/server-dashboard/server-dashboard.env
           ! test -r /etc/server-dashboard/server-dashboard.env
+
+      # Issue #44 : le mot de passe est relu par systemd. Les caractères qu'il modifierait
+      # sont refusés avant toute installation ; les autres (espaces, accents…) doivent marcher.
+      - name: Mot de passe passé à l'installation
+        run: |
+          sudo bash packaging/install.sh --uninstall --purge
+          if sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD='mon"mot\de$passe' bash packaging/install.sh; then
+            echo "::error::un mot de passe avec \" \\ \$ aurait dû être refusé"; exit 1
+          fi
+          test ! -d /opt/server-dashboard
+          sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD='ci test àé !@#%&*()+=' bash packaging/install.sh
+          curl -fsS -H 'Content-Type: application/json' -d '{"password":"ci test àé !@#%&*()+="}' http://127.0.0.1:7575/api/login
+          sudo bash packaging/install.sh --uninstall --purge
 
       - name: Logs du service en cas d'échec
         if: failure()
