@@ -243,6 +243,7 @@ const WIDGET_TYPES = {
   qbittorrent: { label: 'qBittorrent', icon: 'qbittorrent', kind: 'torrent', refresh: 5_000, fields: ['url', 'username', 'password'], port: 8080 },
   sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 8989 },
   radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 7878 },
+  immich: { label: 'Immich', icon: 'immich', kind: 'immich', refresh: 5 * 60_000, keyHelp: 'key.immichHelp', port: 2283 },
   // Sans URL, le serveur utilise le service public open-meteo.com.
   weather: {
     label: t('weather.label'), icon: '/icons/weather.svg', kind: 'weather', refresh: 10 * 60_000,
@@ -441,6 +442,23 @@ const RENDERERS = {
         h('div', { class: 'item-sub' }, [q.status, q.timeleft && t('torrent.left', { eta: q.timeleft })].filter(Boolean).join(' · ')),
         progressBar(q.progress))))
       : h('p', { class: 'muted' }, t('arr.noDownloads')),
+  ],
+
+  immich: (d) => [
+    h('div', { class: 'widget-stats' },
+      h('div', {}, h('b', {}, (d.photos ?? 0).toLocaleString(LOCALE)), h('span', {}, t('stat.photos'))),
+      h('div', {}, h('b', {}, (d.videos ?? 0).toLocaleString(LOCALE)), h('span', {}, t('stat.videos'))),
+      h('div', {}, h('b', {}, fmtBytes(d.usage)), h('span', {}, t('stat.usage')))),
+    // Le détail par utilisateur n'a d'intérêt qu'à partir de deux comptes.
+    ...(d.users.length > 1 ? [
+      h('div', { class: 'widget-subhead' }, t('immich.users')),
+      h('ul', { class: 'widget-list' }, d.users.map((u) => h('li', {},
+        h('div', { class: 'row' },
+          h('span', { class: 'item-title', title: u.name }, u.name),
+          h('span', { class: 'muted' }, u.quota ? `${fmtBytes(u.usage)} / ${fmtBytes(u.quota)}` : fmtBytes(u.usage))),
+        h('div', { class: 'item-sub' }, t('immich.userLine', { photos: u.photos.toLocaleString(LOCALE), videos: u.videos.toLocaleString(LOCALE) })),
+        u.quota ? progressBar(u.usage / u.quota, u.usage / u.quota >= 0.9 ? 'bad' : u.usage / u.quota >= 0.7 ? 'warn' : '') : null))),
+    ] : []),
   ],
 
   weather: (d) => {

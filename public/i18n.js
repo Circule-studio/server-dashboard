@@ -147,6 +147,7 @@ const I18N = {
     'key.plex': 'Token Plex',
     'key.plexHelp': 'Valeur X-Plex-Token de ton compte (doc Plex : « Finding an authentication token »).',
     'key.arrHelp': 'Settings > General > API Key.',
+    'key.immichHelp': 'Immich > Paramètres du compte > Clés API. Clé d’un compte administrateur (permission server.statistics).',
 
     'stat.movies': 'Films',
     'stat.series': 'Séries',
@@ -154,6 +155,11 @@ const I18N = {
     'stat.libraries': 'Bibliothèques',
     'stat.streams': 'Lectures',
     'media.nothing': 'Aucune lecture en cours.',
+    'stat.photos': 'Photos',
+    'stat.videos': 'Vidéos',
+    'stat.usage': 'Stockage',
+    'immich.users': 'Par utilisateur',
+    'immich.userLine': '{photos} photos · {videos} vidéos',
 
     'torrent.down': '↓ Reçu',
     'torrent.up': '↑ Envoyé',
@@ -288,6 +294,7 @@ const I18N = {
     'err.path_not_found': 'Chemin introuvable',
     'err.location_missing': 'Lieu manquant',
     'err.location_not_found': 'Lieu introuvable : {location}',
+    'err.immich_admin': 'Clé refusée par Immich : utilise la clé d’un compte administrateur, avec la permission server.statistics',
   },
 
   en: {
@@ -434,6 +441,7 @@ const I18N = {
     'key.plex': 'Plex token',
     'key.plexHelp': 'Your account\'s X-Plex-Token value (Plex docs: "Finding an authentication token").',
     'key.arrHelp': 'Settings > General > API Key.',
+    'key.immichHelp': 'Immich > Account Settings > API Keys. Key from an admin account (server.statistics permission).',
 
     'stat.movies': 'Movies',
     'stat.series': 'Series',
@@ -441,6 +449,11 @@ const I18N = {
     'stat.libraries': 'Libraries',
     'stat.streams': 'Streams',
     'media.nothing': 'Nothing playing.',
+    'stat.photos': 'Photos',
+    'stat.videos': 'Videos',
+    'stat.usage': 'Storage',
+    'immich.users': 'By user',
+    'immich.userLine': '{photos} photos · {videos} videos',
 
     'torrent.down': '↓ Down',
     'torrent.up': '↑ Up',
@@ -575,6 +588,7 @@ const I18N = {
     'err.path_not_found': 'Path not found',
     'err.location_missing': 'Location missing',
     'err.location_not_found': 'Location not found: {location}',
+    'err.immich_admin': 'Key refused by Immich: use a key from an admin account, with the server.statistics permission',
   },
 };
 
