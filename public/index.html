@@ -93,9 +93,13 @@
       <h3 id="widgetDialogTitle" data-i18n="widget.dialogTitle"></h3>
       <label><span data-i18n="widget.type"></span><select name="type"></select></label>
       <label><span data-i18n="common.name"></span><input name="name" maxlength="100" data-i18n-placeholder="widget.namePlaceholder"></label>
-      <label data-field="url"><span data-i18n="widget.url"></span>
+      <label data-field="location"><span data-i18n="widget.location"></span>
+        <input name="location" maxlength="200" autocomplete="off" data-i18n-placeholder="widget.locationPlaceholder">
+        <small class="muted" data-i18n="widget.locationHelp"></small>
+      </label>
+      <label data-field="url"><span data-url-label></span>
         <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
-        <small class="muted" data-i18n="widget.urlHelp"></small>
+        <small class="muted" data-url-help></small>
       </label>
       <label data-field="apiKey"><span data-key-label></span>
         <input name="apiKey" type="password" autocomplete="off">

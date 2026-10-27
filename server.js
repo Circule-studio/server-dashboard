@@ -123,6 +123,8 @@ function sanitizeWidgets(list, previous = []) {
     if (INTEGRATIONS[type].fields.includes('username')) {
       out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
     }
+    // Lieu de la météo : nom de ville ou coordonnées.
+    if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     // Blocs à afficher, pour les intégrations qui en proposent (ex. Pulse).
     const allowed = INTEGRATIONS[type].sections;
     if (allowed) {
