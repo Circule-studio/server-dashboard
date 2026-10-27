@@ -13,6 +13,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
 
 ### Corrigé
+- Config : un élément invalide (`null`, texte…) renvoie une erreur « Requête invalide » au lieu de l’erreur JavaScript brute, et un identifiant en double (widget, catégorie, app) est remplacé à l’enregistrement au lieu de mélanger les données (#51, #52). Une installation neuve est aussi protégée contre l’écrasement par un autre onglet dès le premier enregistrement.
 - Un widget en erreur réessaie au bout de 30 s, puis 1 min, 2 min… au lieu d’attendre son intervalle normal (jusqu’à 10 min pour la météo) (#54).
 - Widget Météo avec une instance Open-Meteo auto-hébergée : un nom de ville fonctionne (la ville est cherchée sur le service public de géocodage quand l’instance ne le propose pas) (#53).
 - Un mot de passe ou une clé API enregistré peut être effacé : case « Effacer » sous le champ (utile pour Pi-hole, AdGuard ou qBittorrent sans mot de passe). Avant, un champ vide voulait toujours dire « inchangé » (#42).
