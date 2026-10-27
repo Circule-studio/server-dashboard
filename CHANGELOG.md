@@ -12,6 +12,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - Widgets **Pi-hole** (v6) et **AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection et pause en cours ; domaines bloqués et clients actifs (Pi-hole), temps de réponse moyen (AdGuard). La session Pi-hole est réutilisée et fermée quand la config change, pour ne pas épuiser les places limitées de son API. Faux Pi-hole et AdGuard dans `npm run mocks` (#4).
 - **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
 
+### Corrigé
+- Widget Météo : les coordonnées avec une virgule décimale (`47,21 ; -1,55`) sont reconnues au lieu d’être cherchées comme un nom de ville (#43).
+
 ### Sécurité
 - Une session fermée avec « Déconnexion » reste fermée après un redémarrage du dashboard (les sessions fermées sont maintenant enregistrées dans `data/.revoked-sessions.json`). Avant, son cookie redevenait valide jusqu’à son expiration.
 - Les réponses des services sont limitées à 10 Mo et à 20 s au total. Une URL de widget pointant vers un gros fichier faisait planter tout le dashboard, et un service très lent pouvait bloquer une requête indéfiniment.

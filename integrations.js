@@ -369,9 +369,10 @@ const places = new Map(); // `${url}|${location}` -> lieu géocodé
 async function weatherPlace(w) {
   const location = (w.location || '').trim();
   if (!location) throw fail('location_missing', 'Lieu manquant');
-  const coords = location.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+  // Point ou virgule décimale (« 47.21, -1.55 » comme « 47,21 ; -1,55 »).
+  const coords = location.match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/);
   if (coords) {
-    const [latitude, longitude] = [Number(coords[1]), Number(coords[2])];
+    const [latitude, longitude] = [coords[1], coords[2]].map((v) => Number(v.replace(',', '.')));
     if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) throw fail('location_not_found', `Lieu introuvable : ${location}`, { location });
     return { name: '', latitude, longitude };
   }
