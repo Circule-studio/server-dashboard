@@ -13,6 +13,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
 
 ### Corrigé
+- Un widget en erreur réessaie au bout de 30 s, puis 1 min, 2 min… au lieu d’attendre son intervalle normal (jusqu’à 10 min pour la météo) (#54).
 - Widget Météo avec une instance Open-Meteo auto-hébergée : un nom de ville fonctionne (la ville est cherchée sur le service public de géocodage quand l’instance ne le propose pas) (#53).
 - Un mot de passe ou une clé API enregistré peut être effacé : case « Effacer » sous le champ (utile pour Pi-hole, AdGuard ou qBittorrent sans mot de passe). Avant, un champ vide voulait toujours dire « inchangé » (#42).
 - `install.sh` : un mot de passe contenant des guillemets, une apostrophe, un antislash, un dollar ou un accent grave (ou des espaces en début ou fin) est refusé avec un message clair, avant toute installation, au lieu d’être enregistré modifié (#44).
