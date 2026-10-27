@@ -7,6 +7,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 ### Ajouté
 - **Thème clair** : suit le thème du système par défaut, bouton ☀️ / 🌙 dans la barre du haut pour forcer l’un ou l’autre (choix mémorisé) (#1).
 - **Recherche rapide** dans les tuiles : touche `/`, filtre sur le nom, la description et la catégorie (sans accents ni majuscules), Entrée ouvre la première tuile, Échap vide le champ (#5).
+- Widget **Météo** : température actuelle, ressenti, vent et prévisions sur 5 jours avec [Open-Meteo](https://open-meteo.com) (gratuit, sans clé API). Le lieu est un nom de ville ou des coordonnées ; une instance Open-Meteo auto-hébergée peut être utilisée. Faux Open-Meteo dans `npm run mocks` (#3).
 - **Options d’affichage** (mode édition > Affichage) : masquer la barre de recherche (elle s’ouvre quand même avec `/`), le bouton de thème ou le bouton de langue. Sans bouton, le thème suit le système et la langue celle du navigateur.
 
 ## [0.6.1] - 2026-10-26

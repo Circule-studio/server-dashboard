@@ -35,7 +35,7 @@ L'interface est en français et en anglais. Tous les textes sont dans [`public/i
 
 ## Ajouter un widget
 
-1. Dans `integrations.js`, écris une fonction `async (widget) => données` et ajoute-la à `INTEGRATIONS` avec ses champs (`url`, `apiKey`, `username`, `password`).
+1. Dans `integrations.js`, écris une fonction `async (widget) => données` et ajoute-la à `INTEGRATIONS` avec ses champs (`url`, `apiKey`, `username`, `password`, `location`). `cacheMs` règle la durée pendant laquelle les données sont partagées entre visiteurs (4 s par défaut, 10 min pour la météo).
 2. Dans `public/app.js`, ajoute le type à `WIDGET_TYPES` et, si besoin, un rendu dans `RENDERERS`.
 3. Ajoute un faux service dans `dev/mocks.js` pour que tout le monde puisse le tester.
 

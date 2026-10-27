@@ -16,6 +16,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 - **Widgets**:
   - **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
   - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
+  - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
   - **Jellyfin / Plex**: now playing, library size.
   - **qBittorrent**: speeds, active torrents.
   - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
@@ -64,6 +65,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 |---|---|---|
 | Proxmox VE | URL (`https://IP:8006`) + API token ID and secret | `pveum user token add root@pam dashboard --privsep 1` then `pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor` (read-only) |
 | Pulse | URL (`http://IP:7655`) + API token | Pulse > Settings > API Access, `monitoring:read` scope only |
+| Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
 | Jellyfin | URL + API key | Dashboard > API Keys |
 | Plex | URL + token | Your `X-Plex-Token` |
 | qBittorrent | URL + Web UI username / password | Options > Web UI |
@@ -91,6 +93,6 @@ URLs must be reachable **from the dashboard server**.
 
 ## Contributing
 
-Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
+Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
 License: [MIT](LICENSE).

@@ -1,4 +1,4 @@
-// Intégrations : récupère et normalise les données des services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr).
+// Intégrations : récupère et normalise les données des services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr, météo…).
 
 const http = require('http');
 const https = require('https');
@@ -326,7 +326,67 @@ async function pulse(w) {
   return out;
 }
 
+// ---------- Météo (Open-Meteo, sans clé API) ----------
+// `location` : un nom de ville, géocodé une seule fois, ou des coordonnées « 47.21, -1.55 ».
+// `url` : facultative, pour une instance Open-Meteo auto-hébergée (ou les faux services).
+const OPEN_METEO = 'https://api.open-meteo.com';
+const OPEN_METEO_GEOCODING = 'https://geocoding-api.open-meteo.com';
+const places = new Map(); // `${url}|${location}` -> lieu géocodé
+
+async function weatherPlace(w) {
+  const location = (w.location || '').trim();
+  if (!location) throw fail('location_missing', 'Lieu manquant');
+  const coords = location.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+  if (coords) {
+    const [latitude, longitude] = [Number(coords[1]), Number(coords[2])];
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) throw fail('location_not_found', `Lieu introuvable : ${location}`, { location });
+    return { name: '', latitude, longitude };
+  }
+  const key = `${w.url}|${location}`;
+  if (places.has(key)) return places.get(key);
+  // Sans résultat, l'API omet le tableau `results` (et non un tableau vide).
+  const { results } = await getJson(join(w.url || OPEN_METEO_GEOCODING, `/v1/search?count=1&name=${encodeURIComponent(location)}`));
+  const p = results?.[0];
+  if (!p) throw fail('location_not_found', `Lieu introuvable : ${location}`, { location });
+  const place = { name: p.name, region: p.admin1 || '', country: p.country_code || '', latitude: p.latitude, longitude: p.longitude };
+  places.set(key, place);
+  return place;
+}
+
+async function weather(w) {
+  const place = await weatherPlace(w);
+  const q = new URLSearchParams({
+    latitude: place.latitude,
+    longitude: place.longitude,
+    current: 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    timezone: 'auto',
+    forecast_days: 5,
+  });
+  const d = await getJson(join(w.url || OPEN_METEO, `/v1/forecast?${q}`));
+  const c = d.current || {};
+  const daily = d.daily || {};
+  return {
+    place,
+    units: { temp: d.current_units?.temperature_2m || '°C', wind: d.current_units?.wind_speed_10m || 'km/h' },
+    current: {
+      temp: c.temperature_2m, feels: c.apparent_temperature, code: c.weather_code,
+      wind: c.wind_speed_10m, day: c.is_day !== 0,
+    },
+    // Dates locales du lieu (AAAA-MM-JJ), grâce à timezone=auto.
+    days: (daily.time || []).map((date, i) => ({
+      date,
+      code: daily.weather_code?.[i],
+      max: daily.temperature_2m_max?.[i],
+      min: daily.temperature_2m_min?.[i],
+      rain: daily.precipitation_probability_max?.[i] ?? null,
+    })),
+  };
+}
+
 const INTEGRATIONS = {
+  // `cacheMs` : durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS).
+  weather: { fields: ['location', 'url'], cacheMs: 10 * 60_000, fetch: weather },
   proxmox: { fields: ['url', 'username', 'apiKey'], fetch: proxmox },
   pulse: { fields: ['url', 'apiKey'], sections: ['health', 'alerts', 'resources'], fetch: pulse },
   jellyfin: { fields: ['url', 'apiKey'], fetch: jellyfin },
@@ -344,7 +404,7 @@ async function fetchWidget(w) {
   const integration = INTEGRATIONS[w.type];
   if (!integration) throw new Error(`Type inconnu : ${w.type}`);
   const hit = cache.get(w.id);
-  if (hit && Date.now() - hit.t < CACHE_MS) return hit.promise;
+  if (hit && Date.now() - hit.t < (integration.cacheMs || CACHE_MS)) return hit.promise;
   const promise = integration.fetch(w);
   cache.set(w.id, { t: Date.now(), promise });
   promise.catch(() => cache.delete(w.id));
@@ -355,6 +415,7 @@ async function fetchWidget(w) {
 function resetIntegrations() {
   cache.clear();
   qbitSids.clear();
+  places.clear();
 }
 
 module.exports = { INTEGRATIONS, fetchWidget, resetIntegrations, request };

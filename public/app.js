@@ -243,6 +243,12 @@ const WIDGET_TYPES = {
   qbittorrent: { label: 'qBittorrent', icon: 'qbittorrent', kind: 'torrent', refresh: 5_000, fields: ['url', 'username', 'password'], port: 8080 },
   sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 8989 },
   radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 7878 },
+  // Sans URL, le serveur utilise le service public open-meteo.com.
+  weather: {
+    label: t('weather.label'), icon: '/icons/weather.svg', kind: 'weather', refresh: 10 * 60_000,
+    fields: ['location', 'url'], nameFrom: 'location', urlOptional: true, urlLabel: 'weather.url', urlHelp: 'weather.urlHelp',
+    scheme: 'https', placeholder: 'https://api.open-meteo.com',
+  },
 };
 const fieldsOf = (type) => WIDGET_TYPES[type].fields || ['url', 'apiKey'];
 
@@ -265,6 +271,22 @@ function fmtDay(iso) {
   if (diff === 0) return `${t('day.today')}${time}`;
   if (diff === 1) return `${t('day.tomorrow')}${time}`;
   return d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }) + time;
+}
+
+// Codes météo WMO (doc Open-Meteo) -> icône ; le texte est dans weather.code.<code>.
+const WEATHER_ICONS = [
+  [[0], '☀️', '🌙'], [[1], '🌤️', '🌙'], [[2], '⛅', '☁️'], [[3], '☁️'], [[45, 48], '🌫️'],
+  [[51, 53, 55, 56, 57, 80, 81, 82], '🌦️', '🌧️'], [[61, 63, 65, 66, 67], '🌧️'],
+  [[71, 73, 75, 77, 85, 86], '🌨️'], [[95, 96, 97, 99], '⛈️'],
+];
+function weatherIcon(code, day = true) {
+  const entry = WEATHER_ICONS.find(([codes]) => codes.includes(code));
+  return entry ? (day ? entry[1] : entry[2] || entry[1]) : '🌡️';
+}
+const weatherText = (code) => (I18N[LANG][`weather.code.${code}`] ? t(`weather.code.${code}`) : '–');
+
+function regionName(code) {
+  try { return code ? new Intl.DisplayNames([LOCALE], { type: 'region' }).of(code) : ''; } catch { return code; }
 }
 
 function progressBar(p, cls = '') {
@@ -420,6 +442,35 @@ const RENDERERS = {
         progressBar(q.progress))))
       : h('p', { class: 'muted' }, t('arr.noDownloads')),
   ],
+
+  weather: (d) => {
+    const c = d.current;
+    const deg = (v) => (v == null ? '–' : `${Math.round(v)}°`);
+    const place = d.place.name
+      ? [d.place.name, regionName(d.place.country)].filter(Boolean).join(', ')
+      : `${d.place.latitude}, ${d.place.longitude}`;
+    const today = new Date().toLocaleDateString('sv'); // AAAA-MM-JJ, comme l'API
+    return [
+      h('div', { class: 'weather-now' },
+        h('span', { class: 'weather-icon', role: 'img', 'aria-label': weatherText(c.code) }, weatherIcon(c.code, c.day)),
+        h('div', { class: 'weather-main' },
+          h('b', { class: 'weather-temp' }, c.temp == null ? '–' : `${Math.round(c.temp)} ${d.units.temp}`),
+          h('div', {}, weatherText(c.code)),
+          h('div', { class: 'item-sub' }, [
+            c.feels != null ? t('weather.feels', { temp: deg(c.feels) }) : null,
+            c.wind != null ? t('weather.wind', { speed: `${Math.round(c.wind)} ${d.units.wind}` }) : null,
+          ].filter(Boolean).join(' · ')),
+          h('div', { class: 'item-sub', title: place }, `📍 ${place}`))),
+      h('div', { class: 'weather-days' }, d.days.map((day) => h('div', { title: weatherText(day.code) },
+        h('span', { class: 'weather-day' }, day.date === today
+          ? t('weather.today')
+          : new Date(`${day.date}T12:00`).toLocaleDateString(LOCALE, { weekday: 'short' })),
+        h('span', { class: 'weather-icon-sm', role: 'img', 'aria-label': weatherText(day.code) }, weatherIcon(day.code)),
+        h('b', {}, deg(day.max)),
+        h('span', { class: 'muted' }, deg(day.min)),
+        day.rain ? h('small', { class: 'weather-rain', title: t('weather.rainChance') }, `💧 ${day.rain} %`) : null))),
+    ];
+  },
 };
 
 function renderWidgets() {
@@ -431,9 +482,12 @@ function renderWidgets() {
 
 function widgetCard(w, i, count) {
   const type = WIDGET_TYPES[w.type];
+  // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
   const head = h('div', { class: 'widget-head' },
     iconEl({ name: w.name, icon: type.icon }),
-    h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label));
+    w.url
+      ? h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
+      : h('span', { class: 'widget-title' }, w.name || type.label));
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
 
@@ -536,6 +590,7 @@ function openWidgetDialog(i) {
     h('option', { value: k, selected: k === w.type }, type.label)));
   f.type.disabled = i != null; // changer de type mélangerait les identifiants
   f.name.value = w.name || '';
+  f.location.value = w.location || '';
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
@@ -555,15 +610,20 @@ function updateWidgetFields() {
   form.querySelectorAll('[data-field]').forEach((label) => {
     const on = fields.includes(label.dataset.field);
     label.hidden = !on;
-    label.querySelector('input').disabled = !on;
+    label.querySelector('input, textarea').disabled = !on;
   });
+  form.querySelector('[data-url-label]').textContent = t(type.urlLabel || 'widget.url');
+  form.querySelector('[data-url-help]').textContent = t(type.urlHelp || 'widget.urlHelp');
+  form.elements.url.required = !type.urlOptional;
+  form.elements.name.placeholder = t(type.nameFrom ? 'widget.namePlaceholderLocation' : 'widget.namePlaceholder');
+  form.elements.location.required = fields.includes('location');
   form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
   form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
   form.elements.apiKey.required = fields.includes('apiKey') && !w.hasApiKey;
   form.elements.username.required = !!type.userRequired;
   form.querySelector('[data-user-label]').textContent = t(type.userLabel || 'widget.username');
   form.elements.username.placeholder = type.userHelp ? t(type.userHelp) : '';
-  form.elements.url.placeholder = `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
+  form.elements.url.placeholder = type.placeholder || `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
 
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
@@ -581,14 +641,17 @@ function submitWidget(e) {
   const typeId = f.type.value;
   const fields = fieldsOf(typeId);
   const prev = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : null;
+  // Nom par défaut : le lieu pour la météo (« Nantes »), sinon le type.
+  const nameFrom = WIDGET_TYPES[typeId].nameFrom;
   const w = {
     id: prev?.id || uid('wid'),
     type: typeId,
-    name: f.name.value.trim() || WIDGET_TYPES[typeId].label,
+    name: f.name.value.trim() || (nameFrom && f[nameFrom].value.trim()) || WIDGET_TYPES[typeId].label,
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
   };
+  if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('apiKey')) w.apiKey = f.apiKey.value.trim();
   if (fields.includes('username')) w.username = f.username.value.trim();
   if (fields.includes('password')) w.password = f.password.value;
