@@ -148,6 +148,9 @@ const I18N = {
     'key.plexHelp': 'Valeur X-Plex-Token de ton compte (doc Plex : « Finding an authentication token »).',
     'key.arrHelp': 'Settings > General > API Key.',
     'key.immichHelp': 'Immich > Paramètres du compte > Clés API. Clé d’un compte administrateur (permission server.statistics).',
+    'key.piholePassword': 'Mot de passe (ou mot de passe d’application)',
+    'key.piholePasswordHelp': 'Vide si ton Pi-hole n’a pas de mot de passe. Avec la 2FA, utilise un mot de passe d’application : Paramètres > Web interface / API, en mode Expert, « Configure app password ».',
+    'key.adguardHelp': 'Identifiants de l’interface web d’AdGuard Home. Laisse vide si elle n’a pas de mot de passe.',
 
     'stat.movies': 'Films',
     'stat.series': 'Séries',
@@ -223,6 +226,20 @@ const I18N = {
     'pulse.type.app-container': 'Docker',
     'pulse.type.storage': 'Stockage',
 
+    'dns.queries': 'Requêtes',
+    'dns.blocked': 'Bloquées',
+    'dns.percent': '% bloquées',
+    'dns.enabled': 'Protection activée',
+    'dns.disabled': 'Protection désactivée',
+    'dns.failed': 'Blocage indisponible',
+    'dns.unknown': 'État inconnu',
+    'dns.timer': 'réactivation dans {duration}',
+    'dns.avgTime': 'réponse moyenne en {ms} ms',
+    'dns.blocklist.one': '{n} domaine bloqué',
+    'dns.blocklist.other': '{n} domaines bloqués',
+    'dns.clients.one': '{n} client actif',
+    'dns.clients.other': '{n} clients actifs',
+
     'weather.label': 'Météo',
     'weather.url': 'Serveur Open-Meteo (facultatif)',
     'weather.urlHelp': 'Laisse vide pour utiliser le service public open-meteo.com (gratuit, sans clé). À remplir seulement pour une instance auto-hébergée.',
@@ -295,6 +312,10 @@ const I18N = {
     'err.location_missing': 'Lieu manquant',
     'err.location_not_found': 'Lieu introuvable : {location}',
     'err.immich_admin': 'Clé refusée par Immich : utilise la clé d’un compte administrateur, avec la permission server.statistics',
+    'err.pihole_password': 'Mot de passe Pi-hole refusé',
+    'err.adguard_credentials': 'Identifiants AdGuard Home refusés',
+    'err.pihole_totp': 'Pi-hole demande un code 2FA : utilise un mot de passe d’application',
+    'err.pihole_seats': 'Pi-hole refuse une nouvelle session (trop de sessions ou de tentatives). Réessaie dans quelques minutes.',
   },
 
   en: {
@@ -442,6 +463,9 @@ const I18N = {
     'key.plexHelp': 'Your account\'s X-Plex-Token value (Plex docs: "Finding an authentication token").',
     'key.arrHelp': 'Settings > General > API Key.',
     'key.immichHelp': 'Immich > Account Settings > API Keys. Key from an admin account (server.statistics permission).',
+    'key.piholePassword': 'Password (or app password)',
+    'key.piholePasswordHelp': 'Leave empty if your Pi-hole has no password. With 2FA, use an app password: Settings > Web interface / API, in Expert mode, "Configure app password".',
+    'key.adguardHelp': 'AdGuard Home web interface credentials. Leave empty if it has no password.',
 
     'stat.movies': 'Movies',
     'stat.series': 'Series',
@@ -517,6 +541,20 @@ const I18N = {
     'pulse.type.app-container': 'Docker',
     'pulse.type.storage': 'Storage',
 
+    'dns.queries': 'Queries',
+    'dns.blocked': 'Blocked',
+    'dns.percent': '% blocked',
+    'dns.enabled': 'Protection enabled',
+    'dns.disabled': 'Protection disabled',
+    'dns.failed': 'Blocking unavailable',
+    'dns.unknown': 'Unknown state',
+    'dns.timer': 'back on in {duration}',
+    'dns.avgTime': 'average response {ms} ms',
+    'dns.blocklist.one': '{n} domain on blocklists',
+    'dns.blocklist.other': '{n} domains on blocklists',
+    'dns.clients.one': '{n} active client',
+    'dns.clients.other': '{n} active clients',
+
     'weather.label': 'Weather',
     'weather.url': 'Open-Meteo server (optional)',
     'weather.urlHelp': 'Leave empty to use the public open-meteo.com service (free, no key). Only fill this in for a self-hosted instance.',
@@ -589,6 +627,10 @@ const I18N = {
     'err.location_missing': 'Location missing',
     'err.location_not_found': 'Location not found: {location}',
     'err.immich_admin': 'Key refused by Immich: use a key from an admin account, with the server.statistics permission',
+    'err.pihole_password': 'Pi-hole password refused',
+    'err.adguard_credentials': 'AdGuard Home credentials refused',
+    'err.pihole_totp': 'Pi-hole asks for a 2FA code: use an app password',
+    'err.pihole_seats': 'Pi-hole refused a new session (too many sessions or attempts). Try again in a few minutes.',
   },
 };
 

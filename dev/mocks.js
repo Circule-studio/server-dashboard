@@ -8,6 +8,8 @@
 //   Pulse        http://localhost:17655  jeton    pulse-token
 //   Météo        http://localhost:18765  lieu     Nantes, Paris (ou des coordonnées « 47.21, -1.55 »)
 //   Immich       http://localhost:12283  clé API  immich-key (immich-user-key : compte non admin, refusé)
+//   Pi-hole v6   http://localhost:10080  mot de passe  pihole-pass (2fa-pass : 2FA activée, refusé sans code)
+//   AdGuard Home http://localhost:13000  admin / adguard-pass
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 const http = require('http');
 const day = (n, h = 0) => { const d = new Date(); d.setHours(h, 0, 0, 0); d.setDate(d.getDate() + n); return d.toISOString(); };
@@ -182,6 +184,60 @@ http.createServer((req, res) => {
   const sum = (k) => usageByUser.reduce((n, u) => n + u[k], 0);
   json(res, { photos: sum('photos'), videos: sum('videos'), usage: sum('usage'), usagePhotos: sum('usagePhotos'), usageVideos: sum('usageVideos'), usageByUser });
 }).listen(12283);
+
+// ---------- Faux Pi-hole v6 (sessions limitées comme le vrai : « API seats ») ----------
+// Chaque connexion est affichée dans la console : le dashboard doit réutiliser sa session.
+// POST /__expire (réservé aux tests) fait expirer toutes les sessions.
+const piSessions = new Set();
+const PI_MAX_SESSIONS = 3;
+http.createServer((req, res) => {
+  const reply = (status, obj) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ...obj, took: 0.001 })); };
+  const session = (valid, sid = null) => ({ session: { valid, totp: false, sid, csrf: sid ? 'csrf-' + sid : null, validity: valid ? 1800 : -1, message: valid ? 'correct password' : 'password incorrect' } });
+  let body = '';
+  req.on('data', (d) => (body += d));
+  req.on('end', () => {
+    if (req.method === 'POST' && req.url === '/__expire') { piSessions.clear(); return reply(200, {}); }
+    if (req.url === '/api/auth' && req.method === 'POST') {
+      let password;
+      try { password = JSON.parse(body).password; } catch { return reply(400, { error: { key: 'bad_request', message: 'No valid JSON payload found', hint: null } }); }
+      if (password === '2fa-pass') return reply(400, { error: { key: 'bad_request', message: 'No 2FA token found in JSON payload', hint: null } });
+      if (password !== 'pihole-pass') return reply(401, session(false));
+      if (piSessions.size >= PI_MAX_SESSIONS) return reply(429, { error: { key: 'api_seats_exceeded', message: 'API seats exceeded', hint: 'increase webserver.api.max_sessions' } });
+      const sid = require('crypto').randomBytes(16).toString('base64');
+      piSessions.add(sid);
+      console.log(`pihole: nouvelle session (${piSessions.size} ouverte(s))`);
+      return reply(200, session(true, sid));
+    }
+    const sid = req.headers['x-ftl-sid'];
+    if (req.url === '/api/auth' && req.method === 'DELETE') {
+      if (piSessions.delete(sid)) console.log(`pihole: session fermée (${piSessions.size} ouverte(s))`);
+      res.writeHead(204); return res.end();
+    }
+    if (!piSessions.has(sid)) return reply(401, { error: { key: 'unauthorized', message: 'Unauthorized', hint: null } });
+    if (req.url === '/api/stats/summary') return reply(200, {
+      queries: { total: 48213, blocked: 9876, percent_blocked: 20.48389, unique_domains: 3120, forwarded: 30120, cached: 8217, frequency: 0.6 },
+      clients: { active: 14, total: 22 },
+      gravity: { domains_being_blocked: 1_234_567, last_update: Math.floor(Date.now() / 1000) - 86400 },
+    });
+    if (req.url === '/api/dns/blocking') return reply(200, { blocking: 'disabled', timer: 272.5 });
+    reply(404, { error: { key: 'not_found', message: 'Not found', hint: null } });
+  });
+}).listen(10080);
+
+// ---------- Faux AdGuard Home (authentification HTTP Basic) ----------
+http.createServer((req, res) => {
+  if (req.headers.authorization !== 'Basic ' + Buffer.from('admin:adguard-pass').toString('base64')) { res.writeHead(401); return res.end(); }
+  if (req.url === '/control/status') return json(res, {
+    dns_addresses: ['192.168.1.2'], dns_port: 53, http_port: 80, protection_enabled: true, protection_disabled_duration: 0,
+    dhcp_available: true, running: true, version: 'v0.107.65', language: 'fr', start_time: Date.now() - 3 * 86400_000,
+  });
+  if (req.url.startsWith('/control/stats')) return json(res, {
+    time_units: 'hours', num_dns_queries: 61542, num_blocked_filtering: 7214, num_replaced_safebrowsing: 12,
+    num_replaced_safesearch: 40, num_replaced_parental: 3, avg_processing_time: 0.0123,
+    top_queried_domains: [], top_clients: [], top_blocked_domains: [], dns_queries: [], blocked_filtering: [],
+  });
+  res.writeHead(404); res.end();
+}).listen(13000);
 
 // ---------- Faux Docker (API Engine sur un named pipe / socket unix) ----------
 const containers = [

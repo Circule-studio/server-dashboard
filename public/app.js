@@ -244,6 +244,14 @@ const WIDGET_TYPES = {
   sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 8989 },
   radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 7878 },
   immich: { label: 'Immich', icon: 'immich', kind: 'immich', refresh: 5 * 60_000, keyHelp: 'key.immichHelp', port: 2283 },
+  pihole: {
+    label: 'Pi-hole', icon: 'pi-hole', kind: 'dns', refresh: 30_000, fields: ['url', 'password'],
+    placeholder: 'http://192.168.1.10', passwordLabel: 'key.piholePassword', passwordHelp: 'key.piholePasswordHelp',
+  },
+  adguard: {
+    label: 'AdGuard Home', icon: 'adguard-home', kind: 'dns', refresh: 30_000, fields: ['url', 'username', 'password'],
+    placeholder: 'http://192.168.1.10', passwordHelp: 'key.adguardHelp',
+  },
   // Sans URL, le serveur utilise le service public open-meteo.com.
   weather: {
     label: t('weather.label'), icon: '/icons/weather.svg', kind: 'weather', refresh: 10 * 60_000,
@@ -461,6 +469,25 @@ const RENDERERS = {
     ] : []),
   ],
 
+  dns: (d) => {
+    const STATES = { enabled: 'ok', disabled: 'bad', failed: 'bad' };
+    const protection = STATES[d.protection] ? d.protection : 'unknown';
+    const extra = d.extra.filter((e) => e.value != null).map((e) => (e.key === 'avgTime'
+      ? t('dns.avgTime', { ms: (e.value * 1000).toLocaleString(LOCALE, { maximumFractionDigits: 1 }) })
+      : tp(`dns.${e.key}`, e.value, { n: e.value.toLocaleString(LOCALE) })));
+    return [
+      h('div', { class: 'widget-stats' },
+        h('div', {}, h('b', {}, d.queries.toLocaleString(LOCALE)), h('span', {}, t('dns.queries'))),
+        h('div', {}, h('b', {}, d.blocked.toLocaleString(LOCALE)), h('span', {}, t('dns.blocked'))),
+        h('div', {}, h('b', {}, `${d.percent.toLocaleString(LOCALE, { maximumFractionDigits: 1 })} %`), h('span', {}, t('dns.percent')))),
+      h('p', { class: 'dns-status' },
+        h('span', { class: `dot ${STATES[protection] || ''}` }), ' ', t(`dns.${protection}`),
+        // Pause temporaire : la protection revient d'elle-même.
+        protection === 'disabled' && d.timer ? h('span', { class: 'muted' }, ` · ${t('dns.timer', { duration: fmtEta(Math.round(d.timer)) })}`) : null),
+      extra.length ? h('p', { class: 'muted dns-extra' }, extra.join(' · ')) : null,
+    ];
+  },
+
   weather: (d) => {
     const c = d.current;
     const deg = (v) => (v == null ? '–' : `${Math.round(v)}°`);
@@ -632,6 +659,8 @@ function updateWidgetFields() {
   });
   form.querySelector('[data-url-label]').textContent = t(type.urlLabel || 'widget.url');
   form.querySelector('[data-url-help]').textContent = t(type.urlHelp || 'widget.urlHelp');
+  form.querySelector('[data-password-label]').textContent = t(type.passwordLabel || 'widget.password');
+  form.querySelector('[data-password-help]').textContent = type.passwordHelp ? t(type.passwordHelp) : '';
   form.elements.url.required = !type.urlOptional;
   form.elements.name.placeholder = t(type.nameFrom ? 'widget.namePlaceholderLocation' : 'widget.namePlaceholder');
   form.elements.location.required = fields.includes('location');

@@ -24,6 +24,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
   - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
+  - **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
   - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
@@ -120,6 +121,8 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Sonarr / Radarr | URL + clé API | Settings > General > API Key |
 | Pulse | URL (`http://IP:7655`) + jeton d’API | Pulse > Paramètres > API Access, scope `monitoring:read` |
 | Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
+| Pi-hole (v6) | URL (`http://IP`) + mot de passe | Celui de l’interface web. Avec la 2FA : mot de passe d’application (Paramètres > Web interface / API, mode Expert, « Configure app password »). Vide si Pi-hole n’a pas de mot de passe |
+| AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
 
