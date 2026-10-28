@@ -9,6 +9,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Tout se réorganise par glisser-déposer**, à la souris comme **au doigt** : tuiles, widgets, catégories (par leur titre) et **cartes de stats** du haut, dont l’ordre est enregistré. Les flèches ← → ↑ ↓ du mode édition disparaissent ; au clavier, Tab sélectionne un élément et les flèches le déplacent (#60, #2).
 - **Popup d’enregistrement** en bas de l’écran dès qu’une modification n’est pas enregistrée (Annuler / Enregistrer), à la place du bouton en haut à droite. Raccourci Ctrl / Cmd + S, et confirmation avant de fermer l’onglet, de se déconnecter ou de quitter l’édition avec des modifications en cours (#59).
 
+### Modifié
+- **Téléphone** : barre du haut plus compacte (horloge masquée), barre d’édition qui ne reste plus collée en haut et dont les boutons tiennent sur une ligne qui défile au doigt (#2).
+
 ## [0.7.0] - 2026-10-27
 
 ### Ajouté

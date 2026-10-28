@@ -137,6 +137,23 @@ a { color: var(--accent); }
 }
 .editbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* Téléphone : barre du haut sur moins de lignes (horloge masquée), barre d'édition
+   compacte qui ne reste pas collée en haut (la popup d'enregistrement suffit), et
+   boutons d'édition sur une seule ligne qui défile horizontalement. */
+@media (max-width: 600px) {
+  .topbar { padding: 16px 0 12px; gap: 10px; }
+  .brand h1 { font-size: 1.3rem; }
+  .clock { display: none; }
+  .topbar-right { flex: 1 1 100%; justify-content: flex-end; gap: 8px; }
+  .editbar { position: static; padding: 8px 10px; gap: 8px; font-size: 0.8rem; }
+  .editbar-actions {
+    flex-wrap: nowrap; overflow-x: auto; width: 100%; gap: 6px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .editbar-actions::-webkit-scrollbar { display: none; }
+  .editbar .btn { flex: none; padding: 6px 10px; font-size: 0.82rem; }
+}
+
 /* ---------- Stats ---------- */
 .stats {
   display: grid; gap: 14px; margin-bottom: 28px;
@@ -355,7 +372,11 @@ dialog input:focus, dialog select:focus { outline: 2px solid var(--accent); outl
 }
 .savebar span { flex: 1; min-width: 0; }
 @keyframes savebar-in { from { opacity: 0; transform: translate(-50%, 12px); } }
-@media (max-width: 480px) { .savebar { left: 12px; right: 12px; transform: none; bottom: 12px; } @keyframes savebar-in { from { opacity: 0; } } }
+@media (max-width: 480px) {
+  .savebar { left: 12px; right: 12px; transform: none; bottom: 12px; gap: 6px; padding: 8px 8px 8px 12px; font-size: 0.82rem; }
+  .savebar .btn { padding: 6px 10px; font-size: 0.82rem; }
+  @keyframes savebar-in { from { opacity: 0; } }
+}
 /* Le message « Configuration enregistrée » s'affiche au-dessus de la popup. */
 .editing .toast { bottom: 84px; }
 
