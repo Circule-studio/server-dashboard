@@ -135,14 +135,13 @@ function render() {
   if (state.editing) cfg.layout = layout;
   let found = 0;
   layout.forEach((item, index) => {
-    const tools = state.editing ? moveTools(index, layout.length) : [];
     let el;
     if (item.kind === 'widget') {
       const wi = cfg.widgets.findIndex((w) => w.id === item.id);
-      el = widgetCard(cfg.widgets[wi], wi, tools);
+      el = widgetCard(cfg.widgets[wi], wi);
     } else {
       const ci = cfg.categories.findIndex((c) => c.id === item.id);
-      const result = categoryEl(cfg.categories[ci], ci, q, tools);
+      const result = categoryEl(cfg.categories[ci], ci, q);
       found += result.found;
       el = result.el;
     }
@@ -151,30 +150,31 @@ function render() {
   if (q && !found) boardMessage(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
   layoutBoard();
-  for (const el of board.children) itemObserver.observe(el);
+  for (const el of board.children) {
+    fitRows(el);
+    itemObserver.observe(el);
+  }
+  renderStatsOrder();
 }
 
 // Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
 // recherche est désactivée ; une catégorie dont le nom correspond s'affiche en entier.
-function categoryEl(cat, ci, q, tools) {
+function categoryEl(cat, ci, q) {
   const catMatch = !q || fold(cat.name).includes(q);
   const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
   if (!state.editing && !apps.length) return { el: null, found: 0 };
   const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
   if (state.editing) {
     head.append(h('div', { class: 'category-tools' },
-      ...tools,
       h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
       h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
     ));
   }
 
-  const grid = h('div', { class: 'grid', 'data-cat': ci });
+  // En édition, la grille accepte une tuile déposée hors des autres tuiles (à la fin).
+  const grid = h('div', { class: 'grid', 'data-cat': ci, 'data-drop': state.editing ? 'tile' : null });
   apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
-  if (state.editing) {
-    grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
-    bindGridDrop(grid, ci);
-  }
+  if (state.editing) grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
   return { el: h('section', { class: 'category' }, head, grid), found: apps.length };
 }
 
@@ -217,90 +217,56 @@ function layoutBoard() {
   const cols = boardCols();
   board.style.setProperty('--cols', cols);
   board.dataset.cols = cols;
-  for (const el of board.querySelectorAll(':scope > .board-item')) {
-    el.style.gridColumn = `span ${spanOf(Number(el.dataset.w), cols)}`;
-  }
+  const items = [...board.querySelectorAll(':scope > .board-item')];
+  for (const el of items) el.style.gridColumn = `span ${spanOf(Number(el.dataset.w), cols)}`;
+  // Une largeur qui change change aussi la hauteur.
+  items.forEach(fitRows);
 }
 
 // Chaque élément réserve autant de lignes que sa hauteur (plus l'espace en dessous).
-const itemObserver = new ResizeObserver((entries) => {
-  for (const { target } of entries) {
-    target.style.gridRowEnd = `span ${Math.ceil((target.getBoundingClientRect().height + GRID_GAP) / ROW_UNIT)}`;
-  }
-});
+// Calculé tout de suite au rendu, puis à chaque changement de taille (données d'un widget…).
+function fitRows(el) {
+  el.style.gridRowEnd = `span ${Math.ceil((el.getBoundingClientRect().height + GRID_GAP) / ROW_UNIT)}`;
+}
+const itemObserver = new ResizeObserver((entries) => entries.forEach((e) => fitRows(e.target)));
 
 // Message sur toute la largeur (accueil, tableau vide, aucun résultat…).
 function boardMessage(el) {
   el.classList.add('board-full');
   $('#board').append(el);
+  fitRows(el);
   itemObserver.observe(el);
 }
-
-let draggedItem = null;
 
 function boardItem(el, item, index) {
   el.classList.add('board-item');
   el.dataset.w = item.w;
   if (!state.editing) return el;
 
+  el.dataset.index = index;
   el.append(h('div', {
     class: 'resize-handle', title: t('layout.resize'), 'aria-hidden': 'true',
     onpointerdown: (e) => startResize(e, el, item),
   }));
-  // Les tuiles d'une catégorie se glissent aussi : on ne réagit qu'au glisser de l'élément lui-même.
-  el.draggable = true;
-  el.addEventListener('dragstart', (e) => {
-    if (e.target !== el) return;
-    draggedItem = index;
-    el.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', `item:${index}`);
-  });
-  el.addEventListener('dragend', (e) => { if (e.target === el) { draggedItem = null; render(); } });
-  el.addEventListener('dragover', (e) => {
-    if (draggedItem == null || draggedItem === index) return;
-    e.preventDefault();
-    const after = dropAfter(e, el);
-    el.classList.toggle('drop-before', !after);
-    el.classList.toggle('drop-after', after);
-  });
-  el.addEventListener('dragleave', (e) => {
-    if (!el.contains(e.relatedTarget)) el.classList.remove('drop-before', 'drop-after');
-  });
-  el.addEventListener('drop', (e) => {
-    if (draggedItem == null) return;
-    e.preventDefault();
-    e.stopPropagation();
-    moveItem(draggedItem, dropAfter(e, el) ? index + 1 : index);
+  // On tire l'en-tête : le reste d'une catégorie contient des tuiles, elles aussi déplaçables.
+  makeDraggable(el, {
+    handle: el.querySelector('.widget-head, .category-head'),
+    group: 'item',
+    key: `item:${item.kind}:${item.id}`,
+    onDrop: (target, after) => moveItem(index, Number(target.dataset.index) + (after ? 1 : 0)),
+    onStep: (delta) => moveItem(index, delta < 0 ? index - 1 : index + 2),
   });
   return el;
-}
-
-// Déposé sur la seconde moitié : après l'élément. Un élément qui occupe toute la
-// ligne se coupe en haut / bas, les autres en gauche / droite.
-function dropAfter(e, el) {
-  const r = el.getBoundingClientRect();
-  const fullRow = r.width > $('#board').clientWidth * 0.75;
-  el.dataset.axis = fullRow ? 'y' : 'x';
-  return fullRow ? e.clientY > r.top + r.height / 2 : e.clientX > r.left + r.width / 2;
 }
 
 // Déplace l'élément `from` juste avant la position `to` (to = longueur : à la fin).
 function moveItem(from, to) {
   const list = state.draft.layout;
+  if (to < 0 || to > list.length) return;
   const [it] = list.splice(from, 1);
   if (from < to) to--;
   list.splice(to, 0, it);
-  draggedItem = null;
   render();
-}
-
-// Les flèches restent utiles sur écran tactile, où le glisser-déposer HTML5 ne marche pas.
-function moveTools(index, count) {
-  return [
-    h('button', { class: 'icon-btn', title: t('tool.before'), disabled: index === 0, onclick: () => moveItem(index, index - 1) }, '←'),
-    h('button', { class: 'icon-btn', title: t('tool.after'), disabled: index === count - 1, onclick: () => moveItem(index, index + 2) }, '→'),
-  ];
 }
 
 // Poignée en bas à droite : la largeur suit le pointeur, colonne par colonne
@@ -370,29 +336,24 @@ function tileEl(app, ci, ai) {
       iconEl(app), text, statusDot(app));
   }
 
-  const tile = h('div', { class: 'tile', draggable: 'true', 'data-cat': ci, 'data-app': ai },
+  const tile = h('div', { class: 'tile', 'data-cat': ci, 'data-app': ai },
     iconEl(app), text,
     h('div', { class: 'tile-tools' },
       h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openAppDialog(ci, ai) }, '✎'),
       h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteApp(ci, ai) }, '✕')));
 
-  tile.addEventListener('dragstart', (e) => {
-    dragged = { ci, ai };
-    tile.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', `${ci}:${ai}`);
-  });
-  tile.addEventListener('dragend', () => { dragged = null; render(); });
-  tile.addEventListener('dragover', (e) => {
-    if (!dragged) return;
-    e.preventDefault();
-    tile.classList.add('drop-before');
-  });
-  tile.addEventListener('dragleave', () => tile.classList.remove('drop-before'));
-  tile.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    moveApp(dragged, ci, ai);
+  makeDraggable(tile, {
+    group: 'tile',
+    key: `app:${app.id}`,
+    // Déposée sur une tuile : avant ou après elle ; sur le fond d'une catégorie : à la fin.
+    onDrop: (target, after) => {
+      const toCat = Number(target.dataset.cat);
+      const toIndex = target.classList.contains('grid')
+        ? state.draft.categories[toCat].apps.length
+        : Number(target.dataset.app) + (after ? 1 : 0);
+      moveApp({ ci, ai }, toCat, toIndex);
+    },
+    onStep: (delta) => moveApp({ ci, ai }, ci, delta < 0 ? ai - 1 : ai + 2),
   });
   return tile;
 }
@@ -691,7 +652,7 @@ const RENDERERS = {
   },
 };
 
-function widgetCard(w, i, tools) {
+function widgetCard(w, i) {
   const type = WIDGET_TYPES[w.type];
   // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
   const head = h('div', { class: 'widget-head' },
@@ -703,7 +664,6 @@ function widgetCard(w, i, tools) {
   if (!state.editing) return card;
 
   head.append(h('div', { class: 'tile-tools' },
-    ...tools,
     h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openWidgetDialog(i) }, '✎'),
     h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteWidget(i) }, '✕')));
   return card;
@@ -894,27 +854,166 @@ function submitWidget(e) {
   render();
 }
 
-// ---------- Glisser-déposer ----------
-let dragged = null;
+// ---------- Glisser-déposer (souris, stylet et doigt) ----------
+// Pointer Events plutôt que le glisser-déposer HTML5, qui ne marche pas au doigt.
+// Chaque élément déplaçable a un groupe (tile, item, stat) et ne se dépose que sur
+// un élément marqué data-drop du même groupe. Au clavier : flèches sur l'élément
+// sélectionné (Tab), pour le reculer ou l'avancer d'un cran.
+const DRAG_THRESHOLD = 6; // px parcourus avant qu'un appui devienne un glisser
+const EDGE_SCROLL = 60;   // px du bord de la fenêtre où la page défile toute seule
+let drag = null;          // glisser en cours
 
-function bindGridDrop(grid, ci) {
-  grid.addEventListener('dragover', (e) => { if (dragged) { e.preventDefault(); grid.classList.add('drag-over'); } });
-  grid.addEventListener('dragleave', (e) => { if (!grid.contains(e.relatedTarget)) grid.classList.remove('drag-over'); });
-  grid.addEventListener('drop', (e) => {
+function makeDraggable(el, { handle = el, group, key, onDrop, onStep, enabled = () => state.editing }) {
+  el.dataset.drop = group;
+  el.dataset.dragKey = key;
+  handle.classList.add('drag-handle');
+  if (enabled()) {
+    handle.title = t('drag.handle');
+    el.tabIndex = 0;
+  }
+  el.addEventListener('keydown', (e) => {
+    if (!enabled() || e.target !== el || e.ctrlKey || e.metaKey || e.altKey) return;
+    const delta = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+    if (!delta) return;
     e.preventDefault();
-    moveApp(dragged, ci, state.draft.categories[ci].apps.length);
+    onStep(delta);
+    document.querySelector(`[data-drag-key="${CSS.escape(key)}"]`)?.focus();
+  });
+  handle.addEventListener('pointerdown', (e) => {
+    if (!enabled() || drag || e.button !== 0) return;
+    if (e.target.closest('button, input, select, textarea, .resize-handle')) return;
+    const start = { x: e.clientX, y: e.clientY };
+    let started = false;
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      if (!started) {
+        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < DRAG_THRESHOLD) return;
+        started = true;
+        beginDrag(el, group, ev);
+      }
+      ev.preventDefault();
+      updateDrag(ev);
+    };
+    const stop = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      if (started) endDrag(ev.type === 'pointerup' ? onDrop : null);
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
   });
 }
 
+function beginDrag(el, group, ev) {
+  const r = el.getBoundingClientRect();
+  // Copie qui suit le pointeur ; l'original reste en place, estompé.
+  const ghost = el.cloneNode(true);
+  ghost.removeAttribute('id');
+  ghost.classList.add('drag-ghost');
+  ghost.style.width = `${r.width}px`;
+  document.body.append(ghost);
+  el.classList.add('dragging');
+  document.body.classList.add('is-dragging');
+  drag = { el, group, ghost, dx: ev.clientX - r.left, dy: ev.clientY - r.top, target: null, after: false, y: ev.clientY };
+  drag.scroller = setInterval(() => {
+    if (drag.y < EDGE_SCROLL) scrollBy(0, -14);
+    else if (drag.y > innerHeight - EDGE_SCROLL) scrollBy(0, 14);
+  }, 16);
+}
+
+function updateDrag(ev) {
+  drag.y = ev.clientY;
+  drag.ghost.style.transform = `translate(${ev.clientX - drag.dx}px, ${ev.clientY - drag.dy}px)`;
+  const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest(`[data-drop="${drag.group}"]`);
+  const target = hit && hit !== drag.el && !drag.el.contains(hit) ? hit : null;
+  if (drag.target && drag.target !== target) drag.target.classList.remove('drop-before', 'drop-after', 'drop-into');
+  drag.target = target;
+  if (!target) return;
+  if (target.classList.contains('grid')) {
+    target.classList.add('drop-into');
+    return;
+  }
+  drag.after = dropAfter(ev, target);
+  target.classList.toggle('drop-before', !drag.after);
+  target.classList.toggle('drop-after', drag.after);
+}
+
+function endDrag(onDrop) {
+  const { el, ghost, target, after, scroller } = drag;
+  clearInterval(scroller);
+  ghost.remove();
+  el.classList.remove('dragging');
+  target?.classList.remove('drop-before', 'drop-after', 'drop-into');
+  document.body.classList.remove('is-dragging');
+  drag = null;
+  // Le relâchement ne doit pas aussi « cliquer » (lien du titre d'un widget…).
+  const swallow = (e) => { e.preventDefault(); e.stopPropagation(); };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+  if (onDrop && target) onDrop(target, after);
+}
+
+// Déposé sur la seconde moitié : après l'élément. Un élément qui occupe presque
+// toute la largeur de son conteneur se coupe en haut / bas, les autres en gauche / droite.
+function dropAfter(e, el) {
+  const r = el.getBoundingClientRect();
+  const fullRow = r.width > el.parentElement.clientWidth * 0.75;
+  el.dataset.axis = fullRow ? 'y' : 'x';
+  return fullRow ? e.clientY > r.top + r.height / 2 : e.clientX > r.left + r.width / 2;
+}
+
 function moveApp(from, toCat, toIndex) {
-  if (!from) return;
   const cats = state.draft.categories;
+  if (toIndex < 0 || toIndex > cats[toCat].apps.length) return;
   const [app] = cats[from.ci].apps.splice(from.ai, 1);
   // Si on déplace vers la droite dans la même catégorie, l'index cible a reculé d'un cran.
   if (from.ci === toCat && from.ai < toIndex) toIndex--;
   cats[toCat].apps.splice(toIndex, 0, app);
-  dragged = null;
   render();
+}
+
+// ---------- Ordre des cartes de stats ----------
+// Clés : cpu, mem, up et disk:<chemin>. Une carte absente de statsOrder (nouveau
+// disque) garde sa place par défaut, après celles dont l'ordre est enregistré.
+function renderStatsOrder() {
+  const cfg = current();
+  if (!cfg) return;
+  const order = cfg.statsOrder || [];
+  [...$('#stats').children].forEach((card, i) => {
+    const pos = order.indexOf(card.dataset.stat);
+    card.style.order = pos >= 0 ? pos : order.length + i;
+    // Les cartes existent hors édition : sélection au clavier et aide seulement en édition.
+    card.tabIndex = state.editing ? 0 : -1;
+    card.title = state.editing ? t('drag.handle') : '';
+  });
+}
+
+function statsInOrder() {
+  return [...$('#stats').children].sort((a, b) => a.style.order - b.style.order).map((c) => c.dataset.stat);
+}
+
+function makeStatDraggable(card) {
+  const move = (to) => {
+    const keys = statsInOrder();
+    const from = keys.indexOf(card.dataset.stat);
+    if (to < 0 || to > keys.length) return;
+    keys.splice(from, 1);
+    keys.splice(from < to ? to - 1 : to, 0, card.dataset.stat);
+    state.draft.statsOrder = keys;
+    renderStatsOrder();
+  };
+  makeDraggable(card, {
+    group: 'stat',
+    key: `stat:${card.dataset.stat}`,
+    onDrop: (target, after) => move(statsInOrder().indexOf(target.dataset.stat) + (after ? 1 : 0)),
+    onStep: (delta) => {
+      const i = statsInOrder().indexOf(card.dataset.stat);
+      move(delta < 0 ? i - 1 : i + 2);
+    },
+  });
 }
 
 // ---------- Actions d'édition ----------
@@ -1111,13 +1210,15 @@ function renderDisks(disks) {
     const percent = d.total ? (d.used / d.total) * 100 : 0;
     const name = d.label || (disks.length > 1 ? d.path : t('stat.disk'));
     const error = d.errorCode ? errMsg({ code: d.errorCode }) : d.error;
-    stats.insertBefore(h('div', { class: 'stat stat-disk' },
+    const card = h('div', { class: 'stat stat-disk', 'data-stat': `disk:${d.path}` },
       h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, error ? '–' : `${percent.toFixed(0)} %`)),
       h('div', { class: 'bar' }, h('i', { class: percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : '', style: `width:${Math.min(100, percent)}%` })),
       h('small', { class: 'muted', title: d.path },
-        error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`)),
-    $('#stat-up'));
+        error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`));
+    makeStatDraggable(card);
+    stats.insertBefore(card, $('#stat-up'));
   }
+  renderStatsOrder();
 }
 
 // ---------- Choix des disques (mode édition) ----------
@@ -1306,6 +1407,9 @@ async function init() {
   bindSearch();
   // Nombre de colonnes de la grille selon la largeur disponible.
   new ResizeObserver(layoutBoard).observe($('#board'));
+  ['#stat-cpu', '#stat-mem', '#stat-up'].forEach((id) => makeStatDraggable($(id)));
+  // En édition, pas de glisser natif (images, liens) : il couperait celui au pointeur.
+  document.addEventListener('dragstart', (e) => { if (state.editing) e.preventDefault(); });
   $('#themeBtn').addEventListener('click', () => {
     setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     renderThemeBtn();

@@ -207,6 +207,13 @@ function sanitizeLayout(layout, cfg) {
   });
 }
 
+// Ordre des cartes de stats : cpu, mem, up et disk:<chemin>.
+function sanitizeStatsOrder(order) {
+  const keys = (Array.isArray(order) ? order : []).map((k) => str(k, 520))
+    .filter((k) => ['cpu', 'mem', 'up'].includes(k) || /^disk:./.test(k));
+  return [...new Set(keys)].slice(0, 50);
+}
+
 function sanitizeConfig(input, previous) {
   if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
   const catIds = new Set();
@@ -234,8 +241,9 @@ function sanitizeConfig(input, previous) {
       }),
     })),
   };
-  // Absente de la requête (ancienne interface) = inchangée.
+  // Absentes de la requête (ancienne interface) = inchangées.
   cfg.layout = sanitizeLayout(input.layout ?? previous?.layout, cfg);
+  cfg.statsOrder = sanitizeStatsOrder(input.statsOrder ?? previous?.statsOrder);
   return cfg;
 }
 
