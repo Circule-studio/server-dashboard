@@ -35,18 +35,16 @@
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
       <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
-      <button id="cancelBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
-      <button id="saveBtn" class="btn btn-primary" data-i18n="common.save"></button>
+      <button id="cancelBtn" class="btn btn-ghost" data-i18n="edit.done"></button>
     </div>
   </div>
 
   <section id="stats" class="stats" data-i18n-aria="stats.aria">
-    <div class="stat" id="stat-cpu"><div class="stat-head"><span data-i18n="stat.cpu"></span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
-    <div class="stat" id="stat-mem"><div class="stat-head"><span data-i18n="stat.memory"></span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
-    <div class="stat" id="stat-up"><div class="stat-head"><span data-i18n="stat.uptime"></span><b>–</b></div><small class="muted"></small></div>
+    <div class="stat" id="stat-cpu" data-stat="cpu"><div class="stat-head"><span data-i18n="stat.cpu"></span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-mem" data-stat="mem"><div class="stat-head"><span data-i18n="stat.memory"></span><b>–</b></div><div class="bar"><i></i></div><small class="muted"></small></div>
+    <div class="stat" id="stat-up" data-stat="up"><div class="stat-head"><span data-i18n="stat.uptime"></span><b>–</b></div><small class="muted"></small></div>
   </section>
 
-  <section id="widgets" class="widgets" aria-label="Widgets"></section>
 
   <main id="board" class="board"></main>
 
@@ -167,6 +165,13 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Visible en mode édition dès qu'il y a des modifications non enregistrées. -->
+  <div id="saveBar" class="savebar" role="region" data-i18n-aria="save.region" hidden>
+    <span data-i18n="save.pending"></span>
+    <button id="discardBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
+    <button id="saveBtn" class="btn btn-primary" data-i18n-title="save.shortcut" data-i18n="common.save"></button>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

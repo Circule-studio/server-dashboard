@@ -189,11 +189,36 @@ function sanitizeDisplay(display) {
   return Object.fromEntries(DISPLAY_OPTIONS.map((k) => [k, src[k] !== false]));
 }
 
+// Mise en page : ordre et largeur (1 à 12 colonnes) des widgets et des catégories
+// dans la grille. Seuls les éléments qui existent sont gardés ; ceux qui manquent
+// sont placés par l'interface (largeur par défaut, à la fin).
+const LAYOUT_KINDS = { widget: 'widgets', category: 'categories' };
+
+function sanitizeLayout(layout, cfg) {
+  const seen = new Set();
+  return (Array.isArray(layout) ? layout : []).slice(0, 1000).flatMap((it) => {
+    const kind = it && LAYOUT_KINDS[it.kind] ? it.kind : null;
+    const id = str(it?.id, 64);
+    const key = `${kind}:${id}`;
+    if (!kind || seen.has(key) || !cfg[LAYOUT_KINDS[kind]].some((x) => x.id === id)) return [];
+    seen.add(key);
+    const w = Math.round(Number(it.w));
+    return [{ kind, id, w: Number.isFinite(w) ? Math.min(12, Math.max(1, w)) : 12 }];
+  });
+}
+
+// Ordre des cartes de stats : cpu, mem, up et disk:<chemin>.
+function sanitizeStatsOrder(order) {
+  const keys = (Array.isArray(order) ? order : []).map((k) => str(k, 520))
+    .filter((k) => ['cpu', 'mem', 'up'].includes(k) || /^disk:./.test(k));
+  return [...new Set(keys)].slice(0, 50);
+}
+
 function sanitizeConfig(input, previous) {
   if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
   const catIds = new Set();
   const appIds = new Set(); // uniques sur tout le tableau : /api/status les range par identifiant
-  return {
+  const cfg = {
     revision: (previous?.revision || 0) + 1,
     title: str(input.title, 100) || 'Mon serveur',
     // Absent de la requête (ancienne interface) = inchangé.
@@ -216,6 +241,10 @@ function sanitizeConfig(input, previous) {
       }),
     })),
   };
+  // Absentes de la requête (ancienne interface) = inchangées.
+  cfg.layout = sanitizeLayout(input.layout ?? previous?.layout, cfg);
+  cfg.statsOrder = sanitizeStatsOrder(input.statsOrder ?? previous?.statsOrder);
+  return cfg;
 }
 
 // ---------- Auth (cookie signé HMAC) ----------

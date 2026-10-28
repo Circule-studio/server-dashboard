@@ -117,46 +117,186 @@ function render() {
   $('#search').hidden = !state.searchEnabled || !(display.search || state.searchOpen);
   const q = state.searchEnabled ? fold(state.search.trim()) : '';
 
+  itemObserver.disconnect();
   const board = $('#board');
   board.replaceChildren();
 
   $('#pwBanner').hidden = !(state.authed && state.defaultPassword);
 
   if (!cfg.categories.length && !cfg.widgets?.length && !state.editing) {
-    board.append(welcomeCard());
+    boardMessage(welcomeCard());
   } else if (!cfg.categories.length) {
-    board.append(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
+    boardMessage(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
   }
 
+  // En édition, la mise en page complète (éléments manquants ajoutés) devient
+  // celle du brouillon : déplacer ou redimensionner modifie directement ses objets.
+  const layout = layoutOf(cfg);
+  if (state.editing) cfg.layout = layout;
   let found = 0;
-  cfg.categories.forEach((cat, ci) => {
-    // Les index d'origine (ai) servent à l'édition, où la recherche est désactivée.
-    // Une catégorie dont le nom correspond est affichée en entier.
-    const catMatch = !q || fold(cat.name).includes(q);
-    const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
-    found += apps.length;
-    if (!state.editing && !apps.length) return;
-    const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
-    if (state.editing) {
-      head.append(h('div', { class: 'category-tools' },
-        h('button', { class: 'icon-btn', title: t('tool.up'), disabled: ci === 0, onclick: () => moveCategory(ci, -1) }, '↑'),
-        h('button', { class: 'icon-btn', title: t('tool.down'), disabled: ci === cfg.categories.length - 1, onclick: () => moveCategory(ci, 1) }, '↓'),
-        h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
-        h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
-      ));
+  layout.forEach((item, index) => {
+    let el;
+    if (item.kind === 'widget') {
+      const wi = cfg.widgets.findIndex((w) => w.id === item.id);
+      el = widgetCard(cfg.widgets[wi], wi);
+    } else {
+      const ci = cfg.categories.findIndex((c) => c.id === item.id);
+      const result = categoryEl(cfg.categories[ci], ci, q);
+      found += result.found;
+      el = result.el;
     }
-
-    const grid = h('div', { class: 'grid', 'data-cat': ci });
-    apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
-    if (state.editing) {
-      grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
-      bindGridDrop(grid, ci);
-    }
-    board.append(h('section', { class: 'category' }, head, grid));
+    if (el) board.append(boardItem(el, item, index));
   });
-  if (q && !found) board.append(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
+  if (q && !found) boardMessage(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
-  renderWidgets();
+  layoutBoard();
+  for (const el of board.children) {
+    fitRows(el);
+    itemObserver.observe(el);
+  }
+  renderStatsOrder();
+  updateSaveBar();
+}
+
+// Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
+// recherche est désactivée ; une catégorie dont le nom correspond s'affiche en entier.
+function categoryEl(cat, ci, q) {
+  const catMatch = !q || fold(cat.name).includes(q);
+  const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
+  if (!state.editing && !apps.length) return { el: null, found: 0 };
+  const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
+  if (state.editing) {
+    head.append(h('div', { class: 'category-tools' },
+      h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
+      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
+    ));
+  }
+
+  // En édition, la grille accepte une tuile déposée hors des autres tuiles (à la fin).
+  const grid = h('div', { class: 'grid', 'data-cat': ci, 'data-drop': state.editing ? 'tile' : null });
+  apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
+  if (state.editing) grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
+  return { el: h('section', { class: 'category' }, head, grid), found: apps.length };
+}
+
+// ---------- Grille de mise en page ----------
+// Widgets et catégories partagent une grille de 12 colonnes. `layout` donne leur
+// ordre et leur largeur ; la hauteur suit le contenu, en lignes de 2 px, ce qui
+// permet aux éléments de s'emboîter sans trou.
+const GRID_COLS = 12;
+const DEFAULT_WIDTH = { widget: 3, category: 12 };
+const ROW_UNIT = 2;   // grid-auto-rows de .board (style.css)
+const GRID_GAP = 14;  // espace entre éléments, horizontal (column-gap) et vertical
+
+// Mise en page complète : celle de la config, puis les éléments qu'elle ne cite
+// pas (config d'avant la grille, nouvel élément) avec leur largeur par défaut.
+function layoutOf(cfg) {
+  const lists = { widget: cfg.widgets || [], category: cfg.categories };
+  const items = [];
+  const seen = new Set();
+  const add = (kind, id, w) => {
+    const key = `${kind}:${id}`;
+    if (!lists[kind] || seen.has(key) || !lists[kind].some((x) => x.id === id)) return;
+    seen.add(key);
+    items.push({ kind, id, w: Math.min(GRID_COLS, Math.max(1, Math.round(w) || DEFAULT_WIDTH[kind])) });
+  };
+  for (const it of cfg.layout || []) add(it.kind, it.id, it.w);
+  for (const w of lists.widget) add('widget', w.id, DEFAULT_WIDTH.widget);
+  for (const c of lists.category) add('category', c.id, DEFAULT_WIDTH.category);
+  return items;
+}
+
+// Colonnes affichées selon la place : 12 sur grand écran, 6 sur tablette, 1 sur téléphone.
+function boardCols() {
+  const width = $('#board').clientWidth;
+  return width >= 1000 ? GRID_COLS : width >= 600 ? 6 : 1;
+}
+const spanOf = (w, cols) => Math.max(1, Math.min(cols, Math.round((w * cols) / GRID_COLS)));
+
+function layoutBoard() {
+  const board = $('#board');
+  const cols = boardCols();
+  board.style.setProperty('--cols', cols);
+  board.dataset.cols = cols;
+  const items = [...board.querySelectorAll(':scope > .board-item')];
+  for (const el of items) el.style.gridColumn = `span ${spanOf(Number(el.dataset.w), cols)}`;
+  // Une largeur qui change change aussi la hauteur.
+  items.forEach(fitRows);
+}
+
+// Chaque élément réserve autant de lignes que sa hauteur (plus l'espace en dessous).
+// Calculé tout de suite au rendu, puis à chaque changement de taille (données d'un widget…).
+function fitRows(el) {
+  el.style.gridRowEnd = `span ${Math.ceil((el.getBoundingClientRect().height + GRID_GAP) / ROW_UNIT)}`;
+}
+const itemObserver = new ResizeObserver((entries) => entries.forEach((e) => fitRows(e.target)));
+
+// Message sur toute la largeur (accueil, tableau vide, aucun résultat…).
+function boardMessage(el) {
+  el.classList.add('board-full');
+  $('#board').append(el);
+  fitRows(el);
+  itemObserver.observe(el);
+}
+
+function boardItem(el, item, index) {
+  el.classList.add('board-item');
+  el.dataset.w = item.w;
+  if (!state.editing) return el;
+
+  el.dataset.index = index;
+  el.append(h('div', {
+    class: 'resize-handle', title: t('layout.resize'), 'aria-hidden': 'true',
+    onpointerdown: (e) => startResize(e, el, item),
+  }));
+  // On tire l'en-tête : le reste d'une catégorie contient des tuiles, elles aussi déplaçables.
+  makeDraggable(el, {
+    handle: el.querySelector('.widget-head, .category-head'),
+    group: 'item',
+    key: `item:${item.kind}:${item.id}`,
+    onDrop: (target, after) => moveItem(index, Number(target.dataset.index) + (after ? 1 : 0)),
+    onStep: (delta) => moveItem(index, delta < 0 ? index - 1 : index + 2),
+  });
+  return el;
+}
+
+// Déplace l'élément `from` juste avant la position `to` (to = longueur : à la fin).
+function moveItem(from, to) {
+  const list = state.draft.layout;
+  if (to < 0 || to > list.length) return;
+  const [it] = list.splice(from, 1);
+  if (from < to) to--;
+  list.splice(to, 0, it);
+  render();
+}
+
+// Poignée en bas à droite : la largeur suit le pointeur, colonne par colonne
+// (souris, stylet ou doigt grâce aux Pointer Events).
+function startResize(e, el, item) {
+  e.preventDefault();
+  e.stopPropagation();
+  const handle = e.currentTarget;
+  handle.setPointerCapture?.(e.pointerId);
+  const cols = boardCols();
+  const colWidth = ($('#board').clientWidth + GRID_GAP) / cols;
+  const left = el.getBoundingClientRect().left;
+  el.classList.add('resizing');
+  const move = (ev) => {
+    const span = Math.max(1, Math.min(cols, Math.round((ev.clientX - left + GRID_GAP) / colWidth)));
+    item.w = Math.max(1, Math.min(GRID_COLS, Math.round((span * GRID_COLS) / cols)));
+    el.dataset.w = item.w;
+    el.dataset.width = `${item.w} / ${GRID_COLS}`;
+    el.style.gridColumn = `span ${span}`;
+  };
+  const end = () => {
+    handle.removeEventListener('pointermove', move);
+    el.classList.remove('resizing');
+    render();
+  };
+  move(e);
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', end, { once: true });
+  handle.addEventListener('pointercancel', end, { once: true });
 }
 
 // Écran d'accueil d'un dashboard encore vide (première installation).
@@ -197,29 +337,24 @@ function tileEl(app, ci, ai) {
       iconEl(app), text, statusDot(app));
   }
 
-  const tile = h('div', { class: 'tile', draggable: 'true', 'data-cat': ci, 'data-app': ai },
+  const tile = h('div', { class: 'tile', 'data-cat': ci, 'data-app': ai },
     iconEl(app), text,
     h('div', { class: 'tile-tools' },
       h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openAppDialog(ci, ai) }, '✎'),
       h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteApp(ci, ai) }, '✕')));
 
-  tile.addEventListener('dragstart', (e) => {
-    dragged = { ci, ai };
-    tile.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', `${ci}:${ai}`);
-  });
-  tile.addEventListener('dragend', () => { dragged = null; render(); });
-  tile.addEventListener('dragover', (e) => {
-    if (!dragged) return;
-    e.preventDefault();
-    tile.classList.add('drop-before');
-  });
-  tile.addEventListener('dragleave', () => tile.classList.remove('drop-before'));
-  tile.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    moveApp(dragged, ci, ai);
+  makeDraggable(tile, {
+    group: 'tile',
+    key: `app:${app.id}`,
+    // Déposée sur une tuile : avant ou après elle ; sur le fond d'une catégorie : à la fin.
+    onDrop: (target, after) => {
+      const toCat = Number(target.dataset.cat);
+      const toIndex = target.classList.contains('grid')
+        ? state.draft.categories[toCat].apps.length
+        : Number(target.dataset.app) + (after ? 1 : 0);
+      moveApp({ ci, ai }, toCat, toIndex);
+    },
+    onStep: (delta) => moveApp({ ci, ai }, ci, delta < 0 ? ai - 1 : ai + 2),
   });
   return tile;
 }
@@ -518,14 +653,7 @@ const RENDERERS = {
   },
 };
 
-function renderWidgets() {
-  const widgets = current().widgets || [];
-  const box = $('#widgets');
-  box.hidden = !widgets.length;
-  box.replaceChildren(...widgets.map((w, i) => widgetCard(w, i, widgets.length)));
-}
-
-function widgetCard(w, i, count) {
+function widgetCard(w, i) {
   const type = WIDGET_TYPES[w.type];
   // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
   const head = h('div', { class: 'widget-head' },
@@ -536,40 +664,11 @@ function widgetCard(w, i, count) {
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
 
-  // Les flèches restent utiles sur écran tactile, où le glisser-déposer HTML5 ne marche pas.
   head.append(h('div', { class: 'tile-tools' },
-    h('button', { class: 'icon-btn', title: t('tool.left'), disabled: i === 0, onclick: () => moveWidget(i, i - 1) }, '←'),
-    h('button', { class: 'icon-btn', title: t('tool.right'), disabled: i === count - 1, onclick: () => moveWidget(i, i + 2) }, '→'),
     h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openWidgetDialog(i) }, '✎'),
     h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteWidget(i) }, '✕')));
-
-  card.draggable = true;
-  card.addEventListener('dragstart', (e) => {
-    draggedWidget = i;
-    card.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', `widget:${i}`);
-  });
-  card.addEventListener('dragend', () => { draggedWidget = null; render(); });
-  card.addEventListener('dragover', (e) => {
-    if (draggedWidget == null || draggedWidget === i) return;
-    e.preventDefault();
-    // Déposé sur la moitié gauche : avant ce widget ; moitié droite : après.
-    const after = e.clientX > card.getBoundingClientRect().left + card.offsetWidth / 2;
-    card.classList.toggle('drop-before', !after);
-    card.classList.toggle('drop-after', after);
-  });
-  card.addEventListener('dragleave', () => card.classList.remove('drop-before', 'drop-after'));
-  card.addEventListener('drop', (e) => {
-    if (draggedWidget == null) return;
-    e.preventDefault();
-    const after = card.classList.contains('drop-after');
-    moveWidget(draggedWidget, after ? i + 1 : i);
-  });
   return card;
 }
-
-let draggedWidget = null;
 
 function widgetBody(w) {
   const entry = state.widgetData[w.id];
@@ -621,16 +720,6 @@ function scheduleWidgets() {
     refreshWidget(w.id);
     widgetTimers.push(setInterval(() => refreshWidget(w.id), WIDGET_TYPES[w.type].refresh));
   }
-}
-
-// Déplace le widget `from` juste avant la position `to` (to = longueur : à la fin).
-function moveWidget(from, to) {
-  const list = state.draft.widgets;
-  const [w] = list.splice(from, 1);
-  if (from < to) to--;
-  list.splice(to, 0, w);
-  draggedWidget = null;
-  render();
 }
 
 function deleteWidget(i) {
@@ -766,36 +855,170 @@ function submitWidget(e) {
   render();
 }
 
-// ---------- Glisser-déposer ----------
-let dragged = null;
+// ---------- Glisser-déposer (souris, stylet et doigt) ----------
+// Pointer Events plutôt que le glisser-déposer HTML5, qui ne marche pas au doigt.
+// Chaque élément déplaçable a un groupe (tile, item, stat) et ne se dépose que sur
+// un élément marqué data-drop du même groupe. Au clavier : flèches sur l'élément
+// sélectionné (Tab), pour le reculer ou l'avancer d'un cran.
+const DRAG_THRESHOLD = 6; // px parcourus avant qu'un appui devienne un glisser
+const EDGE_SCROLL = 60;   // px du bord de la fenêtre où la page défile toute seule
+let drag = null;          // glisser en cours
 
-function bindGridDrop(grid, ci) {
-  grid.addEventListener('dragover', (e) => { if (dragged) { e.preventDefault(); grid.classList.add('drag-over'); } });
-  grid.addEventListener('dragleave', (e) => { if (!grid.contains(e.relatedTarget)) grid.classList.remove('drag-over'); });
-  grid.addEventListener('drop', (e) => {
+function makeDraggable(el, { handle = el, group, key, onDrop, onStep, enabled = () => state.editing }) {
+  el.dataset.drop = group;
+  el.dataset.dragKey = key;
+  handle.classList.add('drag-handle');
+  if (enabled()) {
+    handle.title = t('drag.handle');
+    el.tabIndex = 0;
+  }
+  el.addEventListener('keydown', (e) => {
+    if (!enabled() || e.target !== el || e.ctrlKey || e.metaKey || e.altKey) return;
+    const delta = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+    if (!delta) return;
     e.preventDefault();
-    moveApp(dragged, ci, state.draft.categories[ci].apps.length);
+    onStep(delta);
+    document.querySelector(`[data-drag-key="${CSS.escape(key)}"]`)?.focus();
+  });
+  handle.addEventListener('pointerdown', (e) => {
+    if (!enabled() || drag || e.button !== 0) return;
+    if (e.target.closest('button, input, select, textarea, .resize-handle')) return;
+    const start = { x: e.clientX, y: e.clientY };
+    let started = false;
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      if (!started) {
+        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < DRAG_THRESHOLD) return;
+        started = true;
+        beginDrag(el, group, ev);
+      }
+      ev.preventDefault();
+      updateDrag(ev);
+    };
+    const stop = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      if (started) endDrag(ev.type === 'pointerup' ? onDrop : null);
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
   });
 }
 
+function beginDrag(el, group, ev) {
+  const r = el.getBoundingClientRect();
+  // Copie qui suit le pointeur ; l'original reste en place, estompé.
+  const ghost = el.cloneNode(true);
+  ghost.removeAttribute('id');
+  ghost.classList.add('drag-ghost');
+  ghost.style.width = `${r.width}px`;
+  document.body.append(ghost);
+  el.classList.add('dragging');
+  document.body.classList.add('is-dragging');
+  drag = { el, group, ghost, dx: ev.clientX - r.left, dy: ev.clientY - r.top, target: null, after: false, y: ev.clientY };
+  drag.scroller = setInterval(() => {
+    if (drag.y < EDGE_SCROLL) scrollBy(0, -14);
+    else if (drag.y > innerHeight - EDGE_SCROLL) scrollBy(0, 14);
+  }, 16);
+}
+
+function updateDrag(ev) {
+  drag.y = ev.clientY;
+  drag.ghost.style.transform = `translate(${ev.clientX - drag.dx}px, ${ev.clientY - drag.dy}px)`;
+  const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest(`[data-drop="${drag.group}"]`);
+  const target = hit && hit !== drag.el && !drag.el.contains(hit) ? hit : null;
+  if (drag.target && drag.target !== target) drag.target.classList.remove('drop-before', 'drop-after', 'drop-into');
+  drag.target = target;
+  if (!target) return;
+  if (target.classList.contains('grid')) {
+    target.classList.add('drop-into');
+    return;
+  }
+  drag.after = dropAfter(ev, target);
+  target.classList.toggle('drop-before', !drag.after);
+  target.classList.toggle('drop-after', drag.after);
+}
+
+function endDrag(onDrop) {
+  const { el, ghost, target, after, scroller } = drag;
+  clearInterval(scroller);
+  ghost.remove();
+  el.classList.remove('dragging');
+  target?.classList.remove('drop-before', 'drop-after', 'drop-into');
+  document.body.classList.remove('is-dragging');
+  drag = null;
+  // Le relâchement ne doit pas aussi « cliquer » (lien du titre d'un widget…).
+  const swallow = (e) => { e.preventDefault(); e.stopPropagation(); };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+  if (onDrop && target) onDrop(target, after);
+}
+
+// Déposé sur la seconde moitié : après l'élément. Un élément qui occupe presque
+// toute la largeur de son conteneur se coupe en haut / bas, les autres en gauche / droite.
+function dropAfter(e, el) {
+  const r = el.getBoundingClientRect();
+  const fullRow = r.width > el.parentElement.clientWidth * 0.75;
+  el.dataset.axis = fullRow ? 'y' : 'x';
+  return fullRow ? e.clientY > r.top + r.height / 2 : e.clientX > r.left + r.width / 2;
+}
+
 function moveApp(from, toCat, toIndex) {
-  if (!from) return;
   const cats = state.draft.categories;
+  if (toIndex < 0 || toIndex > cats[toCat].apps.length) return;
   const [app] = cats[from.ci].apps.splice(from.ai, 1);
   // Si on déplace vers la droite dans la même catégorie, l'index cible a reculé d'un cran.
   if (from.ci === toCat && from.ai < toIndex) toIndex--;
   cats[toCat].apps.splice(toIndex, 0, app);
-  dragged = null;
   render();
+}
+
+// ---------- Ordre des cartes de stats ----------
+// Clés : cpu, mem, up et disk:<chemin>. Une carte absente de statsOrder (nouveau
+// disque) garde sa place par défaut, après celles dont l'ordre est enregistré.
+function renderStatsOrder() {
+  const cfg = current();
+  if (!cfg) return;
+  const order = cfg.statsOrder || [];
+  [...$('#stats').children].forEach((card, i) => {
+    const pos = order.indexOf(card.dataset.stat);
+    card.style.order = pos >= 0 ? pos : order.length + i;
+    // Les cartes existent hors édition : sélection au clavier et aide seulement en édition.
+    card.tabIndex = state.editing ? 0 : -1;
+    card.title = state.editing ? t('drag.handle') : '';
+  });
+}
+
+function statsInOrder() {
+  return [...$('#stats').children].sort((a, b) => a.style.order - b.style.order).map((c) => c.dataset.stat);
+}
+
+function makeStatDraggable(card) {
+  const move = (to) => {
+    const keys = statsInOrder();
+    const from = keys.indexOf(card.dataset.stat);
+    if (to < 0 || to > keys.length) return;
+    keys.splice(from, 1);
+    keys.splice(from < to ? to - 1 : to, 0, card.dataset.stat);
+    state.draft.statsOrder = keys;
+    renderStatsOrder();
+    updateSaveBar();
+  };
+  makeDraggable(card, {
+    group: 'stat',
+    key: `stat:${card.dataset.stat}`,
+    onDrop: (target, after) => move(statsInOrder().indexOf(target.dataset.stat) + (after ? 1 : 0)),
+    onStep: (delta) => {
+      const i = statsInOrder().indexOf(card.dataset.stat);
+      move(delta < 0 ? i - 1 : i + 2);
+    },
+  });
 }
 
 // ---------- Actions d'édition ----------
-function moveCategory(ci, delta) {
-  const cats = state.draft.categories;
-  [cats[ci], cats[ci + delta]] = [cats[ci + delta], cats[ci]];
-  render();
-}
-
 async function renameCategory(ci) {
   const name = await askText(t('category.rename'), t('common.name'), state.draft.categories[ci].name);
   if (name) { state.draft.categories[ci].name = name; render(); }
@@ -826,12 +1049,34 @@ async function startEditing() {
   state.draft = structuredClone(state.config);
   state.editing = true;
   render();
+  // Après le premier rendu, qui complète la mise en page du brouillon : c'est
+  // l'état « sans modification » auquel on compare pour afficher la popup.
+  state.cleanDraft = JSON.stringify(state.draft);
+  updateSaveBar();
 }
 
 function stopEditing() {
   state.editing = false;
   state.draft = null;
+  state.cleanDraft = null;
   render();
+}
+
+// ---------- Modifications non enregistrées ----------
+const isDirty = () => state.editing && JSON.stringify(state.draft) !== state.cleanDraft;
+
+function updateSaveBar() {
+  $('#saveBar').hidden = !isDirty();
+}
+
+// Abandonner les modifications : confirmation s'il y en a.
+const confirmDiscard = () => !isDirty() || confirm(t('save.leaveConfirm'));
+
+// Popup « Annuler » : on revient à l'état du début de l'édition, sans quitter le mode édition.
+function discardChanges() {
+  state.draft = JSON.parse(state.cleanDraft);
+  render();
+  renderStatsOrder();
 }
 
 async function save() {
@@ -924,6 +1169,7 @@ function submitApp(e) {
 
 async function onAuthClick() {
   if (state.authed) {
+    if (!confirmDiscard()) return;
     await api('/api/logout', { method: 'POST' });
     if (state.loginRequired) return location.reload();
     state.authed = false;
@@ -989,13 +1235,15 @@ function renderDisks(disks) {
     const percent = d.total ? (d.used / d.total) * 100 : 0;
     const name = d.label || (disks.length > 1 ? d.path : t('stat.disk'));
     const error = d.errorCode ? errMsg({ code: d.errorCode }) : d.error;
-    stats.insertBefore(h('div', { class: 'stat stat-disk' },
+    const card = h('div', { class: 'stat stat-disk', 'data-stat': `disk:${d.path}` },
       h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, error ? '–' : `${percent.toFixed(0)} %`)),
       h('div', { class: 'bar' }, h('i', { class: percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : '', style: `width:${Math.min(100, percent)}%` })),
       h('small', { class: 'muted', title: d.path },
-        error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`)),
-    $('#stat-up'));
+        error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`));
+    makeStatDraggable(card);
+    stats.insertBefore(card, $('#stat-up'));
   }
+  renderStatsOrder();
 }
 
 // ---------- Choix des disques (mode édition) ----------
@@ -1036,6 +1284,7 @@ function submitDisks(e) {
   if (extra && !disks.some((d) => d.path === extra)) disks.push({ path: extra, label: '' });
   state.draft.disks = disks;
   $('#disksDialog').close();
+  updateSaveBar();
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
@@ -1182,6 +1431,11 @@ async function init() {
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
   renderThemeBtn();
   bindSearch();
+  // Nombre de colonnes de la grille selon la largeur disponible.
+  new ResizeObserver(layoutBoard).observe($('#board'));
+  ['#stat-cpu', '#stat-mem', '#stat-up'].forEach((id) => makeStatDraggable($(id)));
+  // En édition, pas de glisser natif (images, liens) : il couperait celui au pointeur.
+  document.addEventListener('dragstart', (e) => { if (state.editing) e.preventDefault(); });
   $('#themeBtn').addEventListener('click', () => {
     setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     renderThemeBtn();
@@ -1189,8 +1443,17 @@ async function init() {
   // Sans choix enregistré, suivre le système quand il change.
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', renderThemeBtn);
   $('#editBtn').addEventListener('click', startEditing);
-  $('#cancelBtn').addEventListener('click', stopEditing);
+  $('#cancelBtn').addEventListener('click', () => { if (confirmDiscard()) stopEditing(); });
   $('#saveBtn').addEventListener('click', save);
+  $('#discardBtn').addEventListener('click', discardChanges);
+  // Ctrl / Cmd + S enregistre en mode édition (au lieu d'enregistrer la page HTML).
+  document.addEventListener('keydown', (e) => {
+    if (!state.editing || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;
+    e.preventDefault();
+    if (isDirty() && !$('#saveBtn').disabled) save();
+  });
+  // Fermer l'onglet ou recharger avec des modifications : le navigateur demande confirmation.
+  window.addEventListener('beforeunload', (e) => { if (isDirty()) e.preventDefault(); });
   $('#authBtn').addEventListener('click', onAuthClick);
   $('#addCatBtn').addEventListener('click', async () => {
     const name = await askText(t('category.new'), t('common.name'));
@@ -1239,9 +1502,10 @@ async function init() {
 // Page vide avec un message à la place du tableau (connexion requise, erreur de chargement…).
 function showBlocker(message, action) {
   $('#stats').hidden = true;
-  $('#widgets').hidden = true;
   $('#dockerSection').hidden = true;
-  $('#board').replaceChildren(h('div', { class: 'empty' }, h('p', {}, message), action));
+  itemObserver.disconnect();
+  $('#board').replaceChildren();
+  boardMessage(h('div', { class: 'empty' }, h('p', {}, message), action));
 }
 
 function showLoginGate() {

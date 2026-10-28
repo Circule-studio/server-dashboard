@@ -25,7 +25,7 @@ const I18N = {
 
     'banner.defaultPassword': '⚠ Tu utilises le mot de passe par défaut <b>admin</b>. Change-le : variable <code>ADMIN_PASSWORD</code> dans <code>.env</code> (Docker ou en local) ou dans <code>/etc/server-dashboard/server-dashboard.env</code> (installation sans Docker), puis redémarre le dashboard.',
 
-    'edit.hint': 'Mode édition : glisse les tuiles pour les réordonner ou les déplacer.',
+    'edit.hint': 'Mode édition : glisse les tuiles, les widgets, les catégories (par leur titre) et les cartes de stats pour les réorganiser.',
     'edit.renameBoard': 'Renommer le tableau',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disques',
@@ -52,10 +52,8 @@ const I18N = {
 
     'empty.noCategoryEditing': 'Aucune catégorie : clique sur « + Catégorie » pour en créer une.',
     'empty.noApps': 'Aucune application configurée.',
-    'tool.up': 'Monter',
-    'tool.down': 'Descendre',
-    'tool.left': 'Vers la gauche',
-    'tool.right': 'Vers la droite',
+    'drag.handle': 'Glisser pour déplacer (au clavier : flèches)',
+    'layout.resize': 'Glisser pour changer la largeur',
     'tool.rename': 'Renommer',
     'tool.edit': 'Modifier',
     'tool.delete': 'Supprimer',
@@ -112,6 +110,11 @@ const I18N = {
     'board.rename': 'Renommer le tableau',
 
     'save.done': 'Configuration enregistrée',
+    'save.pending': 'Modifications non enregistrées',
+    'save.region': 'Enregistrement des modifications',
+    'save.shortcut': 'Enregistrer (Ctrl + S)',
+    'save.leaveConfirm': 'Des modifications ne sont pas enregistrées. Les abandonner ?',
+    'edit.done': 'Quitter l’édition',
     'save.conflictReload': 'Recharger la version actuelle ? Tes modifications non enregistrées seront perdues.',
     'save.reloaded': 'Configuration rechargée',
 
@@ -343,7 +346,7 @@ const I18N = {
 
     'banner.defaultPassword': '⚠ You are using the default password <b>admin</b>. Change it: set <code>ADMIN_PASSWORD</code> in <code>.env</code> (Docker or local) or in <code>/etc/server-dashboard/server-dashboard.env</code> (install without Docker), then restart the dashboard.',
 
-    'edit.hint': 'Edit mode: drag tiles to reorder or move them.',
+    'edit.hint': 'Edit mode: drag tiles, widgets, categories (by their title) and stat cards to rearrange them.',
     'edit.renameBoard': 'Rename dashboard',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disks',
@@ -370,10 +373,8 @@ const I18N = {
 
     'empty.noCategoryEditing': 'No category yet: click "+ Category" to create one.',
     'empty.noApps': 'No apps configured.',
-    'tool.up': 'Move up',
-    'tool.down': 'Move down',
-    'tool.left': 'Move left',
-    'tool.right': 'Move right',
+    'drag.handle': 'Drag to move (keyboard: arrow keys)',
+    'layout.resize': 'Drag to change the width',
     'tool.rename': 'Rename',
     'tool.edit': 'Edit',
     'tool.delete': 'Delete',
@@ -430,6 +431,11 @@ const I18N = {
     'board.rename': 'Rename dashboard',
 
     'save.done': 'Configuration saved',
+    'save.pending': 'Unsaved changes',
+    'save.region': 'Save changes',
+    'save.shortcut': 'Save (Ctrl + S)',
+    'save.leaveConfirm': 'Some changes are not saved. Discard them?',
+    'edit.done': 'Exit edit mode',
     'save.conflictReload': 'Reload the current version? Your unsaved changes will be lost.',
     'save.reloaded': 'Configuration reloaded',
 
