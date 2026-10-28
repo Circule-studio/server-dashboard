@@ -110,6 +110,11 @@ const I18N = {
     'board.rename': 'Renommer le tableau',
 
     'save.done': 'Configuration enregistrée',
+    'save.pending': 'Modifications non enregistrées',
+    'save.region': 'Enregistrement des modifications',
+    'save.shortcut': 'Enregistrer (Ctrl + S)',
+    'save.leaveConfirm': 'Des modifications ne sont pas enregistrées. Les abandonner ?',
+    'edit.done': 'Quitter l’édition',
     'save.conflictReload': 'Recharger la version actuelle ? Tes modifications non enregistrées seront perdues.',
     'save.reloaded': 'Configuration rechargée',
 
@@ -426,6 +431,11 @@ const I18N = {
     'board.rename': 'Rename dashboard',
 
     'save.done': 'Configuration saved',
+    'save.pending': 'Unsaved changes',
+    'save.region': 'Save changes',
+    'save.shortcut': 'Save (Ctrl + S)',
+    'save.leaveConfirm': 'Some changes are not saved. Discard them?',
+    'edit.done': 'Exit edit mode',
     'save.conflictReload': 'Reload the current version? Your unsaved changes will be lost.',
     'save.reloaded': 'Configuration reloaded',
 

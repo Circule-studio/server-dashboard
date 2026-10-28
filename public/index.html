@@ -35,8 +35,7 @@
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
       <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
-      <button id="cancelBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
-      <button id="saveBtn" class="btn btn-primary" data-i18n="common.save"></button>
+      <button id="cancelBtn" class="btn btn-ghost" data-i18n="edit.done"></button>
     </div>
   </div>
 
@@ -166,6 +165,13 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Visible en mode édition dès qu'il y a des modifications non enregistrées. -->
+  <div id="saveBar" class="savebar" role="region" data-i18n-aria="save.region" hidden>
+    <span data-i18n="save.pending"></span>
+    <button id="discardBtn" class="btn btn-ghost" data-i18n="common.cancel"></button>
+    <button id="saveBtn" class="btn btn-primary" data-i18n-title="save.shortcut" data-i18n="common.save"></button>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

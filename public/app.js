@@ -155,6 +155,7 @@ function render() {
     itemObserver.observe(el);
   }
   renderStatsOrder();
+  updateSaveBar();
 }
 
 // Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
@@ -1004,6 +1005,7 @@ function makeStatDraggable(card) {
     keys.splice(from < to ? to - 1 : to, 0, card.dataset.stat);
     state.draft.statsOrder = keys;
     renderStatsOrder();
+    updateSaveBar();
   };
   makeDraggable(card, {
     group: 'stat',
@@ -1047,12 +1049,34 @@ async function startEditing() {
   state.draft = structuredClone(state.config);
   state.editing = true;
   render();
+  // Après le premier rendu, qui complète la mise en page du brouillon : c'est
+  // l'état « sans modification » auquel on compare pour afficher la popup.
+  state.cleanDraft = JSON.stringify(state.draft);
+  updateSaveBar();
 }
 
 function stopEditing() {
   state.editing = false;
   state.draft = null;
+  state.cleanDraft = null;
   render();
+}
+
+// ---------- Modifications non enregistrées ----------
+const isDirty = () => state.editing && JSON.stringify(state.draft) !== state.cleanDraft;
+
+function updateSaveBar() {
+  $('#saveBar').hidden = !isDirty();
+}
+
+// Abandonner les modifications : confirmation s'il y en a.
+const confirmDiscard = () => !isDirty() || confirm(t('save.leaveConfirm'));
+
+// Popup « Annuler » : on revient à l'état du début de l'édition, sans quitter le mode édition.
+function discardChanges() {
+  state.draft = JSON.parse(state.cleanDraft);
+  render();
+  renderStatsOrder();
 }
 
 async function save() {
@@ -1145,6 +1169,7 @@ function submitApp(e) {
 
 async function onAuthClick() {
   if (state.authed) {
+    if (!confirmDiscard()) return;
     await api('/api/logout', { method: 'POST' });
     if (state.loginRequired) return location.reload();
     state.authed = false;
@@ -1259,6 +1284,7 @@ function submitDisks(e) {
   if (extra && !disks.some((d) => d.path === extra)) disks.push({ path: extra, label: '' });
   state.draft.disks = disks;
   $('#disksDialog').close();
+  updateSaveBar();
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
@@ -1417,8 +1443,17 @@ async function init() {
   // Sans choix enregistré, suivre le système quand il change.
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', renderThemeBtn);
   $('#editBtn').addEventListener('click', startEditing);
-  $('#cancelBtn').addEventListener('click', stopEditing);
+  $('#cancelBtn').addEventListener('click', () => { if (confirmDiscard()) stopEditing(); });
   $('#saveBtn').addEventListener('click', save);
+  $('#discardBtn').addEventListener('click', discardChanges);
+  // Ctrl / Cmd + S enregistre en mode édition (au lieu d'enregistrer la page HTML).
+  document.addEventListener('keydown', (e) => {
+    if (!state.editing || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;
+    e.preventDefault();
+    if (isDirty() && !$('#saveBtn').disabled) save();
+  });
+  // Fermer l'onglet ou recharger avec des modifications : le navigateur demande confirmation.
+  window.addEventListener('beforeunload', (e) => { if (isDirty()) e.preventDefault(); });
   $('#authBtn').addEventListener('click', onAuthClick);
   $('#addCatBtn').addEventListener('click', async () => {
     const name = await askText(t('category.new'), t('common.name'));

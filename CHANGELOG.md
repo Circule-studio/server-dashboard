@@ -7,6 +7,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 ### Ajouté
 - **Grille de mise en page** : widgets et catégories partagent une grille de 12 colonnes. En mode édition, on les déplace (glisser-déposer ou flèches ← →) et on règle leur largeur avec la poignée en bas à droite ; la hauteur suit le contenu et les éléments s’emboîtent sans trou. 6 colonnes sur tablette, 1 sur téléphone. Une config existante garde son affichage (widgets en largeur 3, catégories en pleine largeur) (#61).
 - **Tout se réorganise par glisser-déposer**, à la souris comme **au doigt** : tuiles, widgets, catégories (par leur titre) et **cartes de stats** du haut, dont l’ordre est enregistré. Les flèches ← → ↑ ↓ du mode édition disparaissent ; au clavier, Tab sélectionne un élément et les flèches le déplacent (#60, #2).
+- **Popup d’enregistrement** en bas de l’écran dès qu’une modification n’est pas enregistrée (Annuler / Enregistrer), à la place du bouton en haut à droite. Raccourci Ctrl / Cmd + S, et confirmation avant de fermer l’onglet, de se déconnecter ou de quitter l’édition avec des modifications en cours (#59).
 
 ## [0.7.0] - 2026-10-27
 

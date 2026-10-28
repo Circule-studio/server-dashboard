@@ -344,6 +344,21 @@ dialog input:focus, dialog select:focus { outline: 2px solid var(--accent); outl
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .error { color: var(--bad); min-height: 1em; margin: 0 0 8px; font-size: 0.85rem; }
 
+/* Popup d'enregistrement : en bas, toujours visible en faisant défiler. */
+.savebar {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50;
+  display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px);
+  padding: 10px 10px 10px 16px; border-radius: 14px; font-size: 0.92rem;
+  background: var(--bg-2); border: 1px solid var(--accent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  animation: savebar-in 0.18s ease-out;
+}
+.savebar span { flex: 1; min-width: 0; }
+@keyframes savebar-in { from { opacity: 0; transform: translate(-50%, 12px); } }
+@media (max-width: 480px) { .savebar { left: 12px; right: 12px; transform: none; bottom: 12px; } @keyframes savebar-in { from { opacity: 0; } } }
+/* Le message « Configuration enregistrée » s'affiche au-dessus de la popup. */
+.editing .toast { bottom: 84px; }
+
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
   padding: 10px 16px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border);
