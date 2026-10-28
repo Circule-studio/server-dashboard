@@ -4,6 +4,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Grille de mise en page** : widgets et catégories partagent une grille de 12 colonnes. En mode édition, on les déplace (glisser-déposer ou flèches ← →) et on règle leur largeur avec la poignée en bas à droite ; la hauteur suit le contenu et les éléments s’emboîtent sans trou. 6 colonnes sur tablette, 1 sur téléphone. Une config existante garde son affichage (widgets en largeur 3, catégories en pleine largeur) (#61).
+
 ## [0.7.0] - 2026-10-27
 
 ### Ajouté

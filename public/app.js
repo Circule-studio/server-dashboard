@@ -117,46 +117,219 @@ function render() {
   $('#search').hidden = !state.searchEnabled || !(display.search || state.searchOpen);
   const q = state.searchEnabled ? fold(state.search.trim()) : '';
 
+  itemObserver.disconnect();
   const board = $('#board');
   board.replaceChildren();
 
   $('#pwBanner').hidden = !(state.authed && state.defaultPassword);
 
   if (!cfg.categories.length && !cfg.widgets?.length && !state.editing) {
-    board.append(welcomeCard());
+    boardMessage(welcomeCard());
   } else if (!cfg.categories.length) {
-    board.append(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
+    boardMessage(h('div', { class: 'empty' }, state.editing ? t('empty.noCategoryEditing') : t('empty.noApps')));
   }
 
+  // En édition, la mise en page complète (éléments manquants ajoutés) devient
+  // celle du brouillon : déplacer ou redimensionner modifie directement ses objets.
+  const layout = layoutOf(cfg);
+  if (state.editing) cfg.layout = layout;
   let found = 0;
-  cfg.categories.forEach((cat, ci) => {
-    // Les index d'origine (ai) servent à l'édition, où la recherche est désactivée.
-    // Une catégorie dont le nom correspond est affichée en entier.
-    const catMatch = !q || fold(cat.name).includes(q);
-    const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
-    found += apps.length;
-    if (!state.editing && !apps.length) return;
-    const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
-    if (state.editing) {
-      head.append(h('div', { class: 'category-tools' },
-        h('button', { class: 'icon-btn', title: t('tool.up'), disabled: ci === 0, onclick: () => moveCategory(ci, -1) }, '↑'),
-        h('button', { class: 'icon-btn', title: t('tool.down'), disabled: ci === cfg.categories.length - 1, onclick: () => moveCategory(ci, 1) }, '↓'),
-        h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
-        h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
-      ));
+  layout.forEach((item, index) => {
+    const tools = state.editing ? moveTools(index, layout.length) : [];
+    let el;
+    if (item.kind === 'widget') {
+      const wi = cfg.widgets.findIndex((w) => w.id === item.id);
+      el = widgetCard(cfg.widgets[wi], wi, tools);
+    } else {
+      const ci = cfg.categories.findIndex((c) => c.id === item.id);
+      const result = categoryEl(cfg.categories[ci], ci, q, tools);
+      found += result.found;
+      el = result.el;
     }
-
-    const grid = h('div', { class: 'grid', 'data-cat': ci });
-    apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
-    if (state.editing) {
-      grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
-      bindGridDrop(grid, ci);
-    }
-    board.append(h('section', { class: 'category' }, head, grid));
+    if (el) board.append(boardItem(el, item, index));
   });
-  if (q && !found) board.append(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
+  if (q && !found) boardMessage(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
-  renderWidgets();
+  layoutBoard();
+  for (const el of board.children) itemObserver.observe(el);
+}
+
+// Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
+// recherche est désactivée ; une catégorie dont le nom correspond s'affiche en entier.
+function categoryEl(cat, ci, q, tools) {
+  const catMatch = !q || fold(cat.name).includes(q);
+  const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
+  if (!state.editing && !apps.length) return { el: null, found: 0 };
+  const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
+  if (state.editing) {
+    head.append(h('div', { class: 'category-tools' },
+      ...tools,
+      h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
+      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
+    ));
+  }
+
+  const grid = h('div', { class: 'grid', 'data-cat': ci });
+  apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
+  if (state.editing) {
+    grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
+    bindGridDrop(grid, ci);
+  }
+  return { el: h('section', { class: 'category' }, head, grid), found: apps.length };
+}
+
+// ---------- Grille de mise en page ----------
+// Widgets et catégories partagent une grille de 12 colonnes. `layout` donne leur
+// ordre et leur largeur ; la hauteur suit le contenu, en lignes de 2 px, ce qui
+// permet aux éléments de s'emboîter sans trou.
+const GRID_COLS = 12;
+const DEFAULT_WIDTH = { widget: 3, category: 12 };
+const ROW_UNIT = 2;   // grid-auto-rows de .board (style.css)
+const GRID_GAP = 14;  // espace entre éléments, horizontal (column-gap) et vertical
+
+// Mise en page complète : celle de la config, puis les éléments qu'elle ne cite
+// pas (config d'avant la grille, nouvel élément) avec leur largeur par défaut.
+function layoutOf(cfg) {
+  const lists = { widget: cfg.widgets || [], category: cfg.categories };
+  const items = [];
+  const seen = new Set();
+  const add = (kind, id, w) => {
+    const key = `${kind}:${id}`;
+    if (!lists[kind] || seen.has(key) || !lists[kind].some((x) => x.id === id)) return;
+    seen.add(key);
+    items.push({ kind, id, w: Math.min(GRID_COLS, Math.max(1, Math.round(w) || DEFAULT_WIDTH[kind])) });
+  };
+  for (const it of cfg.layout || []) add(it.kind, it.id, it.w);
+  for (const w of lists.widget) add('widget', w.id, DEFAULT_WIDTH.widget);
+  for (const c of lists.category) add('category', c.id, DEFAULT_WIDTH.category);
+  return items;
+}
+
+// Colonnes affichées selon la place : 12 sur grand écran, 6 sur tablette, 1 sur téléphone.
+function boardCols() {
+  const width = $('#board').clientWidth;
+  return width >= 1000 ? GRID_COLS : width >= 600 ? 6 : 1;
+}
+const spanOf = (w, cols) => Math.max(1, Math.min(cols, Math.round((w * cols) / GRID_COLS)));
+
+function layoutBoard() {
+  const board = $('#board');
+  const cols = boardCols();
+  board.style.setProperty('--cols', cols);
+  board.dataset.cols = cols;
+  for (const el of board.querySelectorAll(':scope > .board-item')) {
+    el.style.gridColumn = `span ${spanOf(Number(el.dataset.w), cols)}`;
+  }
+}
+
+// Chaque élément réserve autant de lignes que sa hauteur (plus l'espace en dessous).
+const itemObserver = new ResizeObserver((entries) => {
+  for (const { target } of entries) {
+    target.style.gridRowEnd = `span ${Math.ceil((target.getBoundingClientRect().height + GRID_GAP) / ROW_UNIT)}`;
+  }
+});
+
+// Message sur toute la largeur (accueil, tableau vide, aucun résultat…).
+function boardMessage(el) {
+  el.classList.add('board-full');
+  $('#board').append(el);
+  itemObserver.observe(el);
+}
+
+let draggedItem = null;
+
+function boardItem(el, item, index) {
+  el.classList.add('board-item');
+  el.dataset.w = item.w;
+  if (!state.editing) return el;
+
+  el.append(h('div', {
+    class: 'resize-handle', title: t('layout.resize'), 'aria-hidden': 'true',
+    onpointerdown: (e) => startResize(e, el, item),
+  }));
+  // Les tuiles d'une catégorie se glissent aussi : on ne réagit qu'au glisser de l'élément lui-même.
+  el.draggable = true;
+  el.addEventListener('dragstart', (e) => {
+    if (e.target !== el) return;
+    draggedItem = index;
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `item:${index}`);
+  });
+  el.addEventListener('dragend', (e) => { if (e.target === el) { draggedItem = null; render(); } });
+  el.addEventListener('dragover', (e) => {
+    if (draggedItem == null || draggedItem === index) return;
+    e.preventDefault();
+    const after = dropAfter(e, el);
+    el.classList.toggle('drop-before', !after);
+    el.classList.toggle('drop-after', after);
+  });
+  el.addEventListener('dragleave', (e) => {
+    if (!el.contains(e.relatedTarget)) el.classList.remove('drop-before', 'drop-after');
+  });
+  el.addEventListener('drop', (e) => {
+    if (draggedItem == null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    moveItem(draggedItem, dropAfter(e, el) ? index + 1 : index);
+  });
+  return el;
+}
+
+// Déposé sur la seconde moitié : après l'élément. Un élément qui occupe toute la
+// ligne se coupe en haut / bas, les autres en gauche / droite.
+function dropAfter(e, el) {
+  const r = el.getBoundingClientRect();
+  const fullRow = r.width > $('#board').clientWidth * 0.75;
+  el.dataset.axis = fullRow ? 'y' : 'x';
+  return fullRow ? e.clientY > r.top + r.height / 2 : e.clientX > r.left + r.width / 2;
+}
+
+// Déplace l'élément `from` juste avant la position `to` (to = longueur : à la fin).
+function moveItem(from, to) {
+  const list = state.draft.layout;
+  const [it] = list.splice(from, 1);
+  if (from < to) to--;
+  list.splice(to, 0, it);
+  draggedItem = null;
+  render();
+}
+
+// Les flèches restent utiles sur écran tactile, où le glisser-déposer HTML5 ne marche pas.
+function moveTools(index, count) {
+  return [
+    h('button', { class: 'icon-btn', title: t('tool.before'), disabled: index === 0, onclick: () => moveItem(index, index - 1) }, '←'),
+    h('button', { class: 'icon-btn', title: t('tool.after'), disabled: index === count - 1, onclick: () => moveItem(index, index + 2) }, '→'),
+  ];
+}
+
+// Poignée en bas à droite : la largeur suit le pointeur, colonne par colonne
+// (souris, stylet ou doigt grâce aux Pointer Events).
+function startResize(e, el, item) {
+  e.preventDefault();
+  e.stopPropagation();
+  const handle = e.currentTarget;
+  handle.setPointerCapture?.(e.pointerId);
+  const cols = boardCols();
+  const colWidth = ($('#board').clientWidth + GRID_GAP) / cols;
+  const left = el.getBoundingClientRect().left;
+  el.classList.add('resizing');
+  const move = (ev) => {
+    const span = Math.max(1, Math.min(cols, Math.round((ev.clientX - left + GRID_GAP) / colWidth)));
+    item.w = Math.max(1, Math.min(GRID_COLS, Math.round((span * GRID_COLS) / cols)));
+    el.dataset.w = item.w;
+    el.dataset.width = `${item.w} / ${GRID_COLS}`;
+    el.style.gridColumn = `span ${span}`;
+  };
+  const end = () => {
+    handle.removeEventListener('pointermove', move);
+    el.classList.remove('resizing');
+    render();
+  };
+  move(e);
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', end, { once: true });
+  handle.addEventListener('pointercancel', end, { once: true });
 }
 
 // Écran d'accueil d'un dashboard encore vide (première installation).
@@ -518,14 +691,7 @@ const RENDERERS = {
   },
 };
 
-function renderWidgets() {
-  const widgets = current().widgets || [];
-  const box = $('#widgets');
-  box.hidden = !widgets.length;
-  box.replaceChildren(...widgets.map((w, i) => widgetCard(w, i, widgets.length)));
-}
-
-function widgetCard(w, i, count) {
+function widgetCard(w, i, tools) {
   const type = WIDGET_TYPES[w.type];
   // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
   const head = h('div', { class: 'widget-head' },
@@ -536,40 +702,12 @@ function widgetCard(w, i, count) {
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
 
-  // Les flèches restent utiles sur écran tactile, où le glisser-déposer HTML5 ne marche pas.
   head.append(h('div', { class: 'tile-tools' },
-    h('button', { class: 'icon-btn', title: t('tool.left'), disabled: i === 0, onclick: () => moveWidget(i, i - 1) }, '←'),
-    h('button', { class: 'icon-btn', title: t('tool.right'), disabled: i === count - 1, onclick: () => moveWidget(i, i + 2) }, '→'),
+    ...tools,
     h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openWidgetDialog(i) }, '✎'),
     h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteWidget(i) }, '✕')));
-
-  card.draggable = true;
-  card.addEventListener('dragstart', (e) => {
-    draggedWidget = i;
-    card.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', `widget:${i}`);
-  });
-  card.addEventListener('dragend', () => { draggedWidget = null; render(); });
-  card.addEventListener('dragover', (e) => {
-    if (draggedWidget == null || draggedWidget === i) return;
-    e.preventDefault();
-    // Déposé sur la moitié gauche : avant ce widget ; moitié droite : après.
-    const after = e.clientX > card.getBoundingClientRect().left + card.offsetWidth / 2;
-    card.classList.toggle('drop-before', !after);
-    card.classList.toggle('drop-after', after);
-  });
-  card.addEventListener('dragleave', () => card.classList.remove('drop-before', 'drop-after'));
-  card.addEventListener('drop', (e) => {
-    if (draggedWidget == null) return;
-    e.preventDefault();
-    const after = card.classList.contains('drop-after');
-    moveWidget(draggedWidget, after ? i + 1 : i);
-  });
   return card;
 }
-
-let draggedWidget = null;
 
 function widgetBody(w) {
   const entry = state.widgetData[w.id];
@@ -621,16 +759,6 @@ function scheduleWidgets() {
     refreshWidget(w.id);
     widgetTimers.push(setInterval(() => refreshWidget(w.id), WIDGET_TYPES[w.type].refresh));
   }
-}
-
-// Déplace le widget `from` juste avant la position `to` (to = longueur : à la fin).
-function moveWidget(from, to) {
-  const list = state.draft.widgets;
-  const [w] = list.splice(from, 1);
-  if (from < to) to--;
-  list.splice(to, 0, w);
-  draggedWidget = null;
-  render();
 }
 
 function deleteWidget(i) {
@@ -790,12 +918,6 @@ function moveApp(from, toCat, toIndex) {
 }
 
 // ---------- Actions d'édition ----------
-function moveCategory(ci, delta) {
-  const cats = state.draft.categories;
-  [cats[ci], cats[ci + delta]] = [cats[ci + delta], cats[ci]];
-  render();
-}
-
 async function renameCategory(ci) {
   const name = await askText(t('category.rename'), t('common.name'), state.draft.categories[ci].name);
   if (name) { state.draft.categories[ci].name = name; render(); }
@@ -1182,6 +1304,8 @@ async function init() {
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
   renderThemeBtn();
   bindSearch();
+  // Nombre de colonnes de la grille selon la largeur disponible.
+  new ResizeObserver(layoutBoard).observe($('#board'));
   $('#themeBtn').addEventListener('click', () => {
     setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     renderThemeBtn();
@@ -1239,9 +1363,10 @@ async function init() {
 // Page vide avec un message à la place du tableau (connexion requise, erreur de chargement…).
 function showBlocker(message, action) {
   $('#stats').hidden = true;
-  $('#widgets').hidden = true;
   $('#dockerSection').hidden = true;
-  $('#board').replaceChildren(h('div', { class: 'empty' }, h('p', {}, message), action));
+  itemObserver.disconnect();
+  $('#board').replaceChildren();
+  boardMessage(h('div', { class: 'empty' }, h('p', {}, message), action));
 }
 
 function showLoginGate() {
