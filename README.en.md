@@ -19,6 +19,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
   - **Immich**: photo and video counts, storage used, per-user breakdown with quotas.
   - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
+  - **Nginx Proxy Manager**: active and disabled hosts, SSL certificates sorted by expiry date, those expiring within 14 days highlighted.
   - **GitHub**: follow a repository, with its latest release, unreleased commits since then, open issues and pull requests.
   - **Jellyfin / Plex**: now playing, library size.
   - **qBittorrent**: speeds, active torrents.
@@ -72,6 +73,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
 | Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
 | Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
+| Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / password | The admin interface account. A dedicated account with read access to "Proxy Hosts" is enough |
 | GitHub | Repository (`owner/repo` or its address) + optional token | Token required for a private repository: Settings > Developer settings > *Fine-grained tokens*, read-only (Contents, Issues, Pull requests, Metadata). Without a token, GitHub allows 60 requests per hour: refreshed every 15 min (2 min with a token), enough for 4 or 5 widgets. If the limit is reached, the last data stays on screen. The API URL is only for GitHub Enterprise |
 | Jellyfin | URL + API key | Dashboard > API Keys |
 | Plex | URL + token | Your `X-Plex-Token` |
@@ -100,6 +102,6 @@ URLs must be reachable **from the dashboard server**.
 
 ## Contributing
 
-Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
+Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
 License: [MIT](LICENSE).

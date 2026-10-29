@@ -62,6 +62,7 @@ const WIDGETS = [
   { id: 'immich', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-key' },
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
+  { id: 'npm', type: 'npm', url: 'http://localhost:10081', username: 'admin@example.com', password: 'npm-pass' },
   { id: 'github', type: 'github', url: 'http://localhost:14000', repo: 'https://github.com/circule-studio/server-dashboard' },
   // Cas d'erreur : chacun doit renvoyer un code que l'interface traduit.
   { id: 'jellyfin-bad', type: 'jellyfin', url: 'http://localhost:18096', apiKey: 'mauvaise-cle' },
@@ -70,11 +71,12 @@ const WIDGETS = [
   { id: 'pihole-bad', type: 'pihole', url: 'http://localhost:10080', password: 'faux' },
   { id: 'adguard-bad', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'faux' },
   { id: 'weather-unknown', type: 'weather', url: 'http://localhost:18765', location: 'Ville qui n’existe pas' },
+  { id: 'npm-bad', type: 'npm', url: 'http://localhost:10081', username: 'admin@example.com', password: 'faux' },
   { id: 'github-private', type: 'github', url: 'http://localhost:14000', repo: 'demo/private' },
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key'];
+const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -153,6 +155,15 @@ test('Pi-hole et AdGuard Home : format commun', async () => {
   }
 });
 
+test('Nginx Proxy Manager : hôtes et certificats', async () => {
+  const d = await widget('npm');
+  assert.deepEqual(d.hosts, { enabled: 6, disabled: 1 }, 'enabled : true ou 1');
+  assert.equal(d.expiring, 2, 'expiré + dans 5 jours');
+  assert.deepEqual(d.certificates.map((c) => c.expired), [true, false, false, false], 'triés par expiration');
+  assert.equal(d.certificates[1].days, 5, 'jours entamés');
+  assert.equal(d.certificates[1].name, 'ha.maison.fr', 'sans nom : premier domaine');
+});
+
 test('GitHub : version, issues, PR (dépôt donné par son adresse)', async () => {
   const d = await widget('github');
   assert.equal(d.repo.name, 'circule-studio/server-dashboard');
@@ -175,6 +186,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'pihole-bad': 'pihole_password',
     'adguard-bad': 'adguard_credentials',
     'weather-unknown': 'location_not_found',
+    'npm-bad': 'npm_credentials',
     'github-private': 'github_not_found',
     'github-limit': 'github_rate_limit',
     unreachable: 'unreachable',
