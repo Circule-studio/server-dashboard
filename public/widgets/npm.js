@@ -4,6 +4,7 @@
 WIDGET_TYPES.npm = {
   label: 'Nginx Proxy Manager', icon: 'nginx-proxy-manager', kind: 'npm', refresh: 5 * 60_000,
   fields: ['url', 'username', 'password'], port: 81, userLabel: 'key.npmUser', userRequired: true, passwordHelp: 'key.npmHelp',
+  alerts: 'npm.alertHelp', // case « M'alerter » : texte d'aide
 };
 
 RENDERERS.npm = (d) => {

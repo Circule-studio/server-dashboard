@@ -852,14 +852,16 @@ const monitor = createMonitor();
 const widgetMonitor = createMonitor(); // éléments signalés par les widgets « M'alerter »
 let monitoring = false;
 
-// Éléments surveillés par les widgets dont « M'alerter » est coché. Un widget en erreur (service
-// injoignable, mauvaise clé) ne donne rien : ce n'est pas l'arrêt d'une machine.
+// Éléments surveillés par les widgets dont « M'alerter » est coché. Un widget en erreur (mauvaise
+// clé, service injoignable) ne donne rien, sauf les codes `offlineCodes` de son intégration, qui
+// veulent dire « machine éteinte » (ex. Glances qui ne répond plus).
 async function widgetAlertItems(cfg) {
   const lists = await Promise.all(cfg.widgets.filter((w) => w.alert && INTEGRATIONS[w.type]?.alerts).map(async (w) => {
+    const integration = INTEGRATIONS[w.type];
     try {
-      return INTEGRATIONS[w.type].alerts(await fetchWidget(w), w);
-    } catch {
-      return [];
+      return integration.alerts(await fetchWidget(w), w);
+    } catch (e) {
+      return integration.offlineCodes?.includes(e.key) ? [{ id: `${w.id}:machine`, name: w.name, url: w.url, online: false }] : [];
     }
   }));
   return lists.flat();

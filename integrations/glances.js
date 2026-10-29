@@ -3,7 +3,7 @@
 // premier appel. Mot de passe facultatif (`glances -w --password` : HTTP Basic, utilisateur
 // « glances » par défaut).
 
-const { request, fail, join, basicAuth } = require('./lib');
+const { request, fail, join, basicAuth, diskAlerts } = require('./lib');
 
 const versions = new Map(); // id du widget -> '4' ou '3'
 // Machine éteinte : retenue OFFLINE_RETRY_MS, pour ne pas la sonder à chaque rafraîchissement de
@@ -102,9 +102,12 @@ async function glancesData(w) {
   };
 }
 
+// Alertes : la machine (hors ligne quand Glances ne répond plus, voir offlineCodes) et ses disques.
+const alerts = (d, w) => [{ id: `${w.id}:machine`, name: w.name, url: w.url, online: true }, ...diskAlerts(w, d.disks)];
+
 module.exports = {
   glances: {
-    fields: ['url', 'username', 'password'], fetch: glances,
+    fields: ['url', 'username', 'password'], fetch: glances, alerts, offlineCodes: ['glances_offline'],
     reset: () => { versions.clear(); offline.clear(); },
   },
 };

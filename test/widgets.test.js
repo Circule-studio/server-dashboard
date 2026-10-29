@@ -616,6 +616,37 @@ test('Notifications : conteneur Proxmox arrêté puis redémarré (« M’alerte
   }
 });
 
+test('Alertes des widgets : éléments surveillés et messages', async () => {
+  const { INTEGRATIONS } = require('../integrations');
+  const { message } = require('../notify');
+  const of = async (id, type, name = type) => INTEGRATIONS[type].alerts(await widget(id), { id, name, url: 'http://x' });
+  const find = (items, id) => items.find((i) => i.id === id);
+
+  const pve = await of('proxmox', 'proxmox', 'Proxmox VE');
+  assert.equal(find(pve, 'proxmox:pve:102').online, true);
+  assert.equal(find(pve, 'proxmox:pve:120').online, false, 'VM arrêtée');
+  assert.deepEqual([find(pve, 'proxmox:disk:pve/local-lvm').online, find(pve, 'proxmox:disk:pve/local-lvm').problem], [true, 'disk'], 'stockage à 74 %');
+
+  const certs = await of('npm', 'npm');
+  assert.deepEqual(certs.filter((c) => !c.online).map((c) => [c.name, c.value]).sort(), [['ha.maison.fr', 5], ['vieux.maison.fr', 0]]);
+
+  const kuma = await of('kuma', 'uptimekuma');
+  assert.deepEqual(kuma.filter((m) => !m.online).map((m) => m.name), ['Nextcloud'], '« en attente » et maintenance ne sont pas des pannes');
+
+  const cams = await of('frigate', 'frigate', 'Frigate');
+  assert.ok(cams.length && cams.every((c) => c.name.startsWith('Frigate · ')));
+
+  const glances = await of('glances-pc', 'glances', 'PC');
+  assert.deepEqual(find(glances, 'glances-pc:machine'), { id: 'glances-pc:machine', name: 'PC', url: 'http://x', online: true });
+  assert.ok(glances.some((d) => d.problem === 'disk'));
+  assert.deepEqual(INTEGRATIONS.glances.offlineCodes, ['glances_offline'], 'machine éteinte = alerte');
+
+  const t = (event, lang = 'fr') => message({ lang }, event).title;
+  assert.equal(t({ kind: 'down', problem: 'disk', name: 'NAS · /', value: 93 }), '🟠 Disque presque plein : NAS · / (93 %)');
+  assert.equal(t({ kind: 'up', problem: 'cert', name: 'ha.maison.fr' }, 'en'), '🟢 Certificate renewed: ha.maison.fr');
+  assert.equal(t({ kind: 'down', name: 'LXC 103 · twingate' }), '🔴 LXC 103 · twingate est hors ligne');
+});
+
 test('Widget lent : la réponse précédente est servie pendant le rechargement (module seul)', async () => {
   const { INTEGRATIONS, fetchWidget } = require('../integrations');
   let calls = 0;

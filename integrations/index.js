@@ -12,7 +12,9 @@
 //   receive(w, b) reçoit les données envoyées par ce service (POST /api/agent/:id)
 //   reset()       vide les sessions et caches propres au service quand la config change
 //   alerts(d, w)  éléments surveillés par les notifications quand « M'alerter » est coché :
-//                 [{ id stable, name, url, online }] tirés des données d (ex. VM Proxmox arrêtée)
+//                 [{ id stable, name, url, online, problem?, value? }] tirés des données d (ex. VM
+//                 Proxmox arrêtée). problem : 'disk' ou 'cert' pour un message adapté (notify.js)
+//   offlineCodes  codes d'erreur qui veulent dire « machine éteinte » : alerte sur `${id}:machine`
 
 const { request } = require('./lib');
 

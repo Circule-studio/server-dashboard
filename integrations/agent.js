@@ -3,7 +3,7 @@
 // POST /api/agent/:id (voir server.js) avec le jeton du widget, généré par le serveur.
 // Même format de données que Glances, pour le même affichage.
 
-const { fail } = require('./lib');
+const { fail, diskAlerts } = require('./lib');
 
 const reports = new Map(); // id du widget -> { t, data } ; perdu au redémarrage du dashboard
 // Hors ligne après 3 envois manqués (l'agent indique son intervalle, 30 s par défaut).
@@ -49,7 +49,10 @@ async function agent(w) {
   return { ...last.data, seen: new Date(last.t).toISOString(), offline: age > last.data.interval * 1000 * MISSED };
 }
 
+// Alertes : la machine (plus d'envoi depuis 3 intervalles) et ses disques.
+const alerts = (d, w) => [{ id: `${w.id}:machine`, name: w.name, online: !d.offline }, ...diskAlerts(w, d.disks)];
+
 module.exports = {
   // generatedKey : jeton créé par le serveur (server.js), jamais saisi.
-  agent: { fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive },
+  agent: { fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts },
 };

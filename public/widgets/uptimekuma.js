@@ -4,6 +4,7 @@
 WIDGET_TYPES.uptimekuma = {
   label: 'Uptime Kuma', icon: 'uptime-kuma', kind: 'kuma', refresh: 30_000, fields: ['slug', 'url'],
   port: 3001, urlHelp: 'kuma.urlHelp',
+  alerts: 'uptimekuma.alertHelp', // case « M'alerter » : texte d'aide
 };
 
 RENDERERS.kuma = (d) => {

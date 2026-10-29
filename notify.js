@@ -12,12 +12,20 @@ const TEXTS = {
   fr: {
     down: '🔴 {name} est hors ligne',
     up: '🟢 {name} est de nouveau en ligne',
+    disk_down: '🟠 Disque presque plein : {name} ({value} %)',
+    disk_up: '🟢 Disque de nouveau sous 90 % : {name} ({value} %)',
+    cert_down: '🟠 Certificat à renouveler : {name} ({value} j restants)',
+    cert_up: '🟢 Certificat renouvelé : {name}',
     test: '✅ Notification de test',
     testBody: 'Les notifications de Server Dashboard fonctionnent.',
   },
   en: {
     down: '🔴 {name} is down',
     up: '🟢 {name} is back up',
+    disk_down: '🟠 Disk almost full: {name} ({value}%)',
+    disk_up: '🟢 Disk back under 90%: {name} ({value}%)',
+    cert_down: '🟠 Certificate to renew: {name} ({value} days left)',
+    cert_up: '🟢 Certificate renewed: {name}',
     test: '✅ Test notification',
     testBody: 'Server Dashboard notifications are working.',
   },
@@ -31,9 +39,11 @@ function text(lang, key, vars = {}) {
 // vérifié. Un serveur auto-hébergé (Gotify, ntfy maison) garde le comportement des autres services.
 const PUBLIC_HOSTS = /(^|\.)(ntfy\.sh|discord\.com|discordapp\.com)$/i;
 
-// event : { kind: 'down' | 'up' | 'test', name, url, board }
+// event : { kind: 'down' | 'up' | 'test', name, url, board, problem?, value? } ; problem : 'disk' ou
+// 'cert' (alertes des widgets) pour un message adapté.
 function message(notify, event) {
-  const title = event.kind === 'test' ? text(notify.lang, 'test') : text(notify.lang, event.kind, { name: event.name });
+  const key = event.problem ? `${event.problem}_${event.kind}` : event.kind;
+  const title = event.kind === 'test' ? text(notify.lang, 'test') : text(notify.lang, key, { name: event.name, value: event.value });
   const body = event.kind === 'test' ? text(notify.lang, 'testBody') : event.url || '';
   return { title, body, board: event.board || 'Server Dashboard' };
 }
@@ -113,11 +123,11 @@ function createMonitor() {
           continue;
         }
         if (s.online) {
-          if (known.down && known.alerted) events.push({ kind: 'up', id: app.id, name: app.name, url: app.url });
+          if (known.down && known.alerted) events.push({ kind: 'up', id: app.id, name: app.name, url: app.url, problem: app.problem, value: app.value });
           Object.assign(known, { down: false, fails: 0, alerted: false });
         } else if (!known.down && ++known.fails >= FAILS_BEFORE_DOWN) {
           Object.assign(known, { down: true, alerted: true });
-          events.push({ kind: 'down', id: app.id, name: app.name, url: app.url });
+          events.push({ kind: 'down', id: app.id, name: app.name, url: app.url, problem: app.problem, value: app.value });
         }
       }
       for (const id of apps.keys()) if (!ids.has(id)) apps.delete(id); // app supprimée
@@ -135,4 +145,4 @@ function createMonitor() {
   };
 }
 
-module.exports = { NOTIFY_TYPES, sendNotification, createMonitor };
+module.exports = { NOTIFY_TYPES, sendNotification, createMonitor, message };

@@ -4,6 +4,7 @@
 WIDGET_TYPES.frigate = {
   label: 'Frigate', icon: 'frigate', kind: 'frigate', refresh: 10_000, fields: ['url', 'username', 'password'],
   port: 5000, passwordHelp: 'key.frigateHelp',
+  alerts: 'frigate.alertHelp', // case « M'alerter » : texte d'aide
 };
 
 // Les miniatures passent par le dashboard (/api/widgets/:id/thumbnail/:événement).

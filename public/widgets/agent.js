@@ -5,6 +5,7 @@ WIDGET_TYPES.agent = {
   label: 'Agent', icon: '/icons/agent.svg', kind: 'agent', refresh: 15_000, fields: [], urlOptional: true,
   agentSetup: true, // commande d'installation affichée dans le formulaire (voir agentSetup dans app.js)
   waitingCode: 'agent_waiting', // rien reçu encore : message d'attente, pas d'erreur
+  alerts: 'agent.alertHelp', // case « M'alerter » : texte d'aide
 };
 
 RENDERERS.agent = (d, w) => [
