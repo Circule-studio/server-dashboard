@@ -204,10 +204,16 @@ a { color: var(--accent); }
 .grid.drop-into { border-color: var(--accent); background: rgba(124, 156, 255, 0.06); }
 .editing [data-drag-key]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Poignée de largeur (mode édition) : coin bas droit. */
+/* Hauteur fixe (#75) : l'en-tête reste en place, le reste défile à l'intérieur. */
+.board-item.fixed-height { display: flex; flex-direction: column; overflow: hidden; }
+.fixed-height > .widget-body, .fixed-height > .grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.fixed-height .widget-list { max-height: none; overflow: visible; }
+.fixed-height > .grid { align-content: start; padding-bottom: 4px; }
+
+/* Poignée de taille (mode édition) : coin bas droit, largeur et hauteur. */
 .resize-handle {
   position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px;
-  cursor: ew-resize; touch-action: none; border-radius: 0 0 var(--radius) 0;
+  cursor: nwse-resize; touch-action: none; border-radius: 0 0 var(--radius) 0;
   background: linear-gradient(135deg, transparent 50%, var(--accent) 50%, var(--accent) 60%, transparent 60%, transparent 70%, var(--accent) 70%, var(--accent) 80%, transparent 80%);
   opacity: 0.55;
 }

@@ -28,7 +28,7 @@ const I18N = {
 
     'banner.defaultPassword': '⚠ Tu utilises le mot de passe par défaut <b>admin</b>. Change-le : variable <code>ADMIN_PASSWORD</code> dans <code>.env</code> (Docker ou en local) ou dans <code>/etc/server-dashboard/server-dashboard.env</code> (installation sans Docker), puis redémarre le dashboard.',
 
-    'edit.hint': 'Mode édition : glisse les tuiles, les widgets, les catégories (par leur titre) et les cartes de stats pour les réorganiser.',
+    'edit.hint': 'Mode édition : glisse les tuiles, les widgets, les catégories (par leur titre) et les cartes de stats pour les réorganiser ; le coin en bas à droite règle la taille.',
     'edit.renameBoard': 'Renommer le tableau',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disques',
@@ -62,7 +62,8 @@ const I18N = {
     'empty.noCategoryEditing': 'Aucune catégorie : clique sur « + Catégorie » pour en créer une.',
     'empty.noApps': 'Aucune application configurée.',
     'drag.handle': 'Glisser pour déplacer (au clavier : flèches)',
-    'layout.resize': 'Glisser pour changer la largeur',
+    'layout.resize': 'Glisser pour changer la largeur et la hauteur (double-clic : hauteur automatique)',
+    'layout.autoHeight': 'hauteur auto',
     'tool.rename': 'Renommer',
     'tool.edit': 'Modifier',
     'tool.delete': 'Supprimer',
@@ -554,7 +555,7 @@ const I18N = {
 
     'banner.defaultPassword': '⚠ You are using the default password <b>admin</b>. Change it: set <code>ADMIN_PASSWORD</code> in <code>.env</code> (Docker or local) or in <code>/etc/server-dashboard/server-dashboard.env</code> (install without Docker), then restart the dashboard.',
 
-    'edit.hint': 'Edit mode: drag tiles, widgets, categories (by their title) and stat cards to rearrange them.',
+    'edit.hint': 'Edit mode: drag tiles, widgets, categories (by their title) and stat cards to rearrange them; the bottom-right corner sets the size.',
     'edit.renameBoard': 'Rename dashboard',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disks',
@@ -588,7 +589,8 @@ const I18N = {
     'empty.noCategoryEditing': 'No category yet: click "+ Category" to create one.',
     'empty.noApps': 'No apps configured.',
     'drag.handle': 'Drag to move (keyboard: arrow keys)',
-    'layout.resize': 'Drag to change the width',
+    'layout.resize': 'Drag to change the width and height (double-click: automatic height)',
+    'layout.autoHeight': 'auto height',
     'tool.rename': 'Rename',
     'tool.edit': 'Edit',
     'tool.delete': 'Delete',

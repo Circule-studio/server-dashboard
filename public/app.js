@@ -182,12 +182,15 @@ function categoryEl(cat, ci, q) {
 
 // ---------- Grille de mise en page ----------
 // Widgets et catégories partagent une grille de 12 colonnes. `layout` donne leur
-// ordre et leur largeur ; la hauteur suit le contenu, en lignes de 2 px, ce qui
-// permet aux éléments de s'emboîter sans trou.
+// ordre, leur largeur et parfois une hauteur fixe (`h`, en pixels) ; sans elle, la
+// hauteur suit le contenu. En lignes de 2 px, les éléments s'emboîtent sans trou.
 const GRID_COLS = 12;
 const DEFAULT_WIDTH = { widget: 3, category: 12 };
 const ROW_UNIT = 2;   // grid-auto-rows de .board (style.css)
 const GRID_GAP = 14;  // espace entre éléments, horizontal (column-gap) et vertical
+const MIN_HEIGHT = 60;   // mêmes bornes que server.js
+const HEIGHT_STEP = 10;  // la hauteur avance par pas de 10 px
+const HEIGHT_SNAP = 16;  // à moins de 16 px de la hauteur du contenu : hauteur automatique
 
 // Mise en page complète : celle de la config, puis les éléments qu'elle ne cite
 // pas (config d'avant la grille, nouvel élément) avec leur largeur par défaut.
@@ -195,13 +198,15 @@ function layoutOf(cfg) {
   const lists = { widget: cfg.widgets || [], category: cfg.categories };
   const items = [];
   const seen = new Set();
-  const add = (kind, id, w) => {
+  const add = (kind, id, w, height) => {
     const key = `${kind}:${id}`;
     if (!lists[kind] || seen.has(key) || !lists[kind].some((x) => x.id === id)) return;
     seen.add(key);
-    items.push({ kind, id, w: Math.min(GRID_COLS, Math.max(1, Math.round(w) || DEFAULT_WIDTH[kind])) });
+    const item = { kind, id, w: Math.min(GRID_COLS, Math.max(1, Math.round(w) || DEFAULT_WIDTH[kind])) };
+    if (height > 0) item.h = Math.max(MIN_HEIGHT, Math.round(height));
+    items.push(item);
   };
-  for (const it of cfg.layout || []) add(it.kind, it.id, it.w);
+  for (const it of cfg.layout || []) add(it.kind, it.id, it.w, it.h);
   for (const w of lists.widget) add('widget', w.id, DEFAULT_WIDTH.widget);
   for (const c of lists.category) add('category', c.id, DEFAULT_WIDTH.category);
   return items;
@@ -243,12 +248,15 @@ function boardMessage(el) {
 function boardItem(el, item, index) {
   el.classList.add('board-item');
   el.dataset.w = item.w;
+  setHeight(el, item.h);
   if (!state.editing) return el;
 
   el.dataset.index = index;
   el.append(h('div', {
     class: 'resize-handle', title: t('layout.resize'), 'aria-hidden': 'true',
     onpointerdown: (e) => startResize(e, el, item),
+    // Double-clic : retour à la hauteur du contenu.
+    ondblclick: () => { if (item.h) { delete item.h; render(); } },
   }));
   // On tire l'en-tête : le reste d'une catégorie contient des tuiles, elles aussi déplaçables.
   makeDraggable(el, {
@@ -271,8 +279,25 @@ function moveItem(from, to) {
   render();
 }
 
-// Poignée en bas à droite : la largeur suit le pointeur, colonne par colonne
-// (souris, stylet ou doigt grâce aux Pointer Events).
+// Hauteur fixe : le contenu défile à l'intérieur, l'en-tête reste visible (style.css).
+function setHeight(el, height) {
+  el.style.height = height ? `${height}px` : '';
+  el.classList.toggle('fixed-height', Boolean(height));
+}
+
+// Hauteur du contenu, sans hauteur fixe, à la largeur actuelle.
+function naturalHeight(el) {
+  const fixed = el.style.height;
+  el.style.height = '';
+  el.classList.remove('fixed-height');
+  const height = el.getBoundingClientRect().height;
+  setHeight(el, fixed && parseFloat(fixed));
+  return height;
+}
+
+// Poignée en bas à droite : la largeur suit le pointeur colonne par colonne, la
+// hauteur par pas de 10 px (souris, stylet ou doigt grâce aux Pointer Events).
+// Près de la hauteur du contenu, l'élément revient en hauteur automatique.
 function startResize(e, el, item) {
   e.preventDefault();
   e.stopPropagation();
@@ -280,14 +305,26 @@ function startResize(e, el, item) {
   handle.setPointerCapture?.(e.pointerId);
   const cols = boardCols();
   const colWidth = ($('#board').clientWidth + GRID_GAP) / cols;
-  const left = el.getBoundingClientRect().left;
+  const { left, top } = el.getBoundingClientRect();
+  // Mesurée à chaque changement de largeur seulement : le contenu se réorganise.
+  let natural = naturalHeight(el);
+  let span = Math.round(el.getBoundingClientRect().width / colWidth) || 1;
   el.classList.add('resizing');
   const move = (ev) => {
-    const span = Math.max(1, Math.min(cols, Math.round((ev.clientX - left + GRID_GAP) / colWidth)));
-    item.w = Math.max(1, Math.min(GRID_COLS, Math.round((span * GRID_COLS) / cols)));
-    el.dataset.w = item.w;
-    el.dataset.width = `${item.w} / ${GRID_COLS}`;
-    el.style.gridColumn = `span ${span}`;
+    const newSpan = Math.max(1, Math.min(cols, Math.round((ev.clientX - left + GRID_GAP) / colWidth)));
+    if (newSpan !== span) {
+      span = newSpan;
+      item.w = Math.max(1, Math.min(GRID_COLS, Math.round((span * GRID_COLS) / cols)));
+      el.dataset.w = item.w;
+      el.style.gridColumn = `span ${span}`;
+      natural = naturalHeight(el);
+    }
+    const height = ev.clientY - top;
+    if (Math.abs(height - natural) < HEIGHT_SNAP) delete item.h;
+    else item.h = Math.max(MIN_HEIGHT, Math.round(height / HEIGHT_STEP) * HEIGHT_STEP);
+    setHeight(el, item.h);
+    el.dataset.width = `${item.w} / ${GRID_COLS} · ${item.h ? `${item.h} px` : t('layout.autoHeight')}`;
+    fitRows(el);
   };
   const end = () => {
     handle.removeEventListener('pointermove', move);
