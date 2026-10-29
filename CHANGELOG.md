@@ -11,6 +11,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ### Modifié
 - `check-i18n` (CI) : une clé de traduction est vérifiée où qu'elle soit écrite dans `app.js`, même dans une condition (`t(cond ? 'clé.a' : 'clé.b')`), et les pluriels `tp()` sont vérifiés dans leurs deux formes (#46).
+- **Tests automatiques des widgets** (`npm test`, lancé par la CI) : avec les faux services, un widget de chaque type est vérifié, ainsi que les principaux cas d’erreur (code traduit) et l’absence de tout secret dans `/api/config`. Uniquement `node:test`, sans dépendance (#45).
 - La configuration est gardée en mémoire au lieu d’être relue et analysée à chaque requête (stats toutes les 5 s, chaque widget…). Une modification à la main de `data/config.json` est toujours prise en compte : le fichier est relu dès que sa date ou sa taille change (#47).
 
 ## [0.8.0] - 2026-10-28
