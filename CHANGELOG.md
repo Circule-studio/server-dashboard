@@ -4,6 +4,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- Widget **GitHub** : on connecte un dépôt (`propriétaire/dépôt` ou son adresse) pour suivre sa dernière version, les commits non publiés depuis, la pré-release en cours, le dernier commit, les issues et les pull requests ouvertes (avec leurs labels et les brouillons). Blocs au choix, comme pour Pulse. Jeton facultatif, obligatoire pour un dépôt privé ; sans jeton, les données sont rafraîchies toutes les 15 min pour rester sous la limite de GitHub, et un dépassement affiche quand réessayer. GitHub Enterprise pris en charge. Faux GitHub dans `npm run mocks` (#63).
+
 ## [0.8.0] - 2026-10-28
 
 ### Ajouté

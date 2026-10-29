@@ -1,4 +1,4 @@
-// Intégrations : récupère et normalise les données des services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr, météo…).
+// Intégrations : récupère et normalise les données des services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr, météo, GitHub…).
 
 const http = require('http');
 const https = require('https');
@@ -527,9 +527,128 @@ async function adguard(w) {
   };
 }
 
+// ---------- GitHub ----------
+// `repo` : propriétaire/dépôt (normalisé par server.js). Jeton facultatif : obligatoire pour un
+// dépôt privé, il relève aussi la limite de GitHub (60 requêtes par heure et par IP sans jeton).
+// `url` : facultative, API d'un GitHub Enterprise (https://github.exemple.fr/api/v3) ou faux service.
+const GITHUB_API = 'https://api.github.com';
+
+// Lien affiché dans l'interface : seulement une adresse web (pas de javascript: venant de l'API).
+const webUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null);
+
+// `optional` : codes HTTP qui veulent dire « rien à afficher » (ex. 409 pour un dépôt vide) -> null.
+async function githubGet(w, path, { optional = [] } = {}) {
+  const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'server-dashboard' };
+  if (w.apiKey) headers.Authorization = `Bearer ${w.apiKey}`;
+  const r = await request(join(w.url || GITHUB_API, path), { headers });
+  // Limite atteinte : 403 ou 429, avec x-ratelimit-remaining à 0 ou un retry-after (limite secondaire).
+  if ((r.status === 403 || r.status === 429) && (r.headers['x-ratelimit-remaining'] === '0' || r.headers['retry-after'])) {
+    const reset = Number(r.headers['x-ratelimit-reset']) * 1000 || Date.now() + (Number(r.headers['retry-after']) || 60) * 1000;
+    throw fail('github_rate_limit', 'Limite de requêtes GitHub atteinte', { minutes: Math.max(1, Math.ceil((reset - Date.now()) / 60_000)) });
+  }
+  if (optional.includes(r.status)) return null;
+  if (r.status === 401) throw fail('github_token', 'Jeton GitHub refusé');
+  // GitHub répond 404 aussi pour un dépôt privé quand le jeton manque ou n'y a pas accès.
+  if (r.status === 404) throw fail('github_not_found', `Dépôt GitHub introuvable : ${w.repo}`, { repo: w.repo });
+  if (r.status === 403) throw fail('github_forbidden', 'Accès refusé par GitHub');
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
+  return r.json;
+}
+
+async function githubVersion(w, repo) {
+  const base = `/repos/${w.repo}`;
+  const branch = encodeURIComponent(repo.default_branch);
+  const [releases, commits] = await Promise.all([
+    githubGet(w, `${base}/releases?per_page=6`),
+    githubGet(w, `${base}/commits?per_page=1&sha=${branch}`, { optional: [404, 409] }), // 409 : dépôt vide
+  ]);
+  let list = releases.filter((r) => !r.draft).map((r) => ({
+    tag: r.tag_name, name: r.name || r.tag_name, date: r.published_at || r.created_at, prerelease: !!r.prerelease, url: webUrl(r.html_url),
+  }));
+  // Pas de release : on se rabat sur les tags (sans date dans cette route).
+  if (!list.length) {
+    const tags = (await githubGet(w, `${base}/tags?per_page=5`, { optional: [404, 409] })) || [];
+    list = tags.map((tg) => ({
+      tag: tg.name, name: tg.name, date: null, prerelease: false,
+      url: webUrl(repo.html_url) && `${repo.html_url}/releases/tag/${encodeURIComponent(tg.name)}`,
+    }));
+  }
+  // Comme GitHub, la « dernière version » est la plus récente qui n'est pas une pré-release.
+  const latest = list.find((r) => !r.prerelease) || list[0] || null;
+  const at = list.indexOf(latest);
+  let unreleased = null;
+  if (latest && commits?.length) {
+    const cmp = await githubGet(w, `${base}/compare/${encodeURIComponent(latest.tag)}...${branch}?per_page=1`, { optional: [404, 422] });
+    unreleased = cmp?.ahead_by ?? null;
+  }
+  const c = commits?.[0];
+  return {
+    latest,
+    unreleased,
+    // Pré-release plus récente que la dernière version (ex. une bêta en cours), et versions précédentes.
+    prerelease: at > 0 ? list[0] : null,
+    previous: list.slice(at + 1, at + 5),
+    branch: repo.default_branch,
+    commit: c ? {
+      sha: c.sha.slice(0, 7),
+      message: (c.commit?.message || '').split('\n')[0],
+      author: c.author?.login || c.commit?.author?.name || '',
+      date: c.commit?.committer?.date || c.commit?.author?.date,
+      url: webUrl(c.html_url),
+    } : null,
+  };
+}
+
+// Recherche plutôt que /issues : le nombre est exact et ne mélange pas issues et PR, en une requête.
+async function githubSearch(w, kind) {
+  const q = encodeURIComponent(`repo:${w.repo} is:${kind} is:open`);
+  const r = await githubGet(w, `/search/issues?q=${q}&sort=created&order=desc&per_page=5`);
+  return {
+    total: r.total_count ?? 0,
+    items: (r.items || []).map((i) => ({
+      number: i.number,
+      title: i.title,
+      url: webUrl(i.html_url),
+      author: i.user?.login || '',
+      date: i.created_at,
+      draft: !!i.draft,
+      comments: i.comments || 0,
+      // Couleur validée : elle finit dans un attribut style.
+      labels: (i.labels || []).slice(0, 3).map((l) => ({ name: l.name, color: /^[0-9a-f]{6}$/i.test(l.color) ? l.color : null })),
+    })),
+  };
+}
+
+async function github(w) {
+  if (!w.repo) throw fail('github_repo_invalid', 'Dépôt manquant', { repo: '' });
+  const sections = w.sections?.length ? w.sections : INTEGRATIONS.github.sections;
+  const repo = await githubGet(w, `/repos/${w.repo}`);
+  const out = {
+    sections,
+    repo: {
+      name: repo.full_name, url: webUrl(repo.html_url), stars: repo.stargazers_count ?? 0, forks: repo.forks_count ?? 0,
+      private: !!repo.private, archived: !!repo.archived, pushed: repo.pushed_at,
+    },
+  };
+  // Seuls les blocs choisis sont demandés : ça ménage la limite de requêtes.
+  await Promise.all([
+    sections.includes('version') && githubVersion(w, repo).then((v) => { out.version = v; }),
+    sections.includes('issues') && githubSearch(w, 'issue').then((v) => { out.issues = v; }),
+    sections.includes('pulls') && githubSearch(w, 'pr').then((v) => { out.pulls = v; }),
+  ]);
+  return out;
+}
+
 const INTEGRATIONS = {
   // `cacheMs` : durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS).
+  // Une fonction permet d'adapter la durée au widget.
   weather: { fields: ['location', 'url'], cacheMs: 10 * 60_000, fetch: weather },
+  // Sans jeton, 60 requêtes par heure : un widget en fait 4 à 5 à chaque rafraîchissement.
+  github: {
+    fields: ['repo', 'apiKey', 'url'], sections: ['version', 'issues', 'pulls'],
+    cacheMs: (w) => (w.apiKey ? 2 * 60_000 : 15 * 60_000), fetch: github,
+  },
   immich: { fields: ['url', 'apiKey'], cacheMs: 60_000, fetch: immich },
   pihole: { fields: ['url', 'password'], fetch: pihole },
   adguard: { fields: ['url', 'username', 'password'], fetch: adguard },
@@ -550,7 +669,8 @@ async function fetchWidget(w) {
   const integration = INTEGRATIONS[w.type];
   if (!integration) throw new Error(`Type inconnu : ${w.type}`);
   const hit = cache.get(w.id);
-  if (hit && Date.now() - hit.t < (integration.cacheMs || CACHE_MS)) return hit.promise;
+  const ttl = typeof integration.cacheMs === 'function' ? integration.cacheMs(w) : integration.cacheMs;
+  if (hit && Date.now() - hit.t < (ttl || CACHE_MS)) return hit.promise;
   const promise = integration.fetch(w);
   cache.set(w.id, { t: Date.now(), promise });
   promise.catch(() => cache.delete(w.id));

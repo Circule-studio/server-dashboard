@@ -391,7 +391,17 @@ const WIDGET_TYPES = {
   weather: {
     label: t('weather.label'), icon: '/icons/weather.svg', kind: 'weather', refresh: 10 * 60_000,
     fields: ['location', 'url'], nameFrom: 'location', urlOptional: true, urlLabel: 'weather.url', urlHelp: 'weather.urlHelp',
-    scheme: 'https', placeholder: 'https://api.open-meteo.com',
+    scheme: 'https', placeholder: 'https://api.open-meteo.com', namePlaceholder: 'widget.namePlaceholderLocation',
+  },
+  // Sans URL, l'API publique de github.com ; le jeton est facultatif (dépôt public).
+  github: {
+    label: 'GitHub', icon: '/icons/github.svg', kind: 'github', refresh: 2 * 60_000,
+    fields: ['repo', 'apiKey', 'url'], nameFrom: 'repo', namePlaceholder: 'widget.namePlaceholderRepo',
+    keyLabel: 'key.github', keyHelp: 'key.githubHelp', keyOptional: true,
+    urlOptional: true, urlLabel: 'github.url', urlHelp: 'github.urlHelp', scheme: 'https', placeholder: 'https://api.github.com',
+    sections: ['version', 'issues', 'pulls'],
+    // Le titre mène à la page du dépôt (GitHub Enterprise : l'adresse de l'API sans /api/v3).
+    href: (w) => `${w.url ? w.url.replace(/\/api\/v3\/?$/, '') : 'https://github.com'}/${w.repo}`,
   },
 };
 const fieldsOf = (type) => WIDGET_TYPES[type].fields || ['url', 'apiKey'];
@@ -402,6 +412,11 @@ let widgetTimers = [];
 const fmtSpeed = (b) => `${fmtBytes(b)}/s`;
 const fmtEta = (s) => (s == null || s >= 8640000 ? '∞' : s < 60 ? `${s} s` : fmtUptime(s));
 const pct = (p) => `${Math.round(Math.min(1, Math.max(0, p || 0)) * 100)} %`;
+// Durée écoulée depuis une date : « 5 min », « 3 h », « 2 j ».
+const fmtAgo = (iso) => {
+  const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+  return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
+};
 
 function fmtDay(iso) {
   if (!iso) return '';
@@ -475,10 +490,6 @@ const RENDERERS = {
     const levelDot = { critical: 'bad', warning: 'warn', info: '' };
     const reason = (code) => (I18N[LANG][`pulse.reason.${code}`] ? t(`pulse.reason.${code}`) : code.replace(/[-_]/g, ' '));
     const typeLabel = (type) => (I18N[LANG][`pulse.type.${type}`] ? t(`pulse.type.${type}`) : type);
-    const ago = (iso) => {
-      const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
-      return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
-    };
     const blocks = [];
     const many = d.sections.length > 1;
 
@@ -508,7 +519,7 @@ const RENDERERS = {
           h('div', { class: 'row' },
             h('span', { class: 'item-title', title: a.text },
               h('span', { class: `dot ${levelDot[a.level] ?? ''}` }), ` ${a.resource}`),
-            h('span', { class: 'muted' }, a.acknowledged ? t('pulse.acknowledged') : t('pulse.since', { duration: ago(a.since) }))),
+            h('span', { class: 'muted' }, a.acknowledged ? t('pulse.acknowledged') : t('pulse.since', { duration: fmtAgo(a.since) }))),
           h('div', { class: 'item-sub' }, a.text))))
         : h('p', { class: 'muted' }, t('pulse.noAlerts')));
     }
@@ -651,15 +662,86 @@ const RENDERERS = {
         day.rain ? h('small', { class: 'weather-rain', title: t('weather.rainChance') }, `💧 ${day.rain} %`) : null))),
     ];
   },
+
+  github: (d) => {
+    // En mode édition, un lien ne doit pas lancer le glisser natif du navigateur (comme le titre).
+    const link = (url, text) => (url
+      ? h('a', { href: url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, text)
+      : h('span', {}, text));
+    const ago = (iso) => (iso ? t('github.ago', { duration: fmtAgo(iso) }) : '');
+    const v = d.version;
+    const blocks = [h('div', { class: 'widget-stats' },
+      v ? h('div', { title: v.latest?.name || '' }, h('b', {}, v.latest?.tag || '–'), h('span', {}, t('github.version'))) : null,
+      d.issues ? h('div', {}, h('b', {}, d.issues.total.toLocaleString(LOCALE)), h('span', {}, t('github.issues'))) : null,
+      d.pulls ? h('div', {}, h('b', {}, d.pulls.total.toLocaleString(LOCALE)), h('span', {}, t('github.pulls'))) : null)];
+    blocks.push(h('p', { class: 'muted gh-meta' }, [
+      d.repo.private ? t('github.private') : null,
+      d.repo.archived ? t('github.archived') : null,
+      `★ ${d.repo.stars.toLocaleString(LOCALE)}`,
+      tp('github.forks', d.repo.forks, { n: d.repo.forks.toLocaleString(LOCALE) }),
+      d.repo.pushed ? t('github.pushed', { duration: fmtAgo(d.repo.pushed) }) : null,
+    ].filter(Boolean).join(' · ')));
+
+    if (v) {
+      blocks.push(h('div', { class: 'widget-subhead' }, t('github.versionHead')));
+      const items = [];
+      if (v.latest) {
+        items.push(h('li', {},
+          h('div', { class: 'row' },
+            h('span', { class: 'item-title', title: v.latest.name }, '🏷 ', link(v.latest.url, v.latest.name),
+              v.latest.prerelease ? h('span', { class: 'badge warn' }, t('github.prerelease')) : null),
+            h('span', { class: 'muted' }, ago(v.latest.date))),
+          h('div', { class: 'item-sub' }, v.unreleased == null ? ''
+            : v.unreleased ? tp('github.unreleased', v.unreleased, { tag: v.latest.tag })
+              : t('github.upToDate', { tag: v.latest.tag })),
+          v.prerelease
+            ? h('div', { class: 'item-sub' }, t('github.next', { tag: v.prerelease.tag, duration: fmtAgo(v.prerelease.date) }))
+            : null,
+          v.previous.length
+            ? h('div', { class: 'item-sub' }, t('github.previous', { list: v.previous.map((r) => r.tag).join(' · ') }))
+            : null));
+      }
+      if (v.commit) {
+        items.push(h('li', {},
+          h('div', { class: 'row' },
+            h('span', { class: 'item-title', title: v.commit.message },
+              h('code', { class: 'gh-sha' }, v.commit.sha), ' ', link(v.commit.url, v.commit.message)),
+            h('span', { class: 'muted' }, ago(v.commit.date))),
+          h('div', { class: 'item-sub' }, t('github.commitBy', { author: v.commit.author, branch: v.branch }))));
+      }
+      if (!v.latest && v.commit) items.unshift(h('li', { class: 'muted' }, t('github.noRelease')));
+      blocks.push(items.length ? h('ul', { class: 'widget-list' }, items) : h('p', { class: 'muted' }, t('github.emptyRepo')));
+    }
+
+    // Issues et pull requests : même liste, avec un badge « brouillon » pour les PR.
+    const list = (data, head, empty) => {
+      blocks.push(h('div', { class: 'widget-subhead' }, t(head, { count: data.total.toLocaleString(LOCALE) })));
+      blocks.push(data.items.length
+        ? h('ul', { class: 'widget-list' }, data.items.map((i) => h('li', {},
+          h('div', { class: 'row' },
+            h('span', { class: 'item-title', title: i.title },
+              i.draft ? h('span', { class: 'badge' }, t('github.draft')) : null, link(i.url, i.title)),
+            h('span', { class: 'muted' }, ago(i.date))),
+          h('div', { class: 'item-sub' },
+            t('github.by', { number: i.number, author: i.author }),
+            ...i.labels.map((l) => h('span', { class: 'gh-label' },
+              h('i', { style: l.color ? `background:#${l.color}` : null }), l.name))))))
+        : h('p', { class: 'muted' }, t(empty)));
+    };
+    if (d.issues) list(d.issues, 'github.issuesHead', 'github.noIssues');
+    if (d.pulls) list(d.pulls, 'github.pullsHead', 'github.noPulls');
+    return blocks;
+  },
 };
 
 function widgetCard(w, i) {
   const type = WIDGET_TYPES[w.type];
   // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
+  const href = type.href ? type.href(w) : w.url;
   const head = h('div', { class: 'widget-head' },
     iconEl({ name: w.name, icon: type.icon }),
-    w.url
-      ? h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
+    href
+      ? h('a', { class: 'widget-title', href, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
       : h('span', { class: 'widget-title' }, w.name || type.label));
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
@@ -741,6 +823,7 @@ function openWidgetDialog(i) {
   f.type.disabled = i != null; // changer de type mélangerait les identifiants
   f.name.value = w.name || '';
   f.location.value = w.location || '';
+  f.repo.value = w.repo || '';
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
@@ -776,11 +859,12 @@ function updateWidgetFields() {
   form.querySelector('[data-password-label]').textContent = t(type.passwordLabel || 'widget.password');
   form.querySelector('[data-password-help]').textContent = type.passwordHelp ? t(type.passwordHelp) : '';
   form.elements.url.required = !type.urlOptional;
-  form.elements.name.placeholder = t(type.nameFrom ? 'widget.namePlaceholderLocation' : 'widget.namePlaceholder');
+  form.elements.name.placeholder = t(type.namePlaceholder || 'widget.namePlaceholder');
   form.elements.location.required = fields.includes('location');
+  form.elements.repo.required = fields.includes('repo');
   form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
   form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
-  form.elements.apiKey.required = fields.includes('apiKey') && !w.hasApiKey;
+  form.elements.apiKey.required = fields.includes('apiKey') && !type.keyOptional && !w.hasApiKey;
   form.elements.username.required = !!type.userRequired;
   form.querySelector('[data-user-label]').textContent = t(type.userLabel || 'widget.username');
   form.elements.username.placeholder = type.userHelp ? t(type.userHelp) : '';
@@ -811,23 +895,33 @@ function syncClearBoxes() {
   }
 }
 
+// Valeur d'un champ du formulaire ; le dépôt est ramené à « propriétaire/dépôt »
+// (le serveur fait de même et refuse un dépôt invalide).
+function fieldValue(f, field) {
+  const v = f[field].value.trim();
+  if (field !== 'repo') return v;
+  const [owner = '', name = ''] = v.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').split(/[/?#]/);
+  return name ? `${owner}/${name.replace(/\.git$/i, '')}` : v;
+}
+
 function submitWidget(e) {
   e.preventDefault();
   const f = e.target.elements;
   const typeId = f.type.value;
   const fields = fieldsOf(typeId);
   const prev = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : null;
-  // Nom par défaut : le lieu pour la météo (« Nantes »), sinon le type.
+  // Nom par défaut : le lieu pour la météo (« Nantes »), le dépôt pour GitHub, sinon le type.
   const nameFrom = WIDGET_TYPES[typeId].nameFrom;
   const w = {
     id: prev?.id || uid('wid'),
     type: typeId,
-    name: f.name.value.trim() || (nameFrom && f[nameFrom].value.trim()) || WIDGET_TYPES[typeId].label,
+    name: f.name.value.trim() || (nameFrom && fieldValue(f, nameFrom)) || WIDGET_TYPES[typeId].label,
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
+  if (fields.includes('repo')) w.repo = fieldValue(f, 'repo');
   if (fields.includes('apiKey')) {
     if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });
     else w.apiKey = f.apiKey.value.trim();

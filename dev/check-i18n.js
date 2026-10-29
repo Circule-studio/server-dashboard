@@ -17,7 +17,7 @@ const html = read('public/index.html');
 
 // Clés écrites en toutes lettres…
 const used = new Set([...app.matchAll(/\bt\('([\w.-]+)'/g)].map((m) => m[1]));
-for (const m of app.matchAll(/(?:keyLabel|keyHelp|userLabel|userHelp|urlLabel|urlHelp|passwordLabel|passwordHelp): '([\w.]+)'/g)) used.add(m[1]);
+for (const m of app.matchAll(/(?:keyLabel|keyHelp|userLabel|userHelp|urlLabel|urlHelp|passwordLabel|passwordHelp|namePlaceholder): '([\w.]+)'/g)) used.add(m[1]);
 // Libellés par défaut des champs du widget : t(type.xxx || 'clé').
 for (const m of app.matchAll(/t\(type\.\w+ \|\| '([\w.]+)'\)/g)) used.add(m[1]);
 for (const m of html.matchAll(/data-i18n(?:-html|-placeholder|-title|-aria)?="([\w.-]+)"/g)) used.add(m[1]);
@@ -30,6 +30,8 @@ const dynamic = {
   'dns.': ['enabled', 'disabled', 'failed', 'unknown', 'blocklist.one', 'blocklist.other', 'clients.one', 'clients.other'],
   'weather.code.': [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 97, 99],
   'pulse.': ['nodes.one', 'nodes.other', 'containers.one', 'containers.other', 'docker.one', 'docker.other'],
+  'github.sec.': ['version', 'issues', 'pulls', 'version.short', 'issues.short', 'pulls.short'],
+  'github.': ['forks.one', 'forks.other', 'unreleased.one', 'unreleased.other'],
 };
 for (const [prefix, names] of Object.entries(dynamic)) for (const n of names) used.add(prefix + n);
 

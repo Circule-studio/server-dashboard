@@ -112,6 +112,16 @@ function checkUrl(url) {
   return url;
 }
 
+// Dépôt GitHub : « propriétaire/dépôt », ou l'adresse copiée depuis le navigateur
+// (https://github.com/propriétaire/dépôt/issues, .git…), ramenée à « propriétaire/dépôt ».
+function githubRepo(value) {
+  const [owner = '', name = ''] = value.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').split(/[/?#]/);
+  const repo = `${owner}/${name.replace(/\.git$/i, '')}`;
+  // Noms autorisés par GitHub ; « . » et « .. » sont exclus (ils changeraient le chemin de l'API).
+  if (!/^(?!\.+\/)[\w.-]+\/(?!\.+$)[\w.-]+$/.test(repo)) throw fail('github_repo_invalid', `Dépôt invalide : ${value}`, { repo: value });
+  return repo;
+}
+
 // Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
 // (avant, l'erreur JavaScript brute était renvoyée au navigateur).
 function item(v) {
@@ -149,6 +159,7 @@ function sanitizeWidgets(list, previous = []) {
     }
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
+    if (INTEGRATIONS[type].fields.includes('repo')) out.repo = githubRepo(str(w.repo, 300));
     // Blocs à afficher, pour les intégrations qui en proposent (ex. Pulse).
     const allowed = INTEGRATIONS[type].sections;
     if (allowed) {
