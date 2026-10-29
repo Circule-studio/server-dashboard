@@ -12,10 +12,13 @@ const ctx = { navigator: { language: 'fr' }, localStorage: { getItem: () => null
 vm.createContext(ctx);
 vm.runInContext(`${read('public/i18n.js')}\nthis.I18N = I18N;`, ctx);
 const langs = Object.keys(ctx.I18N);
-const app = read('public/app.js');
+// Fichiers .js d'un dossier, triés (un fichier par widget ou par intégration).
+const readDir = (dir) => fs.readdirSync(path.join(root, dir)).filter((f) => f.endsWith('.js')).sort()
+  .map((f) => read(`${dir}/${f}`)).join('\n');
+const app = `${read('public/app.js')}\n${readDir('public/widgets')}`;
 const html = read('public/index.html');
 
-// Clés écrites en toutes lettres : toute chaîne 'espace.nom' de app.js dont l'espace existe
+// Clés écrites en toutes lettres : toute chaîne 'espace.nom' de app.js et public/widgets/ dont l'espace existe
 // (widget., github.…), où qu'elle soit écrite : t('clé'), keyLabel: 'clé', t(cond ? 'clé.a' : 'clé.b')…
 // Les chaînes passées à t() ou tp() comptent même si leur espace est inconnu (faute de frappe).
 const namespaces = new Set(Object.keys(ctx.I18N[langs[0]]).map((k) => k.split('.')[0]));
@@ -52,7 +55,7 @@ for (const lang of langs) {
   }
 }
 // Les codes d'erreur renvoyés par le serveur doivent être traduits.
-const serverCodes = new Set([...`${read('server.js')}\n${read('integrations.js')}`.matchAll(/(?:fail\(|code: |forbidden: )'([a-z_]+)'/g)].map((m) => m[1]));
+const serverCodes = new Set([...`${read('server.js')}\n${readDir('integrations')}`.matchAll(/(?:fail\(|code: |forbidden: )'([a-z_]+)'/g)].map((m) => m[1]));
 for (const code of serverCodes) {
   for (const lang of langs) {
     if (!(`err.${code}` in ctx.I18N[lang])) { errors++; console.error(`[${lang}] code serveur non traduit : err.${code}`); }

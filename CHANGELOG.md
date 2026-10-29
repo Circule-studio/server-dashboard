@@ -13,6 +13,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Taille des tuiles** (mode édition > Affichage) : compacte (icône et nom, plus de tuiles par ligne), normale ou grande (grande icône, description sur deux lignes). Le choix est enregistré dans la configuration (#6).
 
 ### Modifié
+- **Un fichier par intégration** : `integrations/<service>.js` côté serveur, `public/widgets/<service>.js` côté interface et `dev/mocks/<service>.js` pour les faux services. Ajouter un widget ne touche plus les fichiers des autres, et les contributions ne se marchent plus dessus (voir « Ajouter un widget » dans CONTRIBUTING.md) (#48).
 - `check-i18n` (CI) : une clé de traduction est vérifiée où qu'elle soit écrite dans `app.js`, même dans une condition (`t(cond ? 'clé.a' : 'clé.b')`), et les pluriels `tp()` sont vérifiés dans leurs deux formes (#46).
 - **Tests automatiques des widgets** (`npm test`, lancé par la CI) : avec les faux services, un widget de chaque type est vérifié, ainsi que les principaux cas d’erreur (code traduit) et l’absence de tout secret dans `/api/config`. Uniquement `node:test`, sans dépendance (#45).
 - La configuration est gardée en mémoire au lieu d’être relue et analysée à chaque requête (stats toutes les 5 s, chaque widget…). Une modification à la main de `data/config.json` est toujours prise en compte : le fichier est relu dès que sa date ou sa taille change (#47).
