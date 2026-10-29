@@ -34,6 +34,7 @@ const dynamic = {
   'dns.': ['enabled', 'disabled', 'failed', 'unknown', 'blocklist.one', 'blocklist.other', 'clients.one', 'clients.other'],
   'weather.code.': [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 97, 99],
   'github.sec.': ['version', 'issues', 'pulls', 'version.short', 'issues.short', 'pulls.short'],
+  'ha.': ['power.on', 'power.off', 'opening.on', 'opening.off', 'motion.on', 'motion.off', 'alarm.on', 'alarm.off'],
 };
 for (const [prefix, names] of Object.entries(dynamic)) for (const n of names) used.add(prefix + n);
 // Une base de pluriel n'est pas une clé : on vérifie ses deux formes.

@@ -138,6 +138,20 @@ function githubRepo(value) {
   return repo;
 }
 
+// Entités Home Assistant : « domaine.nom » (sensor.salon_temperature), une par ligne ou séparées
+// par des virgules dans le formulaire. Sans doublon, 30 au plus.
+const MAX_ENTITIES = 30;
+
+function sanitizeEntities(list) {
+  const raw = Array.isArray(list) ? list : String(list || '').split(/[\s,;]+/);
+  const entities = [...new Set(raw.map((e) => str(e, 255).toLowerCase()).filter(Boolean))];
+  const invalid = entities.find((e) => !/^[a-z0-9_]+\.[a-z0-9_]+$/.test(e));
+  if (invalid) throw fail('ha_entity_invalid', `Entité invalide : ${invalid}`, { entity: invalid });
+  if (!entities.length) throw fail('ha_entities_missing', 'Aucune entité choisie');
+  if (entities.length > MAX_ENTITIES) throw fail('ha_too_many', `${MAX_ENTITIES} entités au plus`, { max: MAX_ENTITIES });
+  return entities;
+}
+
 // Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
 // (avant, l'erreur JavaScript brute était renvoyée au navigateur).
 function item(v) {
@@ -175,6 +189,7 @@ function sanitizeWidgets(list, previous = []) {
     }
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
+    if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
     if (INTEGRATIONS[type].fields.includes('repo')) {
       out.repo = githubRepo(str(w.repo, 300));
       // Nom par défaut : le dépôt normalisé (le navigateur affiche le type en attendant l'enregistrement).

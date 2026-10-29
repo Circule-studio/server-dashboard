@@ -384,6 +384,10 @@ const WIDGET_TYPES = {
     label: 'Pi-hole', icon: 'pi-hole', kind: 'dns', refresh: 30_000, fields: ['url', 'password'],
     placeholder: 'http://192.168.1.10', passwordLabel: 'key.piholePassword', passwordHelp: 'key.piholePasswordHelp',
   },
+  homeassistant: {
+    label: 'Home Assistant', icon: 'home-assistant', kind: 'ha', refresh: 15_000, fields: ['url', 'apiKey', 'entities'],
+    port: 8123, keyLabel: 'key.ha', keyHelp: 'key.haHelp',
+  },
   npm: {
     label: 'Nginx Proxy Manager', icon: 'nginx-proxy-manager', kind: 'npm', refresh: 5 * 60_000,
     fields: ['url', 'username', 'password'], port: 81, userLabel: 'key.npmUser', userRequired: true, passwordHelp: 'key.npmHelp',
@@ -671,6 +675,39 @@ const RENDERERS = {
     ];
   },
 
+  ha: (d) => {
+    // États on / off selon le type de capteur (device_class) : porte ouverte, mouvement détecté…
+    const ON_OFF = {
+      opening: [['door', 'window', 'opening', 'garage_door'], 'warn', ''],
+      motion: [['motion', 'occupancy', 'presence'], 'warn', ''],
+      alarm: [['moisture', 'smoke', 'gas', 'carbon_monoxide', 'problem', 'safety', 'tamper'], 'bad', 'ok'],
+    };
+    const show = (e) => {
+      if (e.missing) return { text: t('ha.missing'), dot: 'bad' };
+      if (e.state === 'unavailable' || e.state === 'unknown') return { text: t('ha.unavailable'), dot: 'bad' };
+      if (e.state === 'on' || e.state === 'off') {
+        const on = e.state === 'on';
+        const [kind, [, onDot, offDot]] = Object.entries(ON_OFF).find(([, [classes]]) => classes.includes(e.deviceClass))
+          || ['power', [, 'ok', '']];
+        return { text: t(`ha.${kind}.${e.state}`), dot: on ? onDot : offDot };
+      }
+      const n = Number(e.state);
+      if (e.state.trim() !== '' && Number.isFinite(n)) {
+        return { text: `${n.toLocaleString(LOCALE, { maximumFractionDigits: 2 })}${e.unit ? ` ${e.unit}` : ''}` };
+      }
+      const known = I18N[LANG][`ha.state.${e.state}`];
+      return { text: known ? t(`ha.state.${e.state}`) : `${e.state}${e.unit ? ` ${e.unit}` : ''}` };
+    };
+    return h('ul', { class: 'widget-list ha-list' }, d.entities.map((e) => {
+      const s = show(e);
+      return h('li', {},
+        h('div', { class: 'row' },
+          h('span', { class: 'item-title', title: e.id }, s.dot != null ? h('span', { class: `dot ${s.dot}` }) : null, ` ${e.name || e.id}`),
+          h('b', { class: 'ha-value' }, s.text)),
+        e.changed ? h('div', { class: 'item-sub' }, t('ha.since', { duration: fmtAgo(e.changed) })) : null);
+    }));
+  },
+
   npm: (d) => {
     // Expiré : rouge ; dans les 14 jours (soonDays) : orange.
     const soon = (c) => c.expired || (c.days != null && c.days <= d.soonDays);
@@ -865,6 +902,7 @@ function openWidgetDialog(i) {
   f.name.value = w.name || '';
   f.location.value = w.location || '';
   f.repo.value = w.repo || '';
+  f.entities.value = (w.entities || []).join('\n');
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
@@ -903,6 +941,7 @@ function updateWidgetFields() {
   form.elements.name.placeholder = t(type.namePlaceholder || 'widget.namePlaceholder');
   form.elements.location.required = fields.includes('location');
   form.elements.repo.required = fields.includes('repo');
+  form.elements.entities.required = fields.includes('entities');
   form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
   form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
   form.elements.apiKey.required = fields.includes('apiKey') && !type.keyOptional && !w.hasApiKey;
@@ -955,6 +994,7 @@ function submitWidget(e) {
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('repo')) w.repo = f.repo.value.trim(); // normalisé par le serveur
+  if (fields.includes('entities')) w.entities = f.entities.value.split(/[\s,;]+/).filter(Boolean); // vérifiées par le serveur
   if (fields.includes('apiKey')) {
     if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });
     else w.apiKey = f.apiKey.value.trim();

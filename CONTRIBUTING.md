@@ -36,7 +36,7 @@ L'interface est en français et en anglais. Tous les textes sont dans [`public/i
 
 ## Ajouter un widget
 
-1. Dans `integrations.js`, écris une fonction `async (widget) => données` et ajoute-la à `INTEGRATIONS` avec ses champs (`url`, `apiKey`, `username`, `password`, `location`, `repo`). `cacheMs` règle la durée pendant laquelle les données sont partagées entre visiteurs (4 s par défaut, 10 min pour la météo) ; ce peut être une fonction du widget (GitHub : plus long sans jeton).
+1. Dans `integrations.js`, écris une fonction `async (widget) => données` et ajoute-la à `INTEGRATIONS` avec ses champs (`url`, `apiKey`, `username`, `password`, `location`, `repo`, `entities`). `cacheMs` règle la durée pendant laquelle les données sont partagées entre visiteurs (4 s par défaut, 10 min pour la météo) ; ce peut être une fonction du widget (GitHub : plus long sans jeton).
 2. Dans `public/app.js`, ajoute le type à `WIDGET_TYPES` et, si besoin, un rendu dans `RENDERERS`.
 3. Ajoute un faux service dans `dev/mocks.js` pour que tout le monde puisse le tester.
 4. Ajoute le widget (et ses principaux cas d'erreur) dans `test/widgets.test.js`, puis lance `npm test` : les tests démarrent eux-mêmes les faux services et un dashboard temporaire. La CI les lance à chaque push.

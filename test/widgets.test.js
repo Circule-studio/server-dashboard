@@ -62,6 +62,7 @@ const WIDGETS = [
   { id: 'immich', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-key' },
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
+  { id: 'ha', type: 'homeassistant', url: 'http://localhost:18123', apiKey: 'ha-token', entities: 'sensor.salon_temperature, binary_sensor.porte_entree\nbinary_sensor.mouvement_couloir light.salon person.thomas sensor.cave_humidite sensor.supprime sensor.salon_temperature' },
   { id: 'npm', type: 'npm', url: 'http://localhost:10081', username: 'admin@example.com', password: 'npm-pass' },
   { id: 'github', type: 'github', url: 'http://localhost:14000', repo: 'https://github.com/circule-studio/server-dashboard' },
   // Cas d'erreur : chacun doit renvoyer un code que l'interface traduit.
@@ -71,12 +72,13 @@ const WIDGETS = [
   { id: 'pihole-bad', type: 'pihole', url: 'http://localhost:10080', password: 'faux' },
   { id: 'adguard-bad', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'faux' },
   { id: 'weather-unknown', type: 'weather', url: 'http://localhost:18765', location: 'Ville qui n’existe pas' },
+  { id: 'ha-bad', type: 'homeassistant', url: 'http://localhost:18123', apiKey: 'mauvais-jeton', entities: ['light.salon'] },
   { id: 'npm-bad', type: 'npm', url: 'http://localhost:10081', username: 'admin@example.com', password: 'faux' },
   { id: 'github-private', type: 'github', url: 'http://localhost:14000', repo: 'demo/private' },
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass'];
+const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -155,6 +157,25 @@ test('Pi-hole et AdGuard Home : format commun', async () => {
   }
 });
 
+test('Home Assistant : entités choisies, introuvable signalée sans erreur', async () => {
+  const d = await widget('ha');
+  assert.deepEqual(d.entities.map((e) => e.id), ['sensor.salon_temperature', 'binary_sensor.porte_entree', 'binary_sensor.mouvement_couloir', 'light.salon', 'person.thomas', 'sensor.cave_humidite', 'sensor.supprime'], 'ordre gardé, doublon retiré');
+  const temp = d.entities[0];
+  assert.deepEqual([temp.name, temp.state, temp.unit], ['Salon', '21.456', '°C']);
+  assert.equal(d.entities[1].deviceClass, 'door');
+  assert.equal(d.entities.at(-1).missing, true);
+});
+
+test('Home Assistant : entités invalides refusées', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  for (const [entities, code] of [['pas une entité', 'ha_entity_invalid'], ['', 'ha_entities_missing'],
+    [Array.from({ length: 31 }, (_, i) => `sensor.s${i}`), 'ha_too_many']]) {
+    const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { type: 'homeassistant', url: 'http://localhost:18123', entities }] });
+    assert.equal(r.status, 400, r.text);
+    assert.equal(r.json.code, code);
+  }
+});
+
 test('Nginx Proxy Manager : hôtes et certificats', async () => {
   const d = await widget('npm');
   assert.deepEqual(d.hosts, { enabled: 6, disabled: 1 }, 'enabled : true ou 1');
@@ -187,6 +208,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'adguard-bad': 'adguard_credentials',
     'weather-unknown': 'location_not_found',
     'npm-bad': 'npm_credentials',
+    'ha-bad': 'auth_refused',
     'github-private': 'github_not_found',
     'github-limit': 'github_rate_limit',
     unreachable: 'unreachable',
