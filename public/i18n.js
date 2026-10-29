@@ -36,6 +36,10 @@ const I18N = {
     'display.theme': 'Bouton thème clair / sombre',
     'display.lang': 'Bouton de langue (EN / FR)',
     'display.help': 'Masquée, la recherche s’ouvre quand même avec la touche /. Sans bouton, le thème suit le système et la langue celle du navigateur.',
+    'display.tiles': 'Taille des tuiles',
+    'display.tileCompact': 'Compacte : icône et nom',
+    'display.tileNormal': 'Normale',
+    'display.tileLarge': 'Grande : description sur deux lignes',
     'edit.addCategory': '+ Catégorie',
 
     'stats.aria': 'Ressources du serveur',
@@ -403,6 +407,10 @@ const I18N = {
     'display.theme': 'Light / dark theme button',
     'display.lang': 'Language button (EN / FR)',
     'display.help': 'When hidden, search still opens with the / key. Without the buttons, the theme follows the system and the language follows the browser.',
+    'display.tiles': 'Tile size',
+    'display.tileCompact': 'Compact: icon and name',
+    'display.tileNormal': 'Normal',
+    'display.tileLarge': 'Large: two-line description',
     'edit.addCategory': '+ Category',
 
     'stats.aria': 'Server resources',

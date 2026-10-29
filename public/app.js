@@ -120,6 +120,7 @@ function render() {
   itemObserver.disconnect();
   const board = $('#board');
   board.replaceChildren();
+  board.dataset.tiles = cfg.tileSize || 'normal'; // taille des tuiles : style.css
 
   $('#pwBanner').hidden = !(state.authed && state.defaultPassword);
 
@@ -1387,6 +1388,7 @@ function openDisplayDialog() {
   const form = $('#displayForm');
   const display = displayOptions(state.draft);
   for (const key of Object.keys(display)) form.elements[key].checked = display[key];
+  form.elements.tileSize.value = state.draft.tileSize || 'normal';
   $('#displayDialog').showModal();
 }
 
@@ -1394,6 +1396,7 @@ function submitDisplay(e) {
   e.preventDefault();
   const form = e.target;
   state.draft.display = Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked]));
+  state.draft.tileSize = form.elements.tileSize.value;
   $('#displayDialog').close();
   render();
 }

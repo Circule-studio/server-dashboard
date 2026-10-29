@@ -294,6 +294,23 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 .tile-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-desc { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Taille des tuiles (mode édition > Affichage) : compacte sans description, grande sur deux lignes. */
+[data-tiles="compact"] .grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }
+[data-tiles="compact"] .tile { gap: 10px; padding: 9px 10px; }
+[data-tiles="compact"] .tile-icon { width: 32px; height: 32px; border-radius: 8px; font-size: 0.95rem; }
+[data-tiles="compact"] .tile-icon img { width: 24px; height: 24px; }
+[data-tiles="compact"] .tile-name { font-size: 0.9rem; }
+[data-tiles="compact"] .tile-desc { display: none; }
+[data-tiles="large"] .grid { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+[data-tiles="large"] .tile { gap: 16px; padding: 18px; }
+[data-tiles="large"] .tile-icon { width: 58px; height: 58px; border-radius: 12px; font-size: 1.5rem; }
+[data-tiles="large"] .tile-icon img { width: 44px; height: 44px; }
+[data-tiles="large"] .tile-name { font-size: 1.05rem; }
+[data-tiles="large"] .tile-desc {
+  font-size: 0.84rem; margin-top: 2px; white-space: normal;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+
 .dot {
   flex: none; width: 9px; height: 9px; border-radius: 50%;
   background: var(--muted); box-shadow: 0 0 0 3px rgba(139, 149, 167, 0.15);
