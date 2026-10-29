@@ -9,6 +9,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ### Modifié
 - `check-i18n` (CI) : une clé de traduction est vérifiée où qu'elle soit écrite dans `app.js`, même dans une condition (`t(cond ? 'clé.a' : 'clé.b')`), et les pluriels `tp()` sont vérifiés dans leurs deux formes (#46).
+- La configuration est gardée en mémoire au lieu d’être relue et analysée à chaque requête (stats toutes les 5 s, chaque widget…). Une modification à la main de `data/config.json` est toujours prise en compte : le fichier est relu dès que sa date ou sa taille change (#47).
 
 ## [0.8.0] - 2026-10-28
 

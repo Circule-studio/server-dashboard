@@ -54,15 +54,23 @@ const DEFAULT_CONFIG = {
   categories: [],
 };
 
+// Config gardée en mémoire : avant, chaque requête (stats toutes les 5 s, chaque widget…) relisait
+// et analysait le fichier. On ne le relit que si sa date ou sa taille a changé (modification à la
+// main). L'objet renvoyé est partagé : ne jamais le modifier, sanitizeConfig() en crée un nouveau.
+let configCache = null; // { mtimeMs, size, cfg }
+
 async function readConfig() {
-  let text;
+  let stat;
   try {
-    text = await fsp.readFile(CONFIG_FILE, 'utf8');
+    stat = await fsp.stat(CONFIG_FILE);
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
-    await writeConfig(DEFAULT_CONFIG);
-    return structuredClone(DEFAULT_CONFIG);
+    const cfg = structuredClone(DEFAULT_CONFIG);
+    await writeConfig(cfg);
+    return cfg;
   }
+  if (configCache?.mtimeMs === stat.mtimeMs && configCache.size === stat.size) return configCache.cfg;
+  const text = await fsp.readFile(CONFIG_FILE, 'utf8');
   // Un fichier invalide n'est jamais écrasé : on préfère une erreur à une perte de config.
   let cfg;
   try {
@@ -73,6 +81,7 @@ async function readConfig() {
   cfg.widgets ||= [];
   cfg.categories ||= [];
   cfg.revision = Number.isInteger(cfg.revision) ? cfg.revision : 0;
+  configCache = { mtimeMs: stat.mtimeMs, size: stat.size, cfg };
   return cfg;
 }
 
@@ -94,6 +103,8 @@ function writeConfig(cfg) {
     const tmp = `${CONFIG_FILE}.${crypto.randomUUID()}.tmp`;
     await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2));
     await fsp.rename(tmp, CONFIG_FILE);
+    const stat = await fsp.stat(CONFIG_FILE);
+    configCache = { mtimeMs: stat.mtimeMs, size: stat.size, cfg };
   };
   const result = writeQueue.then(run, run);
   writeQueue = result.catch(() => {});
