@@ -18,7 +18,7 @@ RENDERERS.alwaysdata = (d) => [
     ? h('ul', { class: 'widget-list' }, d.sites.map((s) => h('li', {},
       h('div', { class: 'row' },
         h('a', { class: 'item-title', href: `${s.scheme || 'https'}://${s.address}`, target: '_blank', rel: 'noopener', title: s.address },
-          h('span', { class: `dot ${s.online ? 'ok' : 'bad'}` }), ` ${s.address}`),
+          h('span', { class: `dot ${s.online ? 'ok' : 'bad'}` }), ` ${s.address.replace(/\/$/, '')}`),
         s.online
           ? h('span', { class: 'muted' }, `${s.ms} ms`)
           : h('span', { class: 'badge bad' }, s.code ? `HTTP ${s.code}` : t('alwaysdata.unreachable'))),
