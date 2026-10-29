@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.16.0] - 2026-10-29
+
+### Ajouté
+- Widget **Calendrier** : les événements des 7 prochains jours (10 au plus) d’un ou plusieurs agendas iCal (Nextcloud, Google Agenda, Proton, Radicale…), groupés par jour, avec une couleur par agenda. Récurrences (quotidiennes, hebdomadaires, mensuelles, annuelles), exceptions et occurrences déplacées gérées, sans dépendance. Les adresses `.ics`, secrètes, restent sur le serveur ; identifiant et mot de passe facultatifs pour un agenda protégé (#72).
+
+### Modifié
+- Les clés et mots de passe des widgets peuvent faire jusqu’à 2 000 caractères (plusieurs adresses d’agenda).
+
 ## [0.15.0] - 2026-10-29
 
 ### Ajouté
@@ -201,7 +209,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.15.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.1...v0.13.2
