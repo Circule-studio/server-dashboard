@@ -151,6 +151,37 @@ jobs:
         if: failure()
         run: sudo journalctl -u server-dashboard -n 100 --no-pager
 
+  # Script community-scripts (packaging/proxmox) : la partie qui s'exécute dans le conteneur LXC
+  # tourne sur n'importe quelle Debian / Ubuntu ; les fonctions de community-scripts sont simulées.
+  proxmox:
+    name: Script Proxmox (community-scripts, hors Proxmox)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: ShellCheck
+        run: shellcheck -e SC1090,SC1091,SC2034,SC2154 packaging/proxmox/ct/server-dashboard.sh packaging/proxmox/install/server-dashboard-install.sh packaging/proxmox/test-install.sh
+
+      - name: Installation
+        run: sudo env "PATH=$PATH" bash packaging/proxmox/test-install.sh
+
+      - name: Le service tourne et le mot de passe généré fonctionne
+        run: |
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me >/dev/null 2>&1 && break; sleep 1; done
+          systemctl is-active server-dashboard
+          pass="$(sudo sed -n 's/^Admin password: //p' /root/server-dashboard.creds)"
+          test -n "$pass"
+          curl -fsS -H 'Content-Type: application/json' -d "{\"password\":\"$pass\"}" http://127.0.0.1:7575/api/login
+          test "$(sudo stat -c '%U %a' /var/lib/server-dashboard)" = "server-dashboard 750"
+          test "$(sudo stat -c '%U:%G %a' /etc/server-dashboard/server-dashboard.env)" = "root:server-dashboard 640"
+
+      - name: Logs du service en cas d'échec
+        if: failure()
+        run: sudo journalctl -u server-dashboard -n 100 --no-pager
+
   docker:
     name: Image Docker
     runs-on: ubuntu-latest

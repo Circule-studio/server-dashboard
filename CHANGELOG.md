@@ -12,6 +12,8 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Catalogue d’applications connues** dans « Nouvelle application » : taper « jelly » propose Jellyfin, et le choisir remplit le nom, l’icône, la description et l’URL avec le port par défaut. L’adresse est présélectionnée : il ne reste qu’à taper l’IP. 50 applications pour commencer (Jellyfin, *arr, Immich, Home Assistant, Proxmox…), dans `public/catalog.js` (#14).
 - **Taille des tuiles** (mode édition > Affichage) : compacte (icône et nom, plus de tuiles par ligne), normale ou grande (grande icône, description sur deux lignes). Le choix est enregistré dans la configuration (#6).
 
+- **Brouillon des scripts Proxmox VE** pour community-scripts (`packaging/proxmox/`) : création du conteneur LXC, installation sans Docker (service systemd, utilisateur dédié, mot de passe généré) et mise à jour qui garde la config. Le script d’installation est testé par la CI ; reste à tester `ct/` sur un vrai Proxmox (#15).
+
 ### Modifié
 - **Un fichier par intégration** : `integrations/<service>.js` côté serveur, `public/widgets/<service>.js` côté interface et `dev/mocks/<service>.js` pour les faux services. Ajouter un widget ne touche plus les fichiers des autres, et les contributions ne se marchent plus dessus (voir « Ajouter un widget » dans CONTRIBUTING.md) (#48).
 - `check-i18n` (CI) : une clé de traduction est vérifiée où qu'elle soit écrite dans `app.js`, même dans une condition (`t(cond ? 'clé.a' : 'clé.b')`), et les pluriels `tp()` sont vérifiés dans leurs deux formes (#46).
