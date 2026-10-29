@@ -627,6 +627,27 @@ app.get('/api/config', readAuth, route(async (req, res) => {
   res.json(publicConfig(await readConfig(), isAuthed(req)));
 }));
 
+// Export de la config (mode édition > Sauvegarde), admin seulement. Sans ?secrets=1, les clés API
+// et mots de passe sont retirés : le fichier peut être partagé. L'import se fait dans le navigateur,
+// puis passe par PUT /api/config comme un enregistrement normal.
+const EXPORT_FORMAT = 'server-dashboard-config';
+const { version: APP_VERSION } = require('./package.json');
+
+app.get('/api/config/export', requireAuth, route(async (req, res) => {
+  const { revision, ...cfg } = await readConfig();
+  const secrets = req.query.secrets === '1';
+  const config = secrets ? cfg : {
+    ...cfg,
+    widgets: cfg.widgets.map((w) => Object.fromEntries(Object.entries(w).filter(([k]) => !SECRET_FIELDS.includes(k)))),
+  };
+  const date = new Date().toISOString().slice(0, 10);
+  res.set({
+    'Content-Disposition': `attachment; filename="server-dashboard-${date}${secrets ? '-avec-secrets' : ''}.json"`,
+    'Cache-Control': 'no-store',
+  });
+  res.json({ format: EXPORT_FORMAT, version: APP_VERSION, exportedAt: new Date().toISOString(), secrets, config });
+}));
+
 app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(async () => {
   const previous = await readConfig();
   // Verrouillage optimiste : on refuse d'écraser une config modifiée depuis que le

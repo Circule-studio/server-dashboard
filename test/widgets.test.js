@@ -382,6 +382,35 @@ test('Un champ secret vide garde la valeur enregistrée', async () => {
   await widget('jellyfin'); // la clé jf-key est toujours là
 });
 
+// ---------- Sauvegarde ----------
+test('Export de la config : admin seulement, sans secrets par défaut, réimportable', async () => {
+  const saved = cookie;
+  cookie = '';
+  assert.equal((await api('GET', '/api/config/export')).status, 401);
+  cookie = saved;
+  const plain = await api('GET', '/api/config/export');
+  assert.equal(plain.status, 200);
+  assert.match(plain.headers.get('content-disposition'), /attachment; filename="server-dashboard-\d{4}-\d{2}-\d{2}\.json"/);
+  assert.equal(plain.json.format, 'server-dashboard-config');
+  assert.equal(plain.json.secrets, false);
+  for (const s of SECRETS) assert.ok(!plain.text.includes(`"${s}"`), `secret « ${s} » dans l'export sans secrets`);
+  assert.equal(plain.json.config.widgets.find((w) => w.id === 'qbittorrent').username, 'admin', 'utilisateur gardé');
+  const full = await api('GET', '/api/config/export?secrets=1');
+  assert.equal(full.json.secrets, true);
+  assert.equal(full.json.config.widgets.find((w) => w.id === 'jellyfin').apiKey, 'jf-key');
+  // Réimport, comme le fait l'interface : la config enregistrée reste identique.
+  const before = (await api('GET', '/api/config')).json;
+  for (const exported of [plain.json, full.json]) {
+    const current = (await api('GET', '/api/config')).json;
+    const r = await api('PUT', '/api/config', { ...exported.config, revision: current.revision });
+    assert.equal(r.status, 200, r.text);
+    const { revision, ...after } = r.json;
+    const { revision: _, ...expected } = before;
+    assert.deepEqual(after, expected);
+  }
+  await widget('jellyfin'); // la clé est toujours là après l'import sans secrets
+});
+
 // ---------- Docker ----------
 test('Docker : conteneurs du faux socket', { skip: process.platform === 'win32' && 'socket unix' }, async () => {
   const r = await api('GET', '/api/docker/containers');

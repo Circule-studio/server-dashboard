@@ -34,6 +34,7 @@
       <button id="addWidgetBtn" class="btn btn-ghost" data-i18n="edit.addWidget"></button>
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
       <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
+      <button id="backupBtn" class="btn btn-ghost" data-i18n="edit.backup"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
       <button id="cancelBtn" class="btn btn-ghost" data-i18n="edit.done"></button>
     </div>
@@ -151,6 +152,28 @@
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="backupDialog">
+    <form method="dialog" id="backupForm">
+      <h3 data-i18n="backup.title"></h3>
+      <fieldset class="sections">
+        <legend data-i18n="backup.export"></legend>
+        <label class="check"><input type="checkbox" name="secrets"><span data-i18n="backup.withSecrets"></span></label>
+        <small class="muted" data-i18n="backup.exportHelp"></small>
+        <p class="backup-warning" data-backup-warning hidden data-i18n="backup.secretsWarning"></p>
+        <button type="button" class="btn" data-backup-export data-i18n="backup.download"></button>
+      </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="backup.import"></legend>
+        <small class="muted" data-i18n="backup.importHelp"></small>
+        <input type="file" name="file" accept="application/json,.json" hidden>
+        <button type="button" class="btn" data-backup-import data-i18n="backup.chooseFile"></button>
+      </fieldset>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.close"></button>
       </div>
     </form>
   </dialog>

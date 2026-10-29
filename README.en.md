@@ -29,6 +29,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **qBittorrent**: speeds, active torrents.
   - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
 - **Edit mode** (password protected) with drag & drop, and a welcome screen on first launch.
+- **Backup**: export the configuration to a file (with or without API keys), and import it to restore it or copy it to another machine.
 - API keys and passwords **never leave the server**.
 
 Stack: Node.js + Express, plain HTML / CSS / JS (no build step), configuration stored in a JSON file.

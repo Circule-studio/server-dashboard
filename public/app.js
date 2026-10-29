@@ -1066,6 +1066,53 @@ function submitDisks(e) {
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
+// ---------- Sauvegarde : export et import de la config (mode édition) ----------
+// L'export télécharge la config enregistrée (route serveur, admin seulement). L'import remplace le
+// brouillon : rien n'est écrit avant « Enregistrer », qui passe par les vérifications habituelles.
+function openBackupDialog() {
+  const form = $('#backupForm');
+  form.elements.secrets.checked = false;
+  form.querySelector('[data-backup-warning]').hidden = true;
+  $('#backupDialog').showModal();
+}
+
+function exportConfig() {
+  const secrets = $('#backupForm').elements.secrets.checked;
+  // Lien de téléchargement : le cookie de session part avec la requête, le serveur nomme le fichier.
+  const link = h('a', { href: `/api/config/export${secrets ? '?secrets=1' : ''}`, download: '', hidden: true });
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
+
+async function importConfig(file) {
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    toast(t('backup.invalid'), true);
+    return;
+  }
+  // Fichier exporté, ou data/config.json copié tel quel.
+  const cfg = data?.format === 'server-dashboard-config' ? data.config : data;
+  if (!cfg || typeof cfg !== 'object' || !Array.isArray(cfg.categories)) {
+    toast(t('backup.invalid'), true);
+    return;
+  }
+  if (isDirty() && !confirm(t('backup.replaceConfirm'))) return;
+  // Sans secret dans le fichier, le serveur garde ceux des widgets qui ont le même identifiant :
+  // le formulaire doit alors les afficher comme « inchangés ».
+  const saved = new Map(state.config.widgets.map((w) => [w.id, w]));
+  const widgets = (Array.isArray(cfg.widgets) ? cfg.widgets : []).map((w) => {
+    const old = saved.get(w?.id)?.type === w?.type ? saved.get(w.id) : {};
+    return { ...w, hasApiKey: !!w?.apiKey || !!old.hasApiKey, hasPassword: !!w?.password || !!old.hasPassword };
+  });
+  state.draft = { ...cfg, widgets, revision: state.draft.revision };
+  $('#backupDialog').close();
+  render();
+  toast(t(data.secrets === false ? 'backup.importedNoSecrets' : 'backup.imported'));
+}
+
 // ---------- Options d'affichage (mode édition) ----------
 function openDisplayDialog() {
   const form = $('#displayForm');
@@ -1249,6 +1296,16 @@ async function init() {
   $('#disksBtn').addEventListener('click', openDisksDialog);
   $('#disksForm').addEventListener('submit', submitDisks);
   $('#displayBtn').addEventListener('click', openDisplayDialog);
+  $('#backupBtn').addEventListener('click', openBackupDialog);
+  const backup = $('#backupForm');
+  backup.elements.secrets.addEventListener('change', (e) => { backup.querySelector('[data-backup-warning]').hidden = !e.target.checked; });
+  backup.querySelector('[data-backup-export]').addEventListener('click', exportConfig);
+  backup.querySelector('[data-backup-import]').addEventListener('click', () => backup.elements.file.click());
+  backup.elements.file.addEventListener('change', (e) => {
+    const [file] = e.target.files;
+    e.target.value = ''; // le même fichier pourra être rechoisi
+    if (file) importConfig(file);
+  });
   $('#displayForm').addEventListener('submit', submitDisplay);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
