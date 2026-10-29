@@ -4,6 +4,16 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.15.0] - 2026-10-29
+
+### Ajouté
+- **Alertes des widgets** (case « M’alerter ») étendues : disque à plus de 90 % (Proxmox, Glances, Agent), machine Glances ou Agent hors ligne, certificat Nginx Proxy Manager qui expire dans 7 jours ou moins, sonde Uptime Kuma hors ligne, caméra Frigate coupée. Messages adaptés aux disques et aux certificats, une notification par changement, rien au démarrage (#71).
+- Widget **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date, lus par le serveur sans dépendance. Titres en texte brut, seuls les liens http(s) sont gardés (#73).
+
+### Modifié
+- `docker-compose.yml` devient **`compose.yaml`**, le nom recommandé par Docker. Une installation existante n’a rien à changer ; les nouvelles commandes d’installation téléchargent `compose.yaml` (#78).
+- Nouvelles captures d’écran, en anglais pour le README anglais et le site `/en/` (#79).
+
 ## [0.14.0] - 2026-10-29
 
 ### Ajouté
@@ -191,7 +201,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.14.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.0...v0.13.1
