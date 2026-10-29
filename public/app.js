@@ -1236,7 +1236,36 @@ function openAppDialog(ci, ai) {
   form.elements.description.value = app.description || '';
   form.elements.category.replaceChildren(...state.draft.categories.map((c, i) =>
     h('option', { value: i, selected: i === ci }, c.name)));
+  // Le catalogue ne sert qu'à créer une application.
+  form.querySelector('[data-catalog]').hidden = ai != null;
+  form.elements.catalog.value = '';
   $('#appDialog').showModal();
+}
+
+// ---------- Catalogue d'applications connues (catalog.js) ----------
+function fillCatalogList() {
+  $('#appCatalog').replaceChildren(...APP_CATALOG.map((a) => h('option', { value: a.name, label: a[LANG] || a.fr })));
+}
+
+// Une application du catalogue choisie : le formulaire est rempli, et l'adresse de l'URL est
+// sélectionnée pour qu'on n'ait qu'à taper celle de la machine.
+function applyCatalog() {
+  const form = $('#appForm').elements;
+  const q = fold(form.catalog.value.trim());
+  const app = q && APP_CATALOG.find((a) => fold(a.name) === q);
+  if (!app) return;
+  // Hôte déjà saisi, sinon celui du dashboard (souvent la même machine).
+  let host = location.hostname || '192.168.1.10';
+  try { host = new URL(form.url.value).hostname || host; } catch { /* URL vide ou incomplète */ }
+  const scheme = app.scheme || 'http';
+  const defaultPort = { http: 80, https: 443 }[scheme] === app.port;
+  form.name.value = app.name;
+  form.icon.value = app.icon;
+  form.description.value = app[LANG] || app.fr;
+  form.url.value = `${scheme}://${host}${defaultPort ? '' : `:${app.port}`}${app.path || ''}`;
+  form.url.focus();
+  const start = scheme.length + 3;
+  form.url.setSelectionRange(start, start + host.length);
 }
 
 function submitApp(e) {
@@ -1561,6 +1590,8 @@ async function init() {
     if (title) { state.draft.title = title; render(); }
   });
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
+  fillCatalogList();
+  $('#appForm').elements.catalog.addEventListener('input', applyCatalog);
   $('#disksBtn').addEventListener('click', openDisksDialog);
   $('#disksForm').addEventListener('submit', submitDisks);
   $('#displayBtn').addEventListener('click', openDisplayDialog);

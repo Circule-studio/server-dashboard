@@ -23,6 +23,7 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 | `public/index.html` | Structure de la page et des fenêtres de dialogue |
 | `public/style.css` | Tout le style (les couleurs sont des variables dans `:root`) |
 | `public/app.js` | Logique de l'interface : rendu des tuiles et widgets, mode édition, rafraîchissement |
+| `public/catalog.js` | Catalogue d'applications connues (nom, icône, port par défaut) : un objet par application, facile à compléter |
 | `server.js` | API Express : config, auth, statut, stats système, Docker |
 | `integrations.js` | Appels aux services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr) et normalisation des données |
 | `dev/mocks.js` | Faux services pour le développement |

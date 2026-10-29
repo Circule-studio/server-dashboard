@@ -71,6 +71,11 @@
   <dialog id="appDialog">
     <form method="dialog" id="appForm">
       <h3 id="appDialogTitle" data-i18n="app.dialogTitle"></h3>
+      <label data-catalog><span data-i18n="app.catalog"></span>
+        <input name="catalog" type="search" list="appCatalog" autocomplete="off" data-i18n-placeholder="app.catalogPlaceholder">
+        <small class="muted" data-i18n="app.catalogHelp"></small>
+      </label>
+      <datalist id="appCatalog"></datalist>
       <label><span data-i18n="common.name"></span><input name="name" required maxlength="100"></label>
       <label><span data-i18n="app.url"></span><input name="url" type="url" required placeholder="http://192.168.1.10:8096"></label>
       <label><span data-i18n="app.icon"></span>
@@ -186,6 +191,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="i18n.js"></script>
+  <script src="catalog.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

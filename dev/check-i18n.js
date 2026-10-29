@@ -58,5 +58,20 @@ for (const code of serverCodes) {
   }
 }
 
+// Catalogue d'applications : chaque entrée complète, avec sa description dans toutes les langues.
+vm.runInContext(`${read('public/catalog.js')}\nthis.APP_CATALOG = APP_CATALOG;`, ctx);
+const seenApps = new Set();
+for (const a of ctx.APP_CATALOG) {
+  const problems = [];
+  if (!a.name || seenApps.has(a.name.toLowerCase())) problems.push('nom absent ou en double');
+  if (!/^[a-z0-9-]+$/.test(a.icon || '')) problems.push('icône invalide');
+  if (!Number.isInteger(a.port) || a.port < 1 || a.port > 65535) problems.push('port invalide');
+  if (a.scheme && !['http', 'https'].includes(a.scheme)) problems.push('scheme invalide');
+  if (a.path && !a.path.startsWith('/')) problems.push('path doit commencer par /');
+  for (const lang of langs) if (!a[lang]) problems.push(`description « ${lang} » manquante`);
+  if (problems.length) { errors++; console.error(`[catalogue] ${a.name || '?'} : ${problems.join(', ')}`); }
+  seenApps.add((a.name || '').toLowerCase());
+}
+
 if (errors) process.exit(1);
-console.log(`Traductions OK : ${langs.join(', ')} · ${Object.keys(ctx.I18N[langs[0]]).length} clés · ${used.size} utilisées · ${serverCodes.size} codes serveur`);
+console.log(`Traductions OK : ${langs.join(', ')} · ${Object.keys(ctx.I18N[langs[0]]).length} clés · ${used.size} utilisées · ${serverCodes.size} codes serveur · ${ctx.APP_CATALOG.length} apps au catalogue`);

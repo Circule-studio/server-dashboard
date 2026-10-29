@@ -106,6 +106,9 @@ const I18N = {
     'app.iconHelp': 'Nom d\'icône de <a href="https://dashboardicons.com" target="_blank" rel="noopener">dashboardicons.com</a> ou URL complète.',
     'app.description': 'Description',
     'app.category': 'Catégorie',
+    'app.catalog': 'Application connue (facultatif)',
+    'app.catalogPlaceholder': 'Jellyfin, Sonarr, Home Assistant…',
+    'app.catalogHelp': 'Remplit le nom, l’icône et l’URL avec le port par défaut : il ne reste qu’à taper l’adresse IP.',
     'app.deleteConfirm': 'Supprimer « {name} » ?',
 
     'category.new': 'Nouvelle catégorie',
@@ -477,6 +480,9 @@ const I18N = {
     'app.iconHelp': 'Icon name from <a href="https://dashboardicons.com" target="_blank" rel="noopener">dashboardicons.com</a> or a full URL.',
     'app.description': 'Description',
     'app.category': 'Category',
+    'app.catalog': 'Known app (optional)',
+    'app.catalogPlaceholder': 'Jellyfin, Sonarr, Home Assistant…',
+    'app.catalogHelp': 'Fills in the name, icon and URL with the default port: you only need to type the IP address.',
     'app.deleteConfirm': 'Delete "{name}"?',
 
     'category.new': 'New category',
