@@ -4,6 +4,8 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.9.1] - 2026-10-29
+
 ### Corrigé
 - Site du projet : un visiteur francophone était toujours redirigé vers la version anglaise, à cause d’un caractère de contrôle invisible dans le test de la langue (depuis la 0.6.1). La CI refuse maintenant tout caractère de ce genre dans le dépôt.
 - Widgets étroits (largeur par défaut, tablette) : les chiffres et leurs libellés n’étaient plus coupés (« 63 … », « CRITI… ») : deux chiffres par ligne quand la place manque, libellés sur deux lignes. Dans Proxmox et Pulse, la charge d’une VM passe sous son nom au lieu de le masquer.
@@ -154,7 +156,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...v0.7.0
