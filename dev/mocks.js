@@ -7,6 +7,7 @@
 //   Radarr       http://localhost:17878  clé API  radarr-key
 //   Proxmox VE   http://localhost:18006  jeton    root@pam!dashboard / pve-secret
 //   Pulse        http://localhost:17655  jeton    pulse-token
+//   Calendrier   adresse  http://localhost:18091/agenda.ics ; /prive.ics avec agenda / agenda-pass
 //   Flux RSS     http://localhost:18090/rss.xml et /atom.xml (/pas-un-flux : erreur)
 //   GoAccess     http://localhost:17890  rapport JSON, sans clé
 //   Alwaysdata   URL de l'API http://localhost:17443/v1  jeton  alwaysdata-token (compte facultatif)
@@ -26,7 +27,7 @@
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
-  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss'];
+  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 

@@ -67,6 +67,9 @@ const WIDGETS = [
   { id: 'alwaysdata', type: 'alwaysdata', url: 'http://localhost:17443/v1', username: 'thomas', apiKey: 'alwaysdata-token' },
   { id: 'alwaysdata-bad', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'mauvais-jeton-ad' },
   { id: 'alwaysdata-ip', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'alwaysdata-ip-token' },
+  { id: 'ical', type: 'ical', apiKey: 'http://localhost:18091/agenda.ics http://localhost:18091/prive.ics', username: 'agenda', password: 'agenda-pass' },
+  { id: 'ical-bad', type: 'ical', apiKey: 'http://localhost:18091/pas-ical' },
+  { id: 'ical-auth', type: 'ical', apiKey: 'http://localhost:18091/prive.ics', username: 'agenda', password: 'faux' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
@@ -99,7 +102,7 @@ const WIDGETS = [
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -218,6 +221,36 @@ test('Flux RSS : adresses invalides refusées à l’enregistrement', async () =
     const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { id: 'rss-x', type: 'rss', feeds }] });
     assert.deepEqual([r.status, r.json.code], [400, code]);
   }
+});
+
+test('Calendrier : deux agendas (dont un protégé), prochains événements', async () => {
+  const d = await widget('ical');
+  assert.equal(d.calendars, 2);
+  assert.equal(d.failed, 0);
+  assert.ok(d.events.some((e) => e.title === 'Rendez-vous privé' && e.calendar === 1), 'agenda protégé lu');
+  assert.ok(d.events.length <= 10 && d.events.length + d.more >= 9, '10 au plus, le reste compté');
+  const when = (e) => (e.allDay ? Date.parse(`${e.start}T00:00:00`) : Date.parse(e.start));
+  assert.ok(d.events.every((e, i) => i === 0 || when(d.events[i - 1]) <= when(e)), 'dans l’ordre');
+  assert.ok(!d.events.some((e) => e.title === 'Annulé'), 'événement annulé ignoré');
+});
+
+test('Calendrier : récurrences, exception, occurrence déplacée, journée entière (module seul)', async () => {
+  const { INTEGRATIONS } = require('../integrations');
+  const text = await (await fetch('http://localhost:18091/agenda.ics')).text();
+  const now = Date.now();
+  const events = INTEGRATIONS.ical.parse(text, now, now + 7 * 864e5, 0);
+  const day = (n) => new Date(now + n * 864e5).toISOString().slice(0, 10);
+  const on = (n, title) => events.filter((e) => e.title === title && e.start.slice(0, 10) === day(n));
+  for (const n of [1, 2, 5, 6]) assert.equal(on(n, 'Point quotidien').length, 1, `point quotidien J+${n}`);
+  assert.equal(on(3, 'Point quotidien').length, 0, 'EXDATE');
+  assert.equal(on(4, 'Point quotidien').length, 0, 'occurrence remplacée');
+  assert.equal(on(4, 'Point quotidien (décalé)')[0].start, `${day(4)}T08:00:00.000Z`);
+  assert.equal(on(7, 'Point quotidien').length, 0, 'COUNT=10 : fini à J+6');
+  assert.equal(events.filter((e) => e.title === 'Sport').length, 1, 'hebdomadaire commencé il y a 300 semaines');
+  const bday = events.find((e) => e.title === 'Anniversaire de Camille');
+  assert.deepEqual([bday.allDay, bday.start, bday.end], [true, day(2), day(3)]);
+  const simple = events.find((e) => e.title === 'Réunion, projet dashboard');
+  assert.deepEqual([simple.location, simple.start], ['Salle 2', `${day(1)}T14:00:00.000Z`]);
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
@@ -351,6 +384,8 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
     'rss-bad': 'rss_invalid',
+    'ical-bad': 'ical_invalid',
+    'ical-auth': 'auth_refused',
     'alwaysdata-bad': 'auth_refused',
     'alwaysdata-ip': 'alwaysdata_ip',
     'pihole-bad': 'pihole_password',
