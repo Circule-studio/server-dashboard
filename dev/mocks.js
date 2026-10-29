@@ -1,6 +1,7 @@
 // Faux services pour développer les widgets sans installer Jellyfin & co.
 // Lancer : npm run mocks, puis ajouter les widgets dans le dashboard avec :
 //   Jellyfin     http://localhost:18096  clé API  jf-key
+//   Plex         http://localhost:13240  token    plex-token
 //   qBittorrent  http://localhost:18080  admin / secret
 //   Sonarr       http://localhost:18989  clé API  sonarr-key
 //   Radarr       http://localhost:17878  clé API  radarr-key
@@ -20,7 +21,7 @@
 //                demo/private (jeton gh-token obligatoire), demo/tags-only, demo/empty, demo/rate-limited, demo/secondary
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
-const SERVICES = ['jellyfin', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'weather', 'immich', 'pihole', 'adguard',
+const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'weather', 'immich', 'pihole', 'adguard',
   'frigate', 'homeassistant', 'npm', 'github'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');

@@ -53,6 +53,7 @@ async function api(method, url, body) {
 // Un widget de chaque type, branché sur son faux service (identifiants : en tête de dev/mocks.js).
 const WIDGETS = [
   { id: 'jellyfin', type: 'jellyfin', url: 'http://localhost:18096', apiKey: 'jf-key' },
+  { id: 'plex', type: 'plex', url: 'http://localhost:13240', apiKey: 'plex-token' },
   { id: 'qbittorrent', type: 'qbittorrent', url: 'http://localhost:18080', username: 'admin', password: 'secret' },
   { id: 'sonarr', type: 'sonarr', url: 'http://localhost:18989', apiKey: 'sonarr-key' },
   { id: 'radarr', type: 'radarr', url: 'http://localhost:17878', apiKey: 'radarr-key' },
@@ -71,6 +72,7 @@ const WIDGETS = [
   { id: 'github', type: 'github', url: 'http://localhost:14000', repo: 'https://github.com/circule-studio/server-dashboard' },
   // Cas d'erreur : chacun doit renvoyer un code que l'interface traduit.
   { id: 'jellyfin-bad', type: 'jellyfin', url: 'http://localhost:18096', apiKey: 'mauvaise-cle' },
+  { id: 'plex-bad', type: 'plex', url: 'http://localhost:13240', apiKey: 'mauvais-token' },
   { id: 'qbit-bad', type: 'qbittorrent', url: 'http://localhost:18080', username: 'admin', password: 'faux' },
   { id: 'immich-user', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-user-key' },
   { id: 'pihole-bad', type: 'pihole', url: 'http://localhost:10080', password: 'faux' },
@@ -86,7 +88,7 @@ const WIDGETS = [
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass'];
+const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -117,6 +119,14 @@ test('Jellyfin : compteurs et lectures en cours', async () => {
   const d = await widget('jellyfin');
   assert.deepEqual(d.stats.map((s) => s.key), ['movies', 'series', 'episodes']);
   assert.ok(d.sessions.length > 0 && d.sessions.every((s) => s.title && typeof s.progress === 'number'));
+});
+
+test('Plex : bibliothèques et lectures en cours', async () => {
+  const d = await widget('plex');
+  assert.deepEqual(d.stats, [{ key: 'libraries', value: 3 }, { key: 'streams', value: 2 }]);
+  assert.deepEqual(d.sessions.map((s) => [s.title, s.paused]), [['Severance — S02E04', false], ['Dune: Part Two', true]]);
+  assert.equal(d.sessions[1].subtitle, '2024');
+  assert.ok(Math.abs(d.sessions[0].progress - 31 / 47) < 1e-9);
 });
 
 test('qBittorrent : débits et torrents', async () => {
@@ -271,6 +281,7 @@ test('GitHub : version, issues, PR (dépôt donné par son adresse)', async () =
 test('Erreurs : un code traduisible pour chaque cas', async () => {
   const expected = {
     'jellyfin-bad': 'auth_refused',
+    'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',
     'pihole-bad': 'pihole_password',

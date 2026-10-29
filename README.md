@@ -95,7 +95,7 @@ npm run dev
 
 Puis ouvre http://localhost:7575. Le mot de passe est celui de ton fichier `.env` s'il existe (attention aux majuscules), sinon `admin`.
 
-Pour travailler sur les widgets sans avoir les vrais services, lance de faux Jellyfin, qBittorrent, Sonarr et Radarr dans un second terminal :
+Pour travailler sur les widgets sans avoir les vrais services, lance un faux service pour chaque widget (Jellyfin, Plex, Proxmox, Home Assistant, GitHub…) et un faux Docker dans un second terminal :
 
 ```bash
 npm run mocks

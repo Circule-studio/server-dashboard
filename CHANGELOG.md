@@ -16,6 +16,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Brouillon des scripts Proxmox VE** pour community-scripts (`packaging/proxmox/`) : création du conteneur LXC, installation sans Docker (service systemd, utilisateur dédié, mot de passe généré) et mise à jour qui garde la config. Le script d’installation est testé par la CI ; reste à tester `ct/` sur un vrai Proxmox (#15).
 
 ### Modifié
+- Faux **Plex** dans `npm run mocks` (il répond en XML sauf si on demande du JSON, comme le vrai) et tests du widget : tous les widgets sont maintenant testés (#67).
 - **Un fichier par intégration** : `integrations/<service>.js` côté serveur, `public/widgets/<service>.js` côté interface et `dev/mocks/<service>.js` pour les faux services. Ajouter un widget ne touche plus les fichiers des autres, et les contributions ne se marchent plus dessus (voir « Ajouter un widget » dans CONTRIBUTING.md) (#48).
 - `check-i18n` (CI) : une clé de traduction est vérifiée où qu'elle soit écrite dans `app.js`, même dans une condition (`t(cond ? 'clé.a' : 'clé.b')`), et les pluriels `tp()` sont vérifiés dans leurs deux formes (#46).
 - **Tests automatiques des widgets** (`npm test`, lancé par la CI) : avec les faux services, un widget de chaque type est vérifié, ainsi que les principaux cas d’erreur (code traduit) et l’absence de tout secret dans `/api/config`. Uniquement `node:test`, sans dépendance (#45).

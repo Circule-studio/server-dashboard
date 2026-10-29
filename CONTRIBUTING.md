@@ -11,7 +11,7 @@ git clone <url-du-dépôt>
 cd server-dashboard
 npm install
 npm run dev      # dashboard sur http://localhost:7575 (mot de passe : admin)
-npm run mocks    # dans un 2e terminal : faux Jellyfin / qBittorrent / Sonarr / Radarr
+npm run mocks    # dans un 2e terminal : un faux service par widget, et un faux Docker
 ```
 
 Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les widgets via **Connexion > Éditer > + Widget**.

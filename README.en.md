@@ -108,6 +108,6 @@ URLs must be reachable **from the dashboard server**.
 
 ## Contributing
 
-Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, Glances, Frigate, Home Assistant, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
+Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, Plex, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, Glances, Frigate, Home Assistant, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
 License: [MIT](LICENSE).
