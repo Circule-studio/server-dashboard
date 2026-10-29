@@ -4,10 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.9.0] - 2026-10-29
+
 ### Ajouté
 - Widget **GitHub** : on connecte un dépôt (`propriétaire/dépôt` ou son adresse) pour suivre sa dernière version, les commits non publiés depuis, la pré-release en cours, le dernier commit, les issues et les pull requests ouvertes (avec leurs labels et les brouillons). Blocs au choix, comme pour Pulse. Jeton facultatif, obligatoire pour un dépôt privé. Pour ménager la limite de GitHub (60 requêtes par heure sans jeton) : rafraîchissement toutes les 15 min sans jeton, requêtes conditionnelles (ETag, gratuites avec un jeton quand rien n’a changé), requêtes partagées entre widgets du même dépôt, et plus aucune requête jusqu’à l’heure de reprise une fois la limite atteinte. Le widget garde alors ses dernières données avec un avertissement, au lieu d’une erreur. GitHub Enterprise pris en charge. Faux GitHub dans `npm run mocks` (#63).
 - Widget **Uptime Kuma** : les sondes d’une page de statut (publique, sans clé), celles en panne en premier avec leur message d’erreur, le temps de réponse et la disponibilité sur 24 h. On peut coller directement l’adresse de la page (`http://IP:3001/status/maison`). Faux Uptime Kuma dans `npm run mocks` (#64).
-- Widget **Agent** : pour une machine derrière un NAT ou sans port ouvert, un petit script (`agent/server-dashboard-agent.js`, Node.js 18+, sans dépendance, Linux, macOS et Windows) envoie lui-même CPU, mémoire, disques, température et uptime toutes les 30 s. Le jeton est créé par le dashboard, qui affiche la commande prête à copier ; les valeurs reçues sont vérifiées et bornées ; sans nouvelles depuis 3 envois, le widget l’indique avec les dernières valeurs (#7).
+- Widget **Agent** : pour une machine derrière un NAT ou sans port ouvert, un petit script (`agent/server-dashboard-agent.js`, Node.js 18.15+, sans dépendance, Linux, macOS et Windows) envoie lui-même CPU, mémoire, disques, température et uptime toutes les 30 s. Le jeton est créé par le dashboard, qui affiche la commande prête à copier ; les valeurs reçues sont vérifiées et bornées ; sans nouvelles depuis 3 envois, le widget l’indique avec les dernières valeurs (#7).
 - Widget **Glances** : superviser d’autres machines (PC, Raspberry Pi, NAS, 2e serveur…) sur le même dashboard, un widget par machine. CPU et charge, mémoire, disques, température la plus haute et uptime, avec les mêmes couleurs de saturation que les stats du serveur ; une machine éteinte ou hors du réseau est clairement signalée. API v4 ou v3 de Glances détectée, mot de passe facultatif. Faux Glances (deux machines) dans `npm run mocks` (#7).
 - Widget **Frigate** : caméras en ligne (images par seconde et détection), vitesse du détecteur et derniers événements avec leur miniature et le nom reconnu (visage, plaque). Les miniatures passent par le dashboard (`/api/widgets/:id/thumbnail/:événement`) et respectent `REQUIRE_LOGIN` : Frigate n’est jamais exposé au navigateur. Port 5000 sans authentification, ou 8971 avec un compte Frigate (0.14+). Faux Frigate dans `npm run mocks` (#12).
 - Widget **Home Assistant** : les entités choisies (une par ligne, 30 au plus) avec leur valeur et leur unité, ou un état traduit selon le type de capteur (porte ouverte, mouvement détecté, fuite d’eau, lumière allumée, présent / absent…) et depuis quand. Une entité supprimée est signalée sans faire échouer le widget. Une requête par entité, plutôt que toutes les entités de la maison. Faux Home Assistant dans `npm run mocks` (#13).
@@ -16,7 +18,6 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Sauvegarde de la configuration** (mode édition > Sauvegarde) : export en un fichier JSON, sans les secrets par défaut (partageable), ou avec les clés API et mots de passe pour une vraie sauvegarde ; import d’un fichier exporté ou d’un `data/config.json`, qui remplace le brouillon sans rien écrire avant « Enregistrer ». Les widgets déjà présents gardent leurs secrets si le fichier n’en contient pas (#66).
 - **Catalogue d’applications connues** dans « Nouvelle application » : taper « jelly » propose Jellyfin, et le choisir remplit le nom, l’icône, la description et l’URL avec le port par défaut. L’adresse est présélectionnée : il ne reste qu’à taper l’IP. 50 applications pour commencer (Jellyfin, *arr, Immich, Home Assistant, Proxmox…), dans `public/catalog.js` (#14).
 - **Taille des tuiles** (mode édition > Affichage) : compacte (icône et nom, plus de tuiles par ligne), normale ou grande (grande icône, description sur deux lignes). Le choix est enregistré dans la configuration (#6).
-
 - **Brouillon des scripts Proxmox VE** pour community-scripts (`packaging/proxmox/`) : création du conteneur LXC, installation sans Docker (service systemd, utilisateur dédié, mot de passe généré) et mise à jour qui garde la config. Le script d’installation est testé par la CI ; reste à tester `ct/` sur un vrai Proxmox (#15).
 
 ### Modifié
@@ -148,7 +149,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.8.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.6.0...v0.6.1
