@@ -199,7 +199,9 @@ function sanitizeWidgets(list, previous = []) {
     // Doublon venu d'un config.json modifié à la main : le n-ième garde les secrets du n-ième.
     const n = occurrences.get(raw) || 0;
     occurrences.set(raw, n + 1);
+    // Même type seulement : la clé d'un ancien widget Sonarr ne doit pas partir vers un Radarr.
     const old = (raw && previous.filter((p) => p.id === raw)[n]) || {};
+    if (old.type && old.type !== type) for (const f of SECRET_FIELDS) delete old[f];
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
     // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
     if (INTEGRATIONS[type].fields.includes('username')) {
@@ -269,7 +271,9 @@ function sanitizeNotify(input, previous) {
   };
   if (!out.url) throw fail('notify_url_missing', 'URL de notification manquante');
   // ntfy : l'adresse du sujet (https://ntfy.sh/mon-sujet), pas seulement celle du serveur.
-  if (type === 'ntfy' && new URL(out.url).pathname.replace(/\/+$/, '') === '') throw fail('notify_topic_missing', 'Sujet ntfy manquant');
+  let pathname;
+  try { ({ pathname } = new URL(out.url)); } catch { throw fail('invalid_url', `URL invalide : ${out.url}`, { url: out.url }); }
+  if (type === 'ntfy' && pathname.replace(/\/+$/, '') === '') throw fail('notify_topic_missing', 'Sujet ntfy manquant');
   if (type === 'gotify' && !out.token) throw fail('notify_token_missing', 'Jeton Gotify manquant');
   return out;
 }
@@ -464,8 +468,9 @@ async function computeStatuses() {
   return Object.fromEntries(results);
 }
 
-function getStatuses() {
-  if (!statusCache || Date.now() - statusCache.t > STATUS_CACHE_MS) {
+// `maxAge` : âge maximal des statuts partagés (plus court pour la vérification des notifications).
+function getStatuses(maxAge = STATUS_CACHE_MS) {
+  if (!statusCache || Date.now() - statusCache.t > maxAge) {
     const entry = { t: Date.now(), promise: computeStatuses() };
     entry.promise.catch(() => { if (statusCache === entry) statusCache = null; });
     statusCache = entry;
@@ -805,15 +810,14 @@ async function checkForNotifications() {
   try {
     const cfg = await readConfig();
     if (!cfg.notify?.type) { monitor.clear(); return; } // réactivées plus tard : pas d'alerte sur l'état ancien
-    const entry = { t: Date.now(), promise: computeStatuses() };
-    entry.promise.catch(() => { if (statusCache === entry) statusCache = null; });
-    statusCache = entry;
-    const { promise } = entry;
-    const events = monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), await promise);
-    for (const event of events) {
-      await sendNotification(cfg.notify, { ...event, board: cfg.title })
-        .catch((e) => console.error(`[notifications] envoi impossible (${event.kind} ${event.name}) : ${e.message}`));
-    }
+    // Statuts d'un visiteur réutilisés s'ils sont assez récents : pas de double ping.
+    const statuses = await getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2));
+    const events = monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), statuses);
+    // En parallèle : un service lent ne retarde pas les autres alertes ; un échec repart au tour suivant.
+    await Promise.all(events.map((event) => sendNotification(cfg.notify, { ...event, board: cfg.title }).catch((e) => {
+      monitor.failed(event);
+      console.error(`[notifications] envoi impossible (${event.kind} ${event.name}) : ${e.message}`);
+    })));
   } catch (e) {
     console.error('[notifications]', e.message);
   } finally {
@@ -830,11 +834,23 @@ app.post('/api/notify/test', requireAuth, route(async (req, res) => {
   try {
     notify = sanitizeNotify(req.body || {}, cfg.notify);
     if (!notify.type) throw fail('notify_missing', 'Notifications non configurées');
+  } catch (e) {
+    return res.status(400).json({ error: e.message, code: e.key || 'bad_request', params: e.params });
+  }
+  try {
     await sendNotification(notify, { kind: 'test', board: cfg.title });
   } catch (e) {
-    return res.status(e.key ? 502 : 500).json({ error: e.message, code: e.key, params: e.params });
+    return res.status(502).json({ error: e.message, code: e.key, params: e.params });
   }
   res.json({ ok: true });
 }));
 
-app.listen(PORT, () => console.log(`Server Dashboard sur http://localhost:${PORT}`));
+// Express 5 passe l'erreur d'écoute (port déjà pris…) au rappel : sans ce contrôle, le dashboard
+// annonçait démarrer puis s'arrêtait avec le code 0, que systemd (Restart=on-failure) ne relance pas.
+app.listen(PORT, (err) => {
+  if (err) {
+    console.error(`[!] Impossible d'écouter sur le port ${PORT} : ${err.code === 'EADDRINUSE' ? 'déjà utilisé par un autre programme' : err.message}`);
+    process.exit(1);
+  }
+  console.log(`Server Dashboard sur http://localhost:${PORT}`);
+});

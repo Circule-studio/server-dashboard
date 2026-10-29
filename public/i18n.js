@@ -450,7 +450,7 @@ const I18N = {
     'backup.invalid': 'Fichier invalide : ce n’est pas une configuration de Server Dashboard',
     'backup.replaceConfirm': 'Des modifications ne sont pas enregistrées. Les remplacer par le fichier importé ?',
     'backup.imported': 'Configuration importée : vérifie, puis clique sur Enregistrer',
-    'backup.importedNoSecrets': 'Configuration importée sans les secrets : ressaisis les clés des nouveaux widgets, puis clique sur Enregistrer',
+    'backup.importedNoSecrets': 'Configuration importée sans les secrets : ressaisis les clés des nouveaux widgets (et l’URL des notifications si besoin), puis clique sur Enregistrer',
 
     'disks.title': 'Disques affichés',
     'disks.help': 'Coche les disques à afficher dans les stats. Le nom est facultatif.',
@@ -964,7 +964,7 @@ const I18N = {
     'backup.invalid': 'Invalid file: this is not a Server Dashboard configuration',
     'backup.replaceConfirm': 'Some changes are not saved. Replace them with the imported file?',
     'backup.imported': 'Configuration imported: check it, then click Save',
-    'backup.importedNoSecrets': 'Configuration imported without secrets: enter the keys of new widgets again, then click Save',
+    'backup.importedNoSecrets': 'Configuration imported without secrets: enter the keys of new widgets again (and the notification URL if needed), then click Save',
 
     'disks.title': 'Displayed disks',
     'disks.help': 'Check the disks to show in the stats. The name is optional.',

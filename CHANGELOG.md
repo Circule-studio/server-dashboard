@@ -25,6 +25,10 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Tests automatiques des widgets** (`npm test`, lancé par la CI) : avec les faux services, un widget de chaque type est vérifié, ainsi que les principaux cas d’erreur (code traduit) et l’absence de tout secret dans `/api/config`. Uniquement `node:test`, sans dépendance (#45).
 - La configuration est gardée en mémoire au lieu d’être relue et analysée à chaque requête (stats toutes les 5 s, chaque widget…). Une modification à la main de `data/config.json` est toujours prise en compte : le fichier est relu dès que sa date ou sa taille change (#47).
 
+### Corrigé
+- Le dashboard ne démarre plus « dans le vide » quand son port est déjà utilisé : il affiche une erreur claire et s’arrête avec le code 1, ce qui permet à systemd de le signaler (avant, il annonçait démarrer puis s’arrêtait avec le code 0).
+- La clé API ou le mot de passe d’un widget n’est plus conservé quand on change son type tout en gardant son identifiant (une clé Sonarr ne part plus vers un Radarr).
+
 ## [0.8.0] - 2026-10-28
 
 ### Ajouté

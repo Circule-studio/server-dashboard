@@ -43,17 +43,22 @@ function buildRequest(notify, event) {
   const json = (obj, headers = {}) => ({ body: JSON.stringify(obj), headers: { 'Content-Type': 'application/json', ...headers } });
   const bearer = notify.token ? { Authorization: `Bearer ${notify.token}` } : {};
   switch (notify.type) {
-    case 'ntfy':
+    case 'ntfy': {
       // En-têtes HTTP : encodés en RFC 2047 par ntfy s'ils ne sont pas ASCII ; le titre passe donc dans
-      // le corps JSON (publication JSON de ntfy) pour garder accents et émojis.
+      // le corps JSON (publication JSON de ntfy) pour garder accents et émojis. Le sujet est le dernier
+      // segment du chemin (sans ?… ni #…), la publication se fait sur le chemin parent.
+      const u = new URL(notify.url);
+      const parts = u.pathname.split('/').filter(Boolean);
+      const topic = parts.pop() || '';
       return {
-        url: notify.url.replace(/\/([^/]+)\/?$/, ''),
+        url: `${u.origin}/${parts.join('/')}`,
         ...json({
-          topic: notify.url.match(/\/([^/]+)\/?$/)?.[1] || '',
+          topic,
           title: `${board} · ${title}`, message: body || title,
           priority: event.kind === 'down' ? 4 : 3, tags: [event.kind === 'down' ? 'red_circle' : 'green_circle'],
         }, bearer),
       };
+    }
     case 'gotify':
       return {
         url: `${notify.url.replace(/\/+$/, '')}/message`,
@@ -71,9 +76,13 @@ function buildRequest(notify, event) {
 
 async function sendNotification(notify, event) {
   if (!NOTIFY_TYPES.includes(notify?.type) || !notify.url) throw fail('notify_missing', 'Notifications non configurées');
-  const req = buildRequest(notify, event);
-  let verifyTls = false;
-  try { verifyTls = PUBLIC_HOSTS.test(new URL(req.url).hostname); } catch { throw fail('invalid_url', `URL invalide : ${req.url}`, { url: req.url }); }
+  let req;
+  try {
+    req = buildRequest(notify, event);
+  } catch {
+    throw fail('invalid_url', `URL invalide : ${notify.url}`, { url: notify.url });
+  }
+  const verifyTls = PUBLIC_HOSTS.test(new URL(req.url).hostname);
   const r = await request(req.url, {
     method: 'POST', body: req.body, verifyTls,
     headers: { ...req.headers, 'Content-Length': Buffer.byteLength(req.body) }, maxBytes: 64 * 1024,
@@ -83,11 +92,12 @@ async function sendNotification(notify, event) {
 }
 
 // Suivi de l'état des applications : notification au changement seulement, après FAILS_BEFORE_DOWN
-// échecs de suite (une coupure d'une seconde ne réveille personne), jamais à la première vérification.
+// échecs de suite (une coupure d'une seconde ne réveille personne). Rien à la première vérification :
+// une app déjà hors ligne au démarrage n'a pas d'alerte, ni donc de « retour » quand elle revient.
 const FAILS_BEFORE_DOWN = 2;
 
 function createMonitor() {
-  const apps = new Map(); // id de l'app -> { down, fails }
+  const apps = new Map(); // id de l'app -> { down, fails, alerted } (alerted : « hors ligne » envoyé)
   return {
     // statuses : { id: { online } } ; renvoie les événements à envoyer.
     update(appList, statuses) {
@@ -98,17 +108,28 @@ function createMonitor() {
         if (!s) continue;
         ids.add(app.id);
         const known = apps.get(app.id);
-        if (!known) { apps.set(app.id, { down: !s.online, fails: s.online ? 0 : FAILS_BEFORE_DOWN }); continue; }
+        if (!known) {
+          apps.set(app.id, { down: !s.online, fails: s.online ? 0 : FAILS_BEFORE_DOWN, alerted: false });
+          continue;
+        }
         if (s.online) {
-          if (known.down) events.push({ kind: 'up', name: app.name, url: app.url });
-          Object.assign(known, { down: false, fails: 0 });
+          if (known.down && known.alerted) events.push({ kind: 'up', id: app.id, name: app.name, url: app.url });
+          Object.assign(known, { down: false, fails: 0, alerted: false });
         } else if (!known.down && ++known.fails >= FAILS_BEFORE_DOWN) {
-          known.down = true;
-          events.push({ kind: 'down', name: app.name, url: app.url });
+          Object.assign(known, { down: true, alerted: true });
+          events.push({ kind: 'down', id: app.id, name: app.name, url: app.url });
         }
       }
       for (const id of apps.keys()) if (!ids.has(id)) apps.delete(id); // app supprimée
       return events;
+    },
+    // Envoi impossible (service de notification injoignable) : l'événement repartira à la prochaine
+    // vérification si l'état n'a pas changé entre-temps.
+    failed(event) {
+      const known = apps.get(event.id);
+      if (!known) return;
+      if (event.kind === 'down' && known.down) Object.assign(known, { down: false, fails: FAILS_BEFORE_DOWN - 1, alerted: false });
+      if (event.kind === 'up' && !known.down) Object.assign(known, { down: true, fails: FAILS_BEFORE_DOWN, alerted: true });
     },
     clear() { apps.clear(); },
   };

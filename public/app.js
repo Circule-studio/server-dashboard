@@ -1097,6 +1097,9 @@ function updateNotifyFields() {
   form.querySelector('[data-notify-field="url"]').hidden = !spec;
   form.querySelector('[data-notify-field="token"]').hidden = !spec?.token;
   form.querySelector('[data-notify-test]').hidden = !spec;
+  // Champ masqué : jamais obligatoire (le navigateur bloquerait l'envoi sur un champ invisible).
+  f.url.required = false;
+  f.token.required = false;
   if (!spec) return;
   f.url.placeholder = saved.hasUrl ? t('notify.urlUnchanged') : spec.placeholder;
   f.url.required = !saved.hasUrl;
@@ -1177,14 +1180,25 @@ async function importConfig(file) {
     return;
   }
   if (isDirty() && !confirm(t('backup.replaceConfirm'))) return;
-  // Sans secret dans le fichier, le serveur garde ceux des widgets qui ont le même identifiant :
-  // le formulaire doit alors les afficher comme « inchangés ».
+  // Sans secret dans le fichier, le serveur garde ceux des widgets de même identifiant et de même
+  // type : le formulaire doit alors les afficher comme « inchangés ».
   const saved = new Map(state.config.widgets.map((w) => [w.id, w]));
-  const widgets = (Array.isArray(cfg.widgets) ? cfg.widgets : []).map((w) => {
-    const old = saved.get(w?.id)?.type === w?.type ? saved.get(w.id) : {};
-    return { ...w, hasApiKey: !!w?.apiKey || !!old.hasApiKey, hasPassword: !!w?.password || !!old.hasPassword };
+  const widgets = (Array.isArray(cfg.widgets) ? cfg.widgets : []).filter((w) => w && typeof w === 'object').map((w) => {
+    const old = saved.get(w.id);
+    const keep = old && old.type === w.type ? old : {};
+    return { ...w, hasApiKey: !!w.apiKey || !!keep.hasApiKey, hasPassword: !!w.password || !!keep.hasPassword };
   });
-  state.draft = { ...cfg, widgets, revision: state.draft.revision };
+  // Notifications : URL présente dans le fichier (export avec secrets) = appliquées telles quelles.
+  // Sinon on garde celles du dashboard si le service est le même, ou on les désactive (une URL
+  // manquante empêcherait l'enregistrement) ; absentes du fichier (ancien config.json) = inchangées.
+  const current = state.draft.notify || { type: '' };
+  let notify = current;
+  if (cfg.notify && typeof cfg.notify === 'object') {
+    if (!cfg.notify.type || cfg.notify.url) notify = cfg.notify;
+    else if (current.type === cfg.notify.type) notify = { ...current, lang: cfg.notify.lang || current.lang };
+    else notify = { type: '' };
+  }
+  state.draft = { ...cfg, widgets, notify, revision: state.draft.revision };
   $('#backupDialog').close();
   render();
   toast(t(data.secrets === false ? 'backup.importedNoSecrets' : 'backup.imported'));

@@ -468,7 +468,7 @@ test('Notifications : une app qui tombe puis revient, deux notifications', async
     r = await api('POST', '/api/notify/test', { type: 'webhook', lang: 'en' });
     assert.equal(r.status, 200, r.text);
     assert.deepEqual([received[2].body.event, received[2].body.title], ['test', '✅ Test notification']);
-    await api('POST', '/api/notify/test', { type: 'ntfy', url: `http://localhost:${hookPort}/mon-sujet`, token: 'tk_x' });
+    await api('POST', '/api/notify/test', { type: 'ntfy', url: `http://localhost:${hookPort}/mon-sujet?x=1#y`, token: 'tk_x' });
     assert.deepEqual([received[3].path, received[3].body.topic, received[3].headers.authorization], ['/', 'mon-sujet', 'Bearer tk_x']);
     await api('POST', '/api/notify/test', { type: 'gotify', url: `http://localhost:${hookPort}/`, token: 'gotify-app' });
     assert.deepEqual([received[4].path, received[4].headers['x-gotify-key']], ['/message', 'gotify-app']);
@@ -476,8 +476,10 @@ test('Notifications : une app qui tombe puis revient, deux notifications', async
     assert.match(received[5].body.content, /^\*\*✅ Notification de test\*\*/);
     // Erreurs traduites
     for (const [body, code] of [[{ type: 'ntfy', url: 'https://ntfy.sh' }, 'notify_topic_missing'],
-      [{ type: 'gotify', url: `http://localhost:${hookPort}` }, 'notify_token_missing'], [{}, 'notify_missing']]) {
-      assert.equal((await api('POST', '/api/notify/test', body)).json.code, code);
+      [{ type: 'gotify', url: `http://localhost:${hookPort}` }, 'notify_token_missing'], [{}, 'notify_missing'],
+      [{ type: 'discord', url: 'http://' }, 'invalid_url']]) {
+      const res = await api('POST', '/api/notify/test', body);
+      assert.deepEqual([res.status, res.json.code], [400, code]);
     }
   } finally {
     const now = (await api('GET', '/api/config')).json;
@@ -486,6 +488,46 @@ test('Notifications : une app qui tombe puis revient, deux notifications', async
     target.closeAllConnections();
     hook.close();
   }
+});
+
+test('Notifications : suivi des changements d’état (module seul)', () => {
+  const { createMonitor } = require('../notify');
+  const apps = [{ id: 'a', name: 'A', url: 'http://a' }];
+  const step = (m, online) => m.update(apps, { a: { online } }).map((e) => e.kind);
+  // Hors ligne dès la première vérification : ni alerte, ni « retour » quand elle revient.
+  let m = createMonitor();
+  assert.deepEqual([step(m, false), step(m, false), step(m, true)], [[], [], []]);
+  // En ligne, puis deux échecs : une alerte ; un seul échec : rien.
+  m = createMonitor();
+  assert.deepEqual([step(m, true), step(m, false), step(m, true), step(m, false), step(m, false), step(m, false), step(m, true)],
+    [[], [], [], [], ['down'], [], ['up']]);
+  // Envoi impossible : l'alerte repart à la vérification suivante.
+  m = createMonitor();
+  step(m, true); step(m, false);
+  const [event] = m.update(apps, { a: { online: false } });
+  m.failed(event);
+  assert.deepEqual(step(m, false), ['down']);
+});
+
+test('Un secret ne passe pas d’un type de widget à un autre', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const r = await api('PUT', '/api/config', { ...cfg, widgets: cfg.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'radarr', apiKey: '' } : w)) });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.widgets.find((w) => w.id === 'sonarr').hasApiKey, false, 'clé Sonarr gardée pour un Radarr');
+  await api('PUT', '/api/config', { ...r.json, widgets: r.json.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'sonarr', apiKey: 'sonarr-key' } : w)) });
+});
+
+// ---------- Démarrage ----------
+test('Port déjà utilisé : erreur claire et code de sortie 1', async () => {
+  // Le port des tests est occupé par le dashboard lancé dans before().
+  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD } });
+  let out = '';
+  child.stdout.on('data', (d) => (out += d));
+  child.stderr.on('data', (d) => (out += d));
+  const code = await new Promise((resolve) => child.on('exit', resolve));
+  assert.equal(code, 1, out);
+  assert.match(out, /déjà utilisé/);
+  assert.doesNotMatch(out, /Server Dashboard sur/);
 });
 
 // ---------- Docker ----------
