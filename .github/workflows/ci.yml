@@ -175,6 +175,8 @@ jobs:
         run: |
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me >/dev/null 2>&1 && break; sleep 1; done
           systemctl is-active server-dashboard
+          # Le fichier contient le mot de passe admin : lisible par root seulement.
+          test "$(sudo stat -c '%U %a' /root/server-dashboard.creds)" = "root 600"
           pass="$(sudo sed -n 's/^Admin password: //p' /root/server-dashboard.creds)"
           test -n "$pass"
           curl -fsS -H 'Content-Type: application/json' -d "{\"password\":\"$pass\"}" http://127.0.0.1:7575/api/login
