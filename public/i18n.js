@@ -199,6 +199,10 @@ const I18N = {
     'stat.videos': 'Vidéos',
     'stat.usage': 'Stockage',
     'immich.users': 'Par utilisateur',
+    'immich.downloads': 'Téléchargements (dl-stats)',
+    'stat.downloads': 'Téléchargements',
+    'stat.downloadedPhotos': 'Photos téléchargées',
+    'stat.visitors': 'Visiteurs',
     'immich.userLine': '{photos} photos · {videos} vidéos',
 
     'torrent.down': '↓ Reçu',
@@ -726,6 +730,10 @@ const I18N = {
     'stat.videos': 'Videos',
     'stat.usage': 'Storage',
     'immich.users': 'By user',
+    'immich.downloads': 'Downloads (dl-stats)',
+    'stat.downloads': 'Downloads',
+    'stat.downloadedPhotos': 'Photos downloaded',
+    'stat.visitors': 'Visitors',
     'immich.userLine': '{photos} photos · {videos} videos',
 
     'torrent.down': '↓ Down',

@@ -27,7 +27,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
   - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
   - **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
-  - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas.
+  - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas. Si un compteur de téléchargements `dl-stats` est placé devant Immich, ses totaux (téléchargements, photos téléchargées, visiteurs) s’affichent aussi.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
   - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
   - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
