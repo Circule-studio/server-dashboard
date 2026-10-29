@@ -23,6 +23,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - Faux **Plex** dans `npm run mocks` (il répond en XML sauf si on demande du JSON, comme le vrai) et tests du widget : tous les widgets sont maintenant testés (#67).
 - **Un fichier par intégration** : `integrations/<service>.js` côté serveur, `public/widgets/<service>.js` côté interface et `dev/mocks/<service>.js` pour les faux services. Ajouter un widget ne touche plus les fichiers des autres, et les contributions ne se marchent plus dessus (voir « Ajouter un widget » dans CONTRIBUTING.md) (#48).
 - `check-i18n` (CI) : une clé de traduction est vérifiée où qu'elle soit écrite dans `app.js`, même dans une condition (`t(cond ? 'clé.a' : 'clé.b')`), et les pluriels `tp()` sont vérifiés dans leurs deux formes (#46).
+- Vérification des **noms d’icônes** (catalogue et widgets) sur dashboardicons.com : `node dev/check-icons.js`, lancé par un workflow à part à chaque modification et chaque semaine.
 - **Tests automatiques des widgets** (`npm test`, lancé par la CI) : avec les faux services, un widget de chaque type est vérifié, ainsi que les principaux cas d’erreur (code traduit) et l’absence de tout secret dans `/api/config`. Uniquement `node:test`, sans dépendance (#45).
 - La configuration est gardée en mémoire au lieu d’être relue et analysée à chaque requête (stats toutes les 5 s, chaque widget…). Une modification à la main de `data/config.json` est toujours prise en compte : le fichier est relu dès que sa date ou sa taille change (#47).
 
