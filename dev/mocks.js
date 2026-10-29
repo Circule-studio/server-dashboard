@@ -6,6 +6,8 @@
 //   Radarr       http://localhost:17878  clé API  radarr-key
 //   Proxmox VE   http://localhost:18006  jeton    root@pam!dashboard / pve-secret
 //   Pulse        http://localhost:17655  jeton    pulse-token
+//   Glances      http://localhost:61208  sans mot de passe (PC, API v4)
+//                http://localhost:61209  glances / glances-pass (Raspberry Pi, API v3)
 //   Météo        http://localhost:18765  lieu     Nantes, Paris (ou des coordonnées « 47.21, -1.55 »)
 //   Immich       http://localhost:12283  clé API  immich-key (immich-user-key : compte non admin, refusé)
 //   Pi-hole v6   http://localhost:10080  mot de passe  pihole-pass (2fa-pass : 2FA activée, refusé sans code)
@@ -18,7 +20,7 @@
 //                demo/private (jeton gh-token obligatoire), demo/tags-only, demo/empty, demo/rate-limited, demo/secondary
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
-const SERVICES = ['jellyfin', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'weather', 'immich', 'pihole', 'adguard',
+const SERVICES = ['jellyfin', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'weather', 'immich', 'pihole', 'adguard',
   'frigate', 'homeassistant', 'npm', 'github'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');

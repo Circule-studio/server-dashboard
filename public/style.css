@@ -487,6 +487,13 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 dialog label.check-inline { flex-direction: row; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--text); font-size: 0.85rem; }
 dialog label.check-inline input { width: 16px; height: 16px; accent-color: var(--accent); }
 
+/* ---------- Widget Glances ---------- */
+.glances-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.88rem; margin-bottom: 8px; }
+.glances-head .item-title { font-weight: 600; }
+.glances-temp { margin: 4px 0 0; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.glances-temp.temp-warn { color: var(--warn); }
+.glances-temp.temp-bad { color: var(--bad); }
+
 /* ---------- Widget Frigate ---------- */
 .frigate-cams { margin-bottom: 4px; }
 .frigate-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }

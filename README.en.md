@@ -15,6 +15,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 - **Docker panel**: list containers, start / stop / restart them.
 - **Widgets**:
   - **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
+  - **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
   - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
   - **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
   - **Immich**: photo and video counts, storage used, per-user breakdown with quotas.
@@ -75,6 +76,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
 | Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
 | Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
+| Glances | URL (`http://IP:61208`) + optional password | Run `glances -w` on the machine (add `--password` to require one; username `glances` by default) |
 | Frigate | URL (`http://IP:5000`), or `https://IP:8971` + username / password | Port 5000: nothing to enter. Port 8971 (Frigate 0.14+): a Frigate account, ideally with the "viewer" role. Thumbnails go through the dashboard and follow `REQUIRE_LOGIN` |
 | Home Assistant | URL (`http://IP:8123`) + token + entities (one per line) | Your profile > Security > Long-lived access tokens. Entity IDs (`sensor.living_room_temperature`) are in Settings > Devices & services > Entities |
 | Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / password | The admin interface account. A dedicated account with read access to "Proxy Hosts" is enough |
@@ -106,6 +108,6 @@ URLs must be reachable **from the dashboard server**.
 
 ## Contributing
 
-Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, Frigate, Home Assistant, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
+Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, Glances, Frigate, Home Assistant, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
 License: [MIT](LICENSE).

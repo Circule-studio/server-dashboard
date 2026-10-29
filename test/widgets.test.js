@@ -62,6 +62,8 @@ const WIDGETS = [
   { id: 'immich', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-key' },
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
+  { id: 'glances-pc', type: 'glances', url: 'http://localhost:61208' },
+  { id: 'glances-pi', type: 'glances', url: 'http://localhost:61209', password: 'glances-pass' },
   { id: 'frigate', type: 'frigate', url: 'http://localhost:15000' },
   { id: 'frigate-auth', type: 'frigate', url: 'http://localhost:18971', username: 'viewer', password: 'frigate-pass' },
   { id: 'ha', type: 'homeassistant', url: 'http://localhost:18123', apiKey: 'ha-token', entities: 'sensor.salon_temperature, binary_sensor.porte_entree\nbinary_sensor.mouvement_couloir light.salon person.thomas sensor.cave_humidite sensor.supprime sensor.salon_temperature' },
@@ -74,6 +76,8 @@ const WIDGETS = [
   { id: 'pihole-bad', type: 'pihole', url: 'http://localhost:10080', password: 'faux' },
   { id: 'adguard-bad', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'faux' },
   { id: 'weather-unknown', type: 'weather', url: 'http://localhost:18765', location: 'Ville qui n’existe pas' },
+  { id: 'glances-bad', type: 'glances', url: 'http://localhost:61209', password: 'faux' },
+  { id: 'glances-off', type: 'glances', url: 'http://localhost:61299' },
   { id: 'frigate-noauth', type: 'frigate', url: 'http://localhost:18971' },
   { id: 'frigate-bad', type: 'frigate', url: 'http://localhost:18971', username: 'viewer', password: 'faux' },
   { id: 'ha-bad', type: 'homeassistant', url: 'http://localhost:18123', apiKey: 'mauvais-jeton', entities: ['light.salon'] },
@@ -82,7 +86,7 @@ const WIDGETS = [
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass'];
+const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -159,6 +163,17 @@ test('Pi-hole et AdGuard Home : format commun', async () => {
     assert.ok(['enabled', 'disabled', 'failed', 'unknown'].includes(d.protection), id);
     assert.ok(d.queries >= d.blocked, id);
   }
+});
+
+test('Glances : une autre machine, API v4 ou v3', async () => {
+  const pc = await widget('glances-pc');
+  assert.deepEqual([pc.version, pc.hostname, pc.uptime], ['4', 'pc-bureau', 3 * 86400 + 4 * 3600 + 5 * 60 + 6]);
+  assert.deepEqual(pc.disks.map((d) => d.mount), ['C:\\', 'D:\\']);
+  assert.deepEqual(pc.temp, { value: 61, label: 'Tctl' }, 'capteur de température, pas le ventilateur');
+  const pi = await widget('glances-pi');
+  assert.deepEqual([pi.version, pi.hostname, pi.cpu], ['3', 'raspberrypi', 88.2]);
+  assert.deepEqual(pi.disks.map((d) => d.mount), ['/'], 'même disque monté deux fois, squashfs écarté');
+  assert.equal(pi.temp, null, 'plugin sensors absent');
 });
 
 test('Frigate : caméras, événements et miniatures via le dashboard', async () => {
@@ -238,6 +253,8 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'weather-unknown': 'location_not_found',
     'npm-bad': 'npm_credentials',
     'ha-bad': 'auth_refused',
+    'glances-bad': 'glances_credentials',
+    'glances-off': 'glances_offline',
     'frigate-noauth': 'frigate_auth_required',
     'frigate-bad': 'frigate_credentials',
     'github-private': 'github_not_found',

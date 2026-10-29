@@ -23,6 +23,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.
   - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
+  - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
   - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
   - **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
   - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas.
@@ -129,6 +130,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
+| Glances | URL (`http://IP:61208`) + mot de passe facultatif | Lance `glances -w` sur la machine (avec `--password` pour en exiger un ; utilisateur `glances` par défaut) |
 | Frigate | URL (`http://IP:5000`), ou `https://IP:8971` + utilisateur / mot de passe | Port 5000 : rien à saisir. Port 8971 (Frigate 0.14+) : un compte Frigate, idéalement avec le rôle « viewer ». Les miniatures passent par le dashboard et suivent `REQUIRE_LOGIN` |
 | Home Assistant | URL (`http://IP:8123`) + jeton + entités (une par ligne) | Ton profil > Sécurité > Jetons d’accès longue durée. Les identifiants d’entités (`sensor.salon_temperature`) sont dans Paramètres > Appareils et services > Entités |
 | Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / mot de passe | Le compte de l’interface d’administration. Un compte dédié avec la permission « Proxy Hosts » en lecture suffit |
