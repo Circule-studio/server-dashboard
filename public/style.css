@@ -258,6 +258,8 @@ a { color: var(--accent); }
 .bar-thin i { background: var(--accent); }
 .badge { flex: none; font-size: 0.72rem; padding: 1px 8px; border-radius: 99px; }
 .badge.ok { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
+/* Pastille d'état au début d'une ligne de widget (Proxmox, Pulse, Frigate, Home Assistant, NPM…). */
+.widget .item-title .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 
 /* ---------- Catégories & tuiles ---------- */
 .category { padding-bottom: 8px; }
@@ -418,7 +420,6 @@ dialog input:focus, dialog select:focus { outline: 2px solid var(--accent); outl
 .meter .bar { margin: 0; }
 .widget-proxmox .widget-subhead + .meter, .widget-proxmox .meter + .meter { margin-top: 0; }
 .widget-proxmox .badge { color: var(--muted); background: var(--veil); padding: 0 6px; font-size: 0.68rem; }
-.widget-proxmox .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 
 /* ---------- Choix des disques ---------- */
 .dialog-help { margin: -8px 0 14px; font-size: 0.85rem; }
@@ -445,7 +446,6 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 .pulse-verdicts .verdict-off b { color: var(--muted); }
 .pulse-counts { margin: -4px 0 10px; font-size: 0.82rem; }
 .widget-pulse .badge { color: var(--muted); background: var(--veil); padding: 0 6px; font-size: 0.68rem; }
-.widget-pulse .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 
 /* ---------- Écran d'accueil et bandeau mot de passe ---------- */
 .welcome {
@@ -489,7 +489,6 @@ dialog label.check-inline input { width: 16px; height: 16px; accent-color: var(-
 
 /* ---------- Widget Frigate ---------- */
 .frigate-cams { margin-bottom: 4px; }
-.frigate-cams .dot, .widget-frigate .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 .frigate-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
 .frigate-events figure { margin: 0; min-width: 0; }
 .frigate-events img, .frigate-noimg {
@@ -501,7 +500,6 @@ dialog label.check-inline input { width: 16px; height: 16px; accent-color: var(-
 .widget-frigate .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); padding: 0 6px; font-size: 0.68rem; }
 
 /* ---------- Widget Home Assistant ---------- */
-.ha-list .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 .ha-value { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; }
 dialog textarea {
   font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; resize: vertical;
@@ -510,7 +508,6 @@ dialog textarea {
 dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* ---------- Widget Nginx Proxy Manager ---------- */
-.widget-npm .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 .widget-npm .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); }
 .widget-npm .badge.bad { color: var(--bad); background: rgba(248, 113, 113, 0.12); }
 

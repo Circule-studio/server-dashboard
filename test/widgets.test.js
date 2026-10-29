@@ -175,9 +175,14 @@ test('Frigate : caméras, événements et miniatures via le dashboard', async ()
     assert.equal((await img.arrayBuffer()).byteLength > 100, true);
   }
   // Pas de miniature, identifiant suspect, widget sans miniatures : 404.
+  // Chemin envoyé tel quel (fetch remplacerait « /.. » avant l'envoi, comme un navigateur).
+  const rawStatus = (url) => new Promise((resolve, reject) => {
+    require('node:http').get({ host: 'localhost', port: PORT, path: url }, (res) => { res.resume(); resolve(res.statusCode); }).on('error', reject);
+  });
   for (const url of ['/api/widgets/frigate/thumbnail/sans-miniature', '/api/widgets/frigate/thumbnail/..%2F..%2Fapi%2Fconfig',
+    '/api/widgets/frigate/thumbnail/..', '/api/widgets/frigate/thumbnail/.', '/api/widgets/frigate/thumbnail/%2E%2E',
     '/api/widgets/jellyfin/thumbnail/x', '/api/widgets/inconnu/thumbnail/x']) {
-    assert.equal((await fetch(BASE + url)).status, 404, url);
+    assert.equal(await rawStatus(url), 404, url);
   }
 });
 
@@ -248,15 +253,40 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
   }
 });
 
+test('Connexion refusée : pas de nouvelle tentative à chaque rafraîchissement', async () => {
+  const before = (await (await fetch('http://localhost:18971/__logins')).json()).count;
+  for (let i = 0; i < 3; i++) {
+    const r = await api('GET', '/api/widgets/frigate-bad');
+    assert.equal(r.json.code, 'frigate_credentials');
+  }
+  const after = (await (await fetch('http://localhost:18971/__logins')).json()).count;
+  assert.ok(after - before <= 1, `${after - before} tentatives au lieu d'une au plus`);
+});
+
 test('Widget inconnu : 404', async () => {
   const r = await api('GET', '/api/widgets/nexiste-pas');
   assert.equal(r.status, 404);
 });
 
 test('Config invalide refusée avec un code', async () => {
-  const r = await api('PUT', '/api/config', { title: 'x', categories: [], widgets: [{ type: 'github', repo: '../x' }] });
-  assert.equal(r.status, 400);
-  assert.equal(r.json.code, 'github_repo_invalid');
+  for (const [w, code] of [[{ type: 'github', repo: '../x' }, 'github_repo_invalid'],
+    [{ type: 'npm', url: 'http://localhost:10081', username: '' }, 'username_required'],
+    [{ type: 'proxmox', url: 'http://localhost:18006' }, 'username_required']]) {
+    const r = await api('PUT', '/api/config', { title: 'x', categories: [], widgets: [w] });
+    assert.equal(r.status, 400, r.text);
+    assert.equal(r.json.code, code);
+  }
+});
+
+test('Taille des tuiles : invalide ou absente = inchangée', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  let r = await api('PUT', '/api/config', { ...cfg, tileSize: 'large' });
+  assert.equal(r.json.tileSize, 'large');
+  r = await api('PUT', '/api/config', { ...r.json, tileSize: 'énorme' });
+  assert.equal(r.json.tileSize, 'large');
+  const { tileSize, ...rest } = r.json;
+  r = await api('PUT', '/api/config', rest);
+  assert.equal(r.json.tileSize, 'large');
 });
 
 // ---------- Secrets ----------

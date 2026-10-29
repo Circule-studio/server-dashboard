@@ -57,7 +57,11 @@ const DEFAULT_CONFIG = {
 // Config gardée en mémoire : avant, chaque requête (stats toutes les 5 s, chaque widget…) relisait
 // et analysait le fichier. On ne le relit que si sa date ou sa taille a changé (modification à la
 // main). L'objet renvoyé est partagé : ne jamais le modifier, sanitizeConfig() en crée un nouveau.
-let configCache = null; // { mtimeMs, size, cfg }
+let configCache = null; // { stamp, cfg }
+
+// Empreinte du fichier : date de modification et de changement d'état, taille, inode (un éditeur
+// qui réécrit le fichier par renommage change l'inode même dans la même seconde).
+const stampOf = (stat) => `${stat.mtimeMs}|${stat.ctimeMs}|${stat.size}|${stat.ino}`;
 
 async function readConfig() {
   let stat;
@@ -69,7 +73,7 @@ async function readConfig() {
     await writeConfig(cfg);
     return cfg;
   }
-  if (configCache?.mtimeMs === stat.mtimeMs && configCache.size === stat.size) return configCache.cfg;
+  if (configCache?.stamp === stampOf(stat)) return configCache.cfg;
   const text = await fsp.readFile(CONFIG_FILE, 'utf8');
   // Un fichier invalide n'est jamais écrasé : on préfère une erreur à une perte de config.
   let cfg;
@@ -81,7 +85,12 @@ async function readConfig() {
   cfg.widgets ||= [];
   cfg.categories ||= [];
   cfg.revision = Number.isInteger(cfg.revision) ? cfg.revision : 0;
-  configCache = { mtimeMs: stat.mtimeMs, size: stat.size, cfg };
+  // Modifié à la main : URL ou identifiants ont pu changer, comme après un enregistrement.
+  if (configCache) {
+    resetIntegrations();
+    statusCache = null;
+  }
+  configCache = { stamp: stampOf(stat), cfg };
   return cfg;
 }
 
@@ -103,8 +112,7 @@ function writeConfig(cfg) {
     const tmp = `${CONFIG_FILE}.${crypto.randomUUID()}.tmp`;
     await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2));
     await fsp.rename(tmp, CONFIG_FILE);
-    const stat = await fsp.stat(CONFIG_FILE);
-    configCache = { mtimeMs: stat.mtimeMs, size: stat.size, cfg };
+    configCache = { stamp: stampOf(await fsp.stat(CONFIG_FILE)), cfg };
   };
   const result = writeQueue.then(run, run);
   writeQueue = result.catch(() => {});
@@ -186,6 +194,7 @@ function sanitizeWidgets(list, previous = []) {
     // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
     if (INTEGRATIONS[type].fields.includes('username')) {
       out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
+      if (INTEGRATIONS[type].userRequired && !out.username) throw fail('username_required', `Utilisateur obligatoire (${type})`, { type });
     }
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
@@ -272,7 +281,8 @@ function sanitizeConfig(input, previous) {
     title: str(input.title, 100) || 'Mon serveur',
     // Absent de la requête (ancienne interface) = inchangé.
     display: sanitizeDisplay(input.display ?? previous?.display),
-    tileSize: [input.tileSize ?? previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
+    // Absente ou invalide (ancienne interface, script) : inchangée.
+    tileSize: [input.tileSize, previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
@@ -659,8 +669,10 @@ app.get('/api/widgets/:id/thumbnail/:key', readAuth, route(async (req, res) => {
     return res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
   }
   if (!image) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
-  // La miniature d'un événement ne change pas : gardée par le navigateur, jamais par un proxy partagé.
-  res.set({ 'Content-Type': image.type, 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+  // Gardée par le navigateur (jamais par un proxy partagé). Événement en cours (?live) : Frigate
+  // remplace la miniature quand il trouve une meilleure image, elle n'est donc gardée que 10 s.
+  const maxAge = 'live' in req.query ? 10 : 86400;
+  res.set({ 'Content-Type': image.type, 'Cache-Control': `private, max-age=${maxAge}`, 'X-Content-Type-Options': 'nosniff' });
   res.send(image.body);
 }));
 

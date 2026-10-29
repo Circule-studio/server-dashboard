@@ -103,6 +103,36 @@ async function getJson(url, headers = {}, { forbidden } = {}) {
   return r.json;
 }
 
+// ---------- Sessions des services à connexion (qBittorrent, Pi-hole, NPM, Frigate) ----------
+// Une session par widget, ouverte une seule fois même pour des appels simultanés (l'entrée est créée
+// avant tout await). Un échec de connexion est retenu LOGIN_RETRY_MS : sans ça, chaque rafraîchissement
+// de chaque visiteur retentait la connexion, au risque de verrouiller le compte ou de bloquer l'IP.
+const LOGIN_RETRY_MS = 60_000;
+
+function sessionCache(login) {
+  const entries = new Map(); // id du widget -> { url, promise, failed, error }
+  return {
+    get(w) {
+      let e = entries.get(w.id);
+      if (e?.failed && Date.now() - e.failed < LOGIN_RETRY_MS) return Promise.reject(e.error);
+      if (!e || e.failed) {
+        e = { url: w.url, promise: login(w) };
+        e.promise.catch((error) => Object.assign(e, { failed: Date.now(), error }));
+        entries.set(w.id, e);
+      }
+      return e.promise;
+    },
+    // Session refusée ou expirée : la prochaine get() se reconnecte (sans attendre LOGIN_RETRY_MS).
+    drop(w) { entries.delete(w.id); },
+    // Vide le cache et renvoie les sessions qu'il contenait (pour les fermer proprement).
+    clear() {
+      const old = [...entries.values()];
+      entries.clear();
+      return old;
+    },
+  };
+}
+
 // ---------- Jellyfin ----------
 async function jellyfin(w) {
   const h = { 'X-Emby-Token': w.apiKey };
@@ -160,7 +190,6 @@ async function plex(w) {
 }
 
 // ---------- qBittorrent ----------
-const qbitSids = new Map(); // id du widget -> cookie SID ('' si l'auth est désactivée)
 
 async function qbitLogin(w) {
   const body = new URLSearchParams({ username: w.username, password: w.password }).toString();
@@ -181,11 +210,13 @@ async function qbitLogin(w) {
   throw fail('qbit_credentials', 'Identifiants qBittorrent refusés');
 }
 
+const qbitSessions = sessionCache(qbitLogin); // cookie SID ('' si l'auth est désactivée)
+
 async function qbitGet(w, path, retry = true) {
-  if (!qbitSids.has(w.id)) qbitSids.set(w.id, await qbitLogin(w));
-  const r = await request(join(w.url, path), { headers: { Cookie: qbitSids.get(w.id), Referer: w.url } });
+  const sid = await qbitSessions.get(w);
+  const r = await request(join(w.url, path), { headers: { Cookie: sid, Referer: w.url } });
   if (r.status === 403 && retry) {
-    qbitSids.delete(w.id);
+    qbitSessions.drop(w);
     return qbitGet(w, path, false);
   }
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
@@ -455,7 +486,6 @@ async function immich(w) {
 // Pi-hole limite le nombre de sessions ouvertes (« API seats ») : on garde la
 // session tant qu'elle est valide au lieu de se reconnecter à chaque appel.
 // La promesse de connexion est mémorisée : deux appels simultanés ne consomment qu'une session.
-const piholeSids = new Map(); // id du widget -> { url, sid: Promise<SID> } (SID '' : Pi-hole sans mot de passe)
 
 async function piholeLogin(w) {
   const body = JSON.stringify({ password: w.password || '' });
@@ -473,16 +503,13 @@ async function piholeLogin(w) {
   throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
 }
 
+const piholeSessions = sessionCache(piholeLogin); // SID ('' : Pi-hole sans mot de passe)
+
 async function piholeGet(w, path, retry = true) {
-  if (!piholeSids.has(w.id)) {
-    const entry = { url: w.url, sid: piholeLogin(w) };
-    entry.sid.catch(() => { if (piholeSids.get(w.id) === entry) piholeSids.delete(w.id); });
-    piholeSids.set(w.id, entry);
-  }
-  const sid = await piholeSids.get(w.id).sid;
+  const sid = await piholeSessions.get(w);
   const r = await request(join(w.url, path), { headers: { Accept: 'application/json', ...(sid ? { 'X-FTL-SID': sid } : {}) } });
   if (r.status === 401 && retry) { // session expirée (30 min sans activité par défaut)
-    piholeSids.delete(w.id);
+    piholeSessions.drop(w);
     return piholeGet(w, path, false);
   }
   if (r.status === 401 || r.status === 403) throw fail('pihole_password', 'Mot de passe Pi-hole refusé');
@@ -536,7 +563,6 @@ async function adguard(w) {
 // ---------- Frigate (caméras et détection d'objets) ----------
 // Port 5000 : API sans authentification (réseau interne). Port 8971 (Frigate 0.14+) : connexion
 // avec utilisateur et mot de passe, dont le jeton (cookie frigate_token) est gardé et réutilisé.
-const frigateTokens = new Map(); // id du widget -> Promise<cookie> ('' sans authentification)
 
 async function frigateLogin(w) {
   if (!w.username) return '';
@@ -554,18 +580,15 @@ async function frigateLogin(w) {
 }
 
 // `raw` : réponse binaire (miniature), sinon JSON.
+const frigateSessions = sessionCache(frigateLogin); // cookie frigate_token ('' sans authentification)
+
 async function frigateGet(w, path, { raw = false, retry = true } = {}) {
-  if (!frigateTokens.has(w.id)) {
-    const login = frigateLogin(w);
-    login.catch(() => { if (frigateTokens.get(w.id) === login) frigateTokens.delete(w.id); });
-    frigateTokens.set(w.id, login);
-  }
-  const cookie = await frigateTokens.get(w.id);
+  const cookie = await frigateSessions.get(w);
   const r = await request(join(w.url, path), {
     raw, maxBytes: raw ? 2 * 1024 * 1024 : undefined, headers: { Accept: raw ? 'image/*' : 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
   });
   if (r.status === 401 && retry && cookie) { // jeton expiré (24 h par défaut)
-    frigateTokens.delete(w.id);
+    frigateSessions.drop(w);
     return frigateGet(w, path, { raw, retry: false });
   }
   if (r.status === 401 || r.status === 403) {
@@ -580,9 +603,11 @@ async function frigateGet(w, path, { raw = false, retry = true } = {}) {
 }
 
 async function frigate(w) {
-  // Séquentiel : la première requête obtient le jeton, la seconde le réutilise.
-  const stats = await frigateGet(w, '/api/stats');
-  const events = await frigateGet(w, '/api/events?limit=6&include_thumbnails=0');
+  // En parallèle : la connexion est partagée (sessionCache), une seule a lieu.
+  const [stats, events] = await Promise.all([
+    frigateGet(w, '/api/stats'),
+    frigateGet(w, '/api/events?limit=6&include_thumbnails=0'),
+  ]);
   // Frigate 0.14+ range les caméras dans stats.cameras ; avant, elles étaient à la racine.
   const cams = stats.cameras || Object.fromEntries(Object.entries(stats).filter(([, v]) => v && typeof v === 'object' && 'camera_fps' in v));
   const inference = Object.values(stats.detectors || {}).map((d) => d.inference_speed).filter((v) => typeof v === 'number');
@@ -607,8 +632,9 @@ async function frigate(w) {
 
 // Miniature d'un événement, servie par le dashboard (jamais d'accès direct du navigateur à Frigate).
 async function frigateThumbnail(w, eventId) {
-  if (!/^[\w.-]{1,100}$/.test(eventId)) return null;
-  const r = await frigateGet(w, `/api/events/${eventId}/thumbnail.jpg`, { raw: true });
+  // Identifiants de Frigate : « 1730190000.123-abcd ». « . » ou « .. » changeraient le chemin demandé.
+  if (!/^(?!\.+$)[\w.-]{1,100}$/.test(eventId)) return null;
+  const r = await frigateGet(w, `/api/events/${encodeURIComponent(eventId)}/thumbnail.jpg`, { raw: true });
   const type = r?.headers['content-type'] || '';
   return r && /^image\/(jpeg|png|webp)$/.test(type.split(';')[0]) ? { type: type.split(';')[0], body: r.body } : null;
 }
@@ -640,7 +666,6 @@ async function homeassistant(w) {
 // ---------- Nginx Proxy Manager ----------
 // `username` : e-mail du compte, `password` : son mot de passe. POST /api/tokens donne un jeton
 // (valable 1 jour par défaut) : gardé et réutilisé, renouvelé avant expiration ou après un refus.
-const npmTokens = new Map(); // id du widget -> { token: Promise<{ token, expires }> }
 const NPM_SOON_DAYS = 14; // un certificat qui expire avant est mis en évidence
 
 async function npmLogin(w) {
@@ -659,18 +684,19 @@ async function npmLogin(w) {
   throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
 }
 
+const npmSessions = sessionCache(npmLogin); // { token, expires }
+
 async function npmGet(w, path, retry = true) {
-  const known = npmTokens.get(w.id);
-  // Renouvelé 5 min avant l'expiration ; la promesse est partagée par les appels simultanés.
-  if (!known || (await known.token.catch(() => ({ expires: 0 }))).expires - Date.now() < 5 * 60_000) {
-    const entry = { token: npmLogin(w) };
-    entry.token.catch(() => { if (npmTokens.get(w.id) === entry) npmTokens.delete(w.id); });
-    npmTokens.set(w.id, entry);
+  let session = await npmSessions.get(w);
+  // Renouvelé 5 min avant l'expiration.
+  if (session.expires - Date.now() < 5 * 60_000) {
+    npmSessions.drop(w);
+    session = await npmSessions.get(w);
   }
-  const { token } = await npmTokens.get(w.id).token;
+  const { token } = session;
   const r = await request(join(w.url, path), { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } });
   if (r.status === 401 && retry) { // jeton révoqué (mot de passe changé, redémarrage…)
-    npmTokens.delete(w.id);
+    npmSessions.drop(w);
     return npmGet(w, path, false);
   }
   if (r.status === 401 || r.status === 403) throw fail('npm_credentials', 'Identifiants Nginx Proxy Manager refusés');
@@ -683,9 +709,11 @@ async function npmGet(w, path, retry = true) {
 const npmDate = (v) => (typeof v === 'string' ? Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? v : `${v.replace(' ', 'T')}Z`) : NaN);
 
 async function nginxProxyManager(w) {
-  // Séquentiel : la première requête obtient le jeton, la seconde le réutilise.
-  const hosts = await npmGet(w, '/api/nginx/proxy-hosts');
-  const certificates = await npmGet(w, '/api/nginx/certificates');
+  // En parallèle : la connexion est partagée (sessionCache), une seule a lieu.
+  const [hosts, certificates] = await Promise.all([
+    npmGet(w, '/api/nginx/proxy-hosts'),
+    npmGet(w, '/api/nginx/certificates'),
+  ]);
   const now = Date.now();
   const certs = certificates.map((c) => {
     const expires = npmDate(c.expires_on);
@@ -944,13 +972,14 @@ const INTEGRATIONS = {
     cacheMs: (w) => (w.apiKey ? 2 * 60_000 : 15 * 60_000), fetch: github,
   },
   immich: { fields: ['url', 'apiKey'], cacheMs: 60_000, fetch: immich },
-  npm: { fields: ['url', 'username', 'password'], cacheMs: 60_000, fetch: nginxProxyManager },
+  // `userRequired` : nom d'utilisateur obligatoire (vérifié par server.js).
+  npm: { fields: ['url', 'username', 'password'], userRequired: true, cacheMs: 60_000, fetch: nginxProxyManager },
   homeassistant: { fields: ['url', 'apiKey', 'entities'], fetch: homeassistant },
   // `thumbnail` : images servies par /api/widgets/:id/thumbnail/:eventId (voir server.js).
   frigate: { fields: ['url', 'username', 'password'], cacheMs: 10_000, fetch: frigate, thumbnail: frigateThumbnail },
   pihole: { fields: ['url', 'password'], fetch: pihole },
   adguard: { fields: ['url', 'username', 'password'], fetch: adguard },
-  proxmox: { fields: ['url', 'username', 'apiKey'], fetch: proxmox },
+  proxmox: { fields: ['url', 'username', 'apiKey'], userRequired: true, fetch: proxmox },
   pulse: { fields: ['url', 'apiKey'], sections: ['health', 'alerts', 'resources'], fetch: pulse },
   jellyfin: { fields: ['url', 'apiKey'], fetch: jellyfin },
   plex: { fields: ['url', 'apiKey'], fetch: plex },
@@ -978,16 +1007,15 @@ async function fetchWidget(w) {
 // À appeler quand la config change (URL ou identifiants modifiés).
 function resetIntegrations() {
   cache.clear();
-  qbitSids.clear();
-  npmTokens.clear();
-  frigateTokens.clear();
+  qbitSessions.clear();
+  npmSessions.clear();
+  frigateSessions.clear();
   places.clear();
   // Ferme les sessions Pi-hole devenues inutiles pour libérer leurs places (sans attendre la réponse).
-  for (const { url, sid } of piholeSids.values()) {
-    sid.then((s) => s && request(join(url, '/api/auth'), { method: 'DELETE', headers: { 'X-FTL-SID': s }, discardBody: true }))
+  for (const { url, promise } of piholeSessions.clear()) {
+    promise.then((s) => s && request(join(url, '/api/auth'), { method: 'DELETE', headers: { 'X-FTL-SID': s }, discardBody: true }))
       .catch(() => {});
   }
-  piholeSids.clear();
 }
 
 module.exports = { INTEGRATIONS, fetchWidget, resetIntegrations, request };

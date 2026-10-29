@@ -298,17 +298,23 @@ function frigateApi(req, res) {
   const m = req.url.match(/^\/api\/events\/([^/]+)\/thumbnail\.jpg$/);
   const e = m && FRIGATE_EVENTS.find((x) => x.id === m[1]);
   if (e?.color) { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(png(160, 120, e.color)); }
+  // Piège pour les tests : une image hors de /api/events/, que le dashboard ne doit jamais relayer
+  // (un identifiant « .. » ferait remonter /api/events/../thumbnail.jpg jusqu'ici).
+  if (req.url === '/api/thumbnail.jpg') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(png(8, 8, [255, 0, 0])); }
   res.writeHead(404); res.end('{"success":false}');
 }
 http.createServer(frigateApi).listen(15000);
 // Avec connexion (Frigate 0.14+, port 8971) : POST /api/login donne le cookie frigate_token.
 const frigateTokens = new Set();
+let frigateLogins = 0; // GET /__logins (réservé aux tests) : nombre de tentatives de connexion
 http.createServer((req, res) => {
+  if (req.url === '/__logins') return json(res, { count: frigateLogins });
   if (req.method === 'POST' && req.url === '/api/login') {
     let b = ''; req.on('data', (d) => (b += d));
     return req.on('end', () => {
       let body = {};
       try { body = JSON.parse(b); } catch { /* corps invalide */ }
+      frigateLogins++;
       if (body.user !== 'viewer' || body.password !== 'frigate-pass') { res.writeHead(401); return res.end('{"message":"Login failed"}'); }
       const token = Math.random().toString(36).slice(2);
       frigateTokens.add(token);

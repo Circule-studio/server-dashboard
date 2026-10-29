@@ -699,12 +699,14 @@ const RENDERERS = {
       d.events.length
         ? h('div', { class: 'frigate-events' }, d.events.map((e) => h('figure', { title: e.score != null ? `${Math.round(e.score * 100)} %` : null },
           h('img', {
-            src: `/api/widgets/${encodeURIComponent(w.id)}/thumbnail/${encodeURIComponent(e.id)}`, alt: label(e.label), loading: 'lazy',
+            // En cours : adresse changée à chaque rafraîchissement, la miniature peut encore s'améliorer.
+            src: `/api/widgets/${encodeURIComponent(w.id)}/thumbnail/${encodeURIComponent(e.id)}${e.ongoing ? `?live=${Date.now()}` : ''}`,
+            alt: label(e.label), loading: 'lazy',
             onerror: (ev) => ev.target.replaceWith(h('div', { class: 'frigate-noimg', 'aria-hidden': 'true' }, '📷')),
           }),
           h('figcaption', {},
             h('b', {}, label(e.label)), e.ongoing ? h('span', { class: 'badge warn' }, t('frigate.ongoing')) : null,
-            h('span', { class: 'muted' }, [e.camera, e.start ? fmtAgo(e.start) : null].filter(Boolean).join(' · '))))))
+            h('span', { class: 'muted' }, [e.camera, e.start ? t('common.ago', { duration: fmtAgo(e.start) }) : null].filter(Boolean).join(' · '))))))
         : h('p', { class: 'muted' }, t('frigate.noEvents')),
     ];
   },
@@ -774,7 +776,7 @@ const RENDERERS = {
     const link = (url, text) => (url
       ? h('a', { href: url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, text)
       : h('span', {}, text));
-    const ago = (iso) => (iso ? t('github.ago', { duration: fmtAgo(iso) }) : '');
+    const ago = (iso) => (iso ? t('common.ago', { duration: fmtAgo(iso) }) : '');
     const v = d.version;
     const blocks = [];
     // Limite de GitHub atteinte : les dernières données reçues restent affichées.
