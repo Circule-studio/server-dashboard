@@ -32,7 +32,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
 - **Edit mode** (password protected) with drag & drop, and a welcome screen on first launch.
 - **Agent** for machines behind NAT or without an open port: a small script (Node.js, no dependency) pushes CPU, memory, disks and temperature to the dashboard itself; see [agent/README.md](agent/README.md) (in French).
-- **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed.
+- **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With the Proxmox widget’s “Alert me” box, also when the node, a VM or a container stops.
 - **Backup**: export the configuration to a file (with or without API keys), and import it to restore it or copy it to another machine.
 - API keys and passwords **never leave the server**.
 

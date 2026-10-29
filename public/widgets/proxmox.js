@@ -6,6 +6,7 @@ WIDGET_TYPES.proxmox = {
   scheme: 'https', port: 8006,
   userLabel: 'key.proxmoxUser', userHelp: 'key.proxmoxUserHelp', userRequired: true,
   keyLabel: 'key.proxmox', keyHelp: 'key.proxmoxHelp',
+  alerts: 'proxmox.alertHelp', // case « M'alerter » : texte d'aide
 };
 
 RENDERERS.proxmox = (d) => {

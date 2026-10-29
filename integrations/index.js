@@ -11,6 +11,8 @@
 //   generatedKey  jeton créé par le serveur, pour un service qui contacte le dashboard (agent)
 //   receive(w, b) reçoit les données envoyées par ce service (POST /api/agent/:id)
 //   reset()       vide les sessions et caches propres au service quand la config change
+//   alerts(d, w)  éléments surveillés par les notifications quand « M'alerter » est coché :
+//                 [{ id stable, name, url, online }] tirés des données d (ex. VM Proxmox arrêtée)
 
 const { request } = require('./lib');
 

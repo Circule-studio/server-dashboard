@@ -575,6 +575,11 @@ function updateWidgetFields() {
   syncClearBoxes();
   agentSetup(type, w.type === typeId ? w : {});
 
+  // « M'alerter » (ex. Proxmox) : décoché par défaut, il passe par les notifications.
+  form.querySelector('[data-alert]').hidden = !type.alerts;
+  form.elements.alert.checked = w.type === typeId && w.alert === true;
+  form.querySelector('[data-alert-help]').textContent = type.alerts ? t(type.alerts) : '';
+
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
   box.hidden = !type.sections;
@@ -689,6 +694,7 @@ function submitWidget(e) {
     if (f.clearPassword.checked) Object.assign(w, { clearPassword: true, hasPassword: false });
     else w.password = f.password.value;
   }
+  if (type.alerts) w.alert = f.alert.checked;
   if (type.sections) {
     w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
     if (!w.sections.length) {

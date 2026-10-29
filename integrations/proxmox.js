@@ -33,6 +33,15 @@ async function proxmox(w) {
   return { nodes, guests, storages, running: guests.filter((g) => g.running).length };
 }
 
+// Alertes (case « M'alerter ») : un nœud hors ligne, une VM ou un conteneur arrêté. Les modèles
+// (templates) sont déjà écartés. Une machine déjà arrêtée au démarrage du suivi ne déclenche rien.
+function alerts(d, w) {
+  return [
+    ...d.nodes.map((n) => ({ id: `${w.id}:node:${n.name}`, name: `Proxmox ${n.name}`, online: n.online })),
+    ...d.guests.map((g) => ({ id: `${w.id}:${g.node}:${g.id}`, name: `${g.type} ${g.id} · ${g.name}`, online: g.running })),
+  ].map((a) => ({ ...a, url: w.url }));
+}
+
 module.exports = {
-  proxmox: { fields: ['url', 'username', 'apiKey'], userRequired: true, fetch: proxmox },
+  proxmox: { fields: ['url', 'username', 'apiKey'], userRequired: true, fetch: proxmox, alerts },
 };

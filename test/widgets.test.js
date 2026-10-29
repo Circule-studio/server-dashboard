@@ -583,6 +583,39 @@ test('Notifications : une app qui tombe puis revient, deux notifications', async
   }
 });
 
+test('Notifications : conteneur Proxmox arrêté puis redémarré (« M’alerter » du widget)', async () => {
+  const http = require('node:http');
+  const received = [];
+  const hook = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => (body += d));
+    req.on('end', () => { received.push(JSON.parse(body)); res.end('ok'); });
+  });
+  const hookPort = await listen(hook);
+  const mock = (state) => fetch(`http://localhost:18006/__mock/status/102/${state}`, { method: 'POST' });
+  const cfg = (await api('GET', '/api/config')).json;
+  const withAlert = (alert) => cfg.widgets.map((w) => (w.id === 'proxmox' ? { ...w, alert } : w));
+  try {
+    const r = await api('PUT', '/api/config', { ...cfg, widgets: withAlert(true), notify: { type: 'webhook', url: `http://localhost:${hookPort}/`, lang: 'fr' } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.widgets.find((w) => w.id === 'proxmox').alert, true, 'case enregistrée');
+    await new Promise((res) => setTimeout(res, 700));
+    assert.equal(received.length, 0, 'rien au démarrage (la VM windows-11 était déjà arrêtée)');
+
+    await mock('stopped');
+    assert.ok(await until(() => received.length === 1, 12_000), 'notification « arrêté »');
+    assert.deepEqual([received[0].event, received[0].title], ['down', '🔴 LXC 102 · pulse est hors ligne']);
+    await mock('running');
+    assert.ok(await until(() => received.length === 2, 12_000), 'notification « redémarré »');
+    assert.equal(received[1].event, 'up');
+  } finally {
+    await mock('running');
+    const now = (await api('GET', '/api/config')).json;
+    await api('PUT', '/api/config', { ...now, notify: { type: '' }, widgets: now.widgets.map((w) => (w.id === 'proxmox' ? { ...w, alert: false } : w)) });
+    hook.close();
+  }
+});
+
 test('Widget lent : la réponse précédente est servie pendant le rechargement (module seul)', async () => {
   const { INTEGRATIONS, fetchWidget } = require('../integrations');
   let calls = 0;
