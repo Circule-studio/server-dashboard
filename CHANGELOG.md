@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.13.1] - 2026-10-29
+
+### Corrigé
+- Widget Alwaysdata : un jeton limité à certaines adresses IP affiche un message clair (ajouter les adresses IPv4 et IPv6 du serveur du dashboard dans Alwaysdata, ou retirer la restriction) au lieu de « Authentification refusée ». Les adresses des sites s’affichent sans la barre oblique finale.
+
 ## [0.13.0] - 2026-10-29
 
 ### Ajouté
@@ -176,7 +181,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.10.0...v0.11.0

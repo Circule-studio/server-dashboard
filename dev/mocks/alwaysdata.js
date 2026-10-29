@@ -8,6 +8,11 @@ http.createServer((req, res) => {
   if (req.url === '/ok') { res.writeHead(200); return res.end('ok'); }
   if (req.url === '/panne') { res.writeHead(502); return res.end(); }
   const user = Buffer.from((req.headers.authorization || '').replace(/^Basic /, ''), 'base64').toString();
+  // Jeton limité à d'autres adresses IP.
+  if (user === 'alwaysdata-ip-token:') {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    return res.end('"IP address not allowed"');
+  }
   if (!/^alwaysdata-token( account=[\w-]+)?:$/.test(user)) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     return res.end('{"detail":"Invalid token"}');

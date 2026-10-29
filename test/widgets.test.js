@@ -66,6 +66,7 @@ const WIDGETS = [
   { id: 'agent', type: 'agent', name: 'PC de bureau' },
   { id: 'alwaysdata', type: 'alwaysdata', url: 'http://localhost:17443/v1', username: 'thomas', apiKey: 'alwaysdata-token' },
   { id: 'alwaysdata-bad', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'mauvais-jeton-ad' },
+  { id: 'alwaysdata-ip', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'alwaysdata-ip-token' },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
   { id: 'goaccess-bad', type: 'goaccess', url: 'http://localhost:17890/pas-un-rapport' },
   { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
@@ -96,7 +97,7 @@ const WIDGETS = [
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['alwaysdata-token', 'mauvais-jeton-ad', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -328,6 +329,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
     'alwaysdata-bad': 'auth_refused',
+    'alwaysdata-ip': 'alwaysdata_ip',
     'pihole-bad': 'pihole_password',
     'adguard-bad': 'adguard_credentials',
     'weather-unknown': 'location_not_found',
