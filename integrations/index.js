@@ -8,13 +8,15 @@
 //   sections      blocs au choix (ex. Pulse, GitHub)
 //   userRequired  nom d'utilisateur obligatoire (vérifié par server.js)
 //   thumbnail     images servies par /api/widgets/:id/thumbnail/:clé (voir server.js)
+//   generatedKey  jeton créé par le serveur, pour un service qui contacte le dashboard (agent)
+//   receive(w, b) reçoit les données envoyées par ce service (POST /api/agent/:id)
 //   reset()       vide les sessions et caches propres au service quand la config change
 
 const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
 const FILES = ['weather', 'github', 'immich', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pulse',
-  'glances', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr'];
+  'glances', 'agent', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
 // Petit cache pour ne pas solliciter les services à chaque visiteur.

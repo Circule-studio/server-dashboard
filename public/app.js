@@ -372,9 +372,10 @@ let widgetTimers = [];
 
 const fmtEta = (s) => (s == null || s >= 8640000 ? '∞' : s < 60 ? `${s} s` : fmtUptime(s));
 const pct = (p) => `${Math.round(Math.min(1, Math.max(0, p || 0)) * 100)} %`;
-// Durée écoulée depuis une date : « 5 min », « 3 h », « 2 j ».
+// Durée écoulée depuis une date : « < 1 min », « 5 min », « 3 h », « 2 j ».
 const fmtAgo = (iso) => {
   const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return '< 1 min';
   return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
 };
 
@@ -533,6 +534,7 @@ function updateWidgetFields() {
   form.elements.url.placeholder = type.placeholder || `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
 
   syncClearBoxes();
+  agentSetup(type, w.type === typeId ? w : {});
 
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
@@ -542,6 +544,56 @@ function updateWidgetFields() {
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', name: 'section', value: s, checked: chosen.includes(s) }),
       t(`${typeId}.sec.${s}`))));
+}
+
+// Copie dans le presse-papiers. En http:// sur le réseau local (contexte non sécurisé),
+// navigator.clipboard n'existe pas : le texte est alors sélectionné pour un Ctrl + C.
+function copyText(code, el) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => toast(t('agent.copied')), () => toast(t('agent.selectToCopy')));
+    return;
+  }
+  window.getSelection().selectAllChildren(el);
+  toast(t('agent.selectToCopy'));
+}
+
+// Widget Agent : commande d'installation, avec le jeton généré par le serveur (admin seulement).
+// Un widget pas encore enregistré n'a pas de jeton : il faut d'abord enregistrer.
+let agentSetupRun = 0; // une réponse arrivée après un changement de type est ignorée
+async function agentSetup(type, w) {
+  const run = ++agentSetupRun;
+  const box = $('#widgetForm [data-agent-setup]');
+  box.hidden = !type.agentSetup;
+  if (!type.agentSetup) return;
+  const text = box.querySelector('[data-agent-setup-text]');
+  const commands = box.querySelector('[data-agent-setup-commands]');
+  commands.replaceChildren();
+  if (!state.config.widgets.some((x) => x.id === w.id && x.type === w.type)) {
+    text.textContent = t('agent.saveFirst');
+    return;
+  }
+  text.textContent = t('common.loading');
+  let s;
+  try {
+    s = await api(`/api/agent/${encodeURIComponent(w.id)}/setup`);
+  } catch (e) {
+    if (run === agentSetupRun) text.textContent = errMsg(e);
+    return;
+  }
+  if (run !== agentSetupRun) return;
+  text.textContent = t('agent.setupHelp');
+  const block = (label, code) => {
+    const el = h('code', {}, code);
+    return h('div', { class: 'agent-command' },
+      h('div', { class: 'row' }, h('b', {}, label),
+        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => copyText(code, el) }, t('agent.copy'))),
+      h('pre', {}, el));
+  };
+  commands.replaceChildren(
+    block('Linux / macOS', `curl -fsSLO ${s.script}
+DASHBOARD_URL=${s.url} AGENT_ID=${s.id} AGENT_TOKEN=${s.token} node server-dashboard-agent.js`),
+    block('Windows (PowerShell)', `Invoke-WebRequest ${s.script} -OutFile server-dashboard-agent.js
+$env:DASHBOARD_URL="${s.url}"; $env:AGENT_ID="${s.id}"; $env:AGENT_TOKEN="${s.token}"; node server-dashboard-agent.js`));
 }
 
 // Case « Effacer » cochée : le champ du secret est vidé et désactivé.

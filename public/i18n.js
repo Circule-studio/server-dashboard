@@ -322,6 +322,13 @@ const I18N = {
     'kuma.none': 'Aucune sonde sur cette page de statut.',
     'kuma.more': '… et {count} autres',
 
+    'agent.offline': 'Plus de nouvelles depuis {duration} : machine éteinte ou agent arrêté',
+    'agent.saveFirst': 'Enregistre d’abord le widget, puis rouvre-le : la commande à lancer sur la machine s’affichera ici, avec son jeton.',
+    'agent.setupHelp': 'Sur la machine à surveiller (Node.js 18 ou plus récent), lance cette commande. Elle contient le jeton de ce widget : ne la partage pas. Pour un lancement automatique, voir agent/README.md.',
+    'agent.copy': 'Copier',
+    'agent.copied': 'Commande copiée',
+    'agent.selectToCopy': 'Commande sélectionnée : Ctrl + C pour la copier',
+
     'glances.onlineFor': 'en ligne depuis {duration}',
     'glances.cpuLoad': '{pct} · charge {load}',
 
@@ -500,6 +507,7 @@ const I18N = {
     'err.notify_failed': 'Le service de notification a répondu HTTP {status}',
     'err.kuma_not_found': 'Page de statut Uptime Kuma introuvable : « {slug} ». Vérifie son nom dans Uptime Kuma > Pages de statut.',
     'err.kuma_slug_invalid': 'Page de statut invalide : « {slug} » (lettres, chiffres et tirets)',
+    'err.agent_waiting': 'En attente du premier envoi de l’agent : lance la commande donnée dans le formulaire du widget (mode édition)',
     'err.glances_credentials': 'Mot de passe Glances refusé',
     'err.glances_offline': 'Machine injoignable : éteinte, hors du réseau, ou Glances n’est pas lancé en mode web (glances -w)',
     'err.frigate_credentials': 'Identifiants Frigate refusés',
@@ -836,6 +844,13 @@ const I18N = {
     'kuma.none': 'No monitors on this status page.',
     'kuma.more': '… and {count} more',
 
+    'agent.offline': 'No news for {duration}: machine off or agent stopped',
+    'agent.saveFirst': 'Save the widget first, then open it again: the command to run on the machine will show up here, with its token.',
+    'agent.setupHelp': 'On the machine to monitor (Node.js 18 or later), run this command. It contains this widget’s token: don’t share it. To start it automatically, see agent/README.md.',
+    'agent.copy': 'Copy',
+    'agent.copied': 'Command copied',
+    'agent.selectToCopy': 'Command selected: Ctrl + C to copy it',
+
     'glances.onlineFor': 'up for {duration}',
     'glances.cpuLoad': '{pct} · load {load}',
 
@@ -1014,6 +1029,7 @@ const I18N = {
     'err.notify_failed': 'The notification service answered HTTP {status}',
     'err.kuma_not_found': 'Uptime Kuma status page not found: "{slug}". Check its name in Uptime Kuma > Status Pages.',
     'err.kuma_slug_invalid': 'Invalid status page: "{slug}" (letters, digits and hyphens)',
+    'err.agent_waiting': 'Waiting for the agent’s first report: run the command shown in the widget form (edit mode)',
     'err.glances_credentials': 'Glances password refused',
     'err.glances_offline': 'Machine unreachable: turned off, off the network, or Glances is not running in web mode (glances -w)',
     'err.frigate_credentials': 'Frigate credentials refused',

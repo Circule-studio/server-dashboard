@@ -63,6 +63,7 @@ const WIDGETS = [
   { id: 'immich', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-key' },
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
+  { id: 'agent', type: 'agent', name: 'PC de bureau' },
   { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
   { id: 'kuma-pasted', type: 'uptimekuma', url: 'http://localhost:13001/status/maison' },
   { id: 'glances-pc', type: 'glances', url: 'http://localhost:61208' },
@@ -410,6 +411,54 @@ test('Export de la config : admin seulement, sans secrets par défaut, réimport
     assert.deepEqual(after, expected);
   }
   await widget('jellyfin'); // la clé est toujours là après l'import sans secrets
+});
+
+// ---------- Agent ----------
+test('Agent : jeton généré, envoi du vrai script, valeurs bornées, hors ligne', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  assert.equal(cfg.widgets.find((w) => w.id === 'agent').hasApiKey, true, 'jeton généré par le serveur');
+  assert.equal((await api('GET', '/api/widgets/agent')).json.code, 'agent_waiting');
+  // Commande : admin seulement.
+  const saved = cookie;
+  cookie = '';
+  assert.equal((await api('GET', '/api/agent/agent/setup')).status, 401);
+  cookie = saved;
+  const setup = (await api('GET', '/api/agent/agent/setup')).json;
+  assert.ok(setup.token.length >= 32);
+  for (const [token, status] of [['', 401], ['faux', 401], [setup.token, 200]]) {
+    const r = await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}' });
+    assert.equal(r.status, status);
+  }
+  assert.equal((await fetch(`${BASE}/api/agent/jellyfin`, { method: 'POST', headers: { Authorization: `Bearer ${setup.token}` } })).status, 404, 'pas un agent');
+  // Le vrai script, téléchargé depuis le dashboard comme le fait la commande d'installation.
+  const script = path.join(dataDir, 'agent.js');
+  fs.writeFileSync(script, await (await fetch(setup.script)).text());
+  const run = spawn(process.execPath, [script, '--once'], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: setup.token } });
+  let out = '';
+  run.stderr.on('data', (d) => (out += d));
+  assert.equal(await new Promise((r) => run.on('exit', r)), 0, out);
+  const d = await widget('agent');
+  assert.equal(d.hostname, os.hostname());
+  assert.ok(d.mem.total > 0 && d.disks.length === 1 && d.cpu >= 0 && d.cpu <= 100);
+  assert.equal(d.offline, false);
+  // Valeurs absurdes ou hostiles : bornées, texte tronqué, champs inconnus ignorés.
+  const push = (body) => fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${setup.token}` }, body: JSON.stringify(body) });
+  await push({ hostname: 'x'.repeat(500), cpu: 999, mem: { total: 100, used: 500 }, disks: Array(20).fill({ mount: '/', size: 10, used: -5 }), evil: '<script>', interval: 5 });
+  await new Promise((r) => setTimeout(r, 1100)); // cache du widget : 1 s
+  const bad = await widget('agent');
+  assert.deepEqual([bad.hostname.length, bad.cpu, bad.mem.used, bad.disks.length, bad.disks[0].used, 'evil' in bad], [100, 100, 100, 8, 0, false]);
+  // Hors ligne : plus de 3 envois manqués (intervalle de 5 s annoncé : 15 s). Horloge du serveur
+  // inaccessible ici : l'intégration est appelée directement avec une date avancée.
+  const { INTEGRATIONS } = require('../integrations');
+  const now = Date.now;
+  INTEGRATIONS.agent.receive({ id: 'direct' }, { hostname: 'pi', interval: 5 });
+  try {
+    Date.now = () => now() + 16_000;
+    const late = await INTEGRATIONS.agent.fetch({ id: 'direct' });
+    assert.deepEqual([late.hostname, late.offline], ['pi', true]);
+  } finally {
+    Date.now = now;
+  }
 });
 
 // ---------- Notifications ----------

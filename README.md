@@ -34,6 +34,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Nginx Proxy Manager** : hôtes actifs et désactivés, certificats SSL triés par date d’expiration, ceux qui expirent dans les 14 jours mis en évidence.
   - **GitHub** : suivre un dépôt, avec sa dernière version, les commits non publiés depuis, les issues et les pull requests ouvertes.
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
+- **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](agent/README.md).
 - **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé.
 - **Sauvegarde** : export de la configuration en un fichier (avec ou sans les clés API), et import pour la restaurer ou la recopier sur une autre machine.
 

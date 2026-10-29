@@ -25,6 +25,7 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 | `public/app.js` | Logique de l'interface : rendu des tuiles, mode édition, rafraîchissement, outils partagés (`h()`, `fmtAgo`…) |
 | `public/widgets/<service>.js` | Un widget : son type (`WIDGET_TYPES`) et son rendu (`RENDERERS`) |
 | `public/catalog.js` | Catalogue d'applications connues (nom, icône, port par défaut) : un objet par application, facile à compléter |
+| `agent/server-dashboard-agent.js` | Agent à lancer sur une autre machine : il envoie ses ressources au dashboard (widget Agent) |
 | `notify.js` | Notifications : envoi vers ntfy, Gotify, Discord ou un webhook, et suivi des changements d'état des applications |
 | `server.js` | API Express : config, auth, statut, stats système, Docker |
 | `integrations/<service>.js` | Appels à un service et normalisation des données ; `integrations/index.js` les rassemble, `integrations/lib.js` contient les outils communs (requêtes, erreurs, sessions) |

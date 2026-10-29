@@ -223,6 +223,8 @@ function sanitizeWidgets(list, previous = []) {
       const chosen = (Array.isArray(w.sections) ? w.sections : []).filter((s) => allowed.includes(s));
       out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
     }
+    // Jeton créé par le serveur (agent) : jamais saisi, gardé d'un enregistrement à l'autre.
+    if (INTEGRATIONS[type].generatedKey) out.apiKey = old.apiKey || crypto.randomBytes(24).toString('base64url');
     for (const f of SECRET_FIELDS) {
       if (!INTEGRATIONS[type].fields.includes(f)) continue;
       // Vide = inchangé ; clearApiKey / clearPassword = effacer (ex. Pi-hole sans mot de passe).
@@ -738,6 +740,35 @@ app.get('/api/widgets/:id/thumbnail/:key', readAuth, route(async (req, res) => {
   res.set({ 'Content-Type': image.type, 'Cache-Control': `private, max-age=${maxAge}`, 'X-Content-Type-Options': 'nosniff' });
   res.send(image.body);
 }));
+
+// ---------- Agents (machines qui envoient elles-mêmes leurs ressources) ----------
+// Authentifiés par le jeton de leur widget, pas par le cookie : REQUIRE_LOGIN ne s'applique pas.
+const AGENT_SCRIPT = path.join(__dirname, 'agent', 'server-dashboard-agent.js');
+
+function agentWidget(cfg, id) {
+  const w = cfg.widgets.find((x) => x.id === id);
+  return w && INTEGRATIONS[w.type]?.receive ? w : null;
+}
+
+app.post('/api/agent/:id', route(async (req, res) => {
+  const w = agentWidget(await readConfig(), req.params.id);
+  if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!w.apiKey || !safeEqual(token, w.apiKey)) return res.status(401).json({ error: 'Jeton refusé', code: 'auth_refused' });
+  INTEGRATIONS[w.type].receive(w, req.body);
+  res.json({ ok: true });
+}));
+
+// Commande d'installation de l'agent, avec son jeton : admin seulement.
+app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
+  const w = agentWidget(await readConfig(), req.params.id);
+  if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  // Adresse vue par le navigateur de l'admin : c'est en général celle que l'agent peut joindre.
+  const base = `${req.protocol}://${req.get('host')}`;
+  res.json({ id: w.id, token: w.apiKey, url: base, script: `${base}/agent/server-dashboard-agent.js` });
+}));
+
+app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));
 
 app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses())));
 

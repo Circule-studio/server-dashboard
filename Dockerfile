@@ -5,6 +5,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY server.js notify.js ./
 COPY integrations ./integrations
+COPY agent ./agent
 COPY public ./public
 VOLUME /app/data
 EXPOSE 7575

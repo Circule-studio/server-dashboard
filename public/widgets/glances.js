@@ -10,7 +10,7 @@ RENDERERS.glances = (d) => {
   const temp = d.temp && Math.round(d.temp.value);
   return [
     h('div', { class: 'row glances-head' },
-      h('span', { class: 'item-title', title: d.os }, h('span', { class: 'dot ok' }), ` ${d.hostname || '–'}`),
+      h('span', { class: 'item-title', title: d.os }, h('span', { class: `dot ${d.offline ? 'bad' : 'ok'}` }), ` ${d.hostname || '–'}`),
       h('span', { class: 'muted' }, d.uptime != null ? t('glances.onlineFor', { duration: fmtUptime(d.uptime) }) : '')),
     d.cpu != null ? meterEl('CPU', d.cpu / 100, d.load?.cores
       ? t('glances.cpuLoad', { pct: `${Math.round(d.cpu)} %`, load: d.load.min1.toLocaleString(LOCALE, { maximumFractionDigits: 2 }) })

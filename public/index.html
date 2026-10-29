@@ -129,6 +129,10 @@
         <small class="muted" data-password-help></small>
       </label>
       <label class="check-inline" data-clear="password" hidden><input type="checkbox" name="clearPassword"><span data-i18n="widget.clearPassword"></span></label>
+      <div class="agent-setup" data-agent-setup hidden>
+        <p class="muted" data-agent-setup-text></p>
+        <div data-agent-setup-commands></div>
+      </div>
       <fieldset class="sections" data-sections hidden>
         <legend data-i18n="widget.sections"></legend>
         <div data-sections-list></div>
@@ -251,6 +255,7 @@
   <script src="widgets/pulse.js"></script>
   <script src="widgets/proxmox.js"></script>
   <script src="widgets/glances.js"></script>
+  <script src="widgets/agent.js"></script>
   <script src="widgets/uptimekuma.js"></script>
   <script src="widgets/media.js"></script>
   <script src="widgets/qbittorrent.js"></script>
