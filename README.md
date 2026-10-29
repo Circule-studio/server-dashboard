@@ -126,7 +126,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
-| GitHub | Dépôt (`propriétaire/dépôt` ou son adresse) + jeton facultatif | Jeton obligatoire pour un dépôt privé : Settings > Developer settings > *Fine-grained tokens*, en lecture seule (Contents, Issues, Pull requests, Metadata). Sans jeton, GitHub limite à 60 requêtes par heure : rafraîchi toutes les 15 min (2 min avec un jeton). L’URL de l’API ne sert que pour GitHub Enterprise |
+| GitHub | Dépôt (`propriétaire/dépôt` ou son adresse) + jeton facultatif | Jeton obligatoire pour un dépôt privé : Settings > Developer settings > *Fine-grained tokens*, en lecture seule (Contents, Issues, Pull requests, Metadata). Sans jeton, GitHub limite à 60 requêtes par heure : rafraîchi toutes les 15 min (2 min avec un jeton), ce qui permet 4 à 5 widgets. Si la limite est atteinte, les dernières données restent affichées. L’URL de l’API ne sert que pour GitHub Enterprise |
 
 **Pulse** : coche les blocs à afficher (Santé, Alertes, Nœuds / VM / LXC). Pour les placer librement, ajoute plusieurs widgets Pulse avec chacun un bloc, puis déplace-les par glisser-déposer.
 

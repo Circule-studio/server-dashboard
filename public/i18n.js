@@ -321,6 +321,7 @@ const I18N = {
     'github.noPulls': 'Aucune pull request ouverte.',
     'github.draft': 'brouillon',
     'github.by': '#{number} par {author}',
+    'github.limited': 'Limite de GitHub atteinte : données d’il y a {duration}, mise à jour dans {minutes} min. Un jeton d’accès relève la limite.',
 
     'disks.title': 'Disques affichés',
     'disks.help': 'Coche les disques à afficher dans les stats. Le nom est facultatif.',
@@ -687,6 +688,7 @@ const I18N = {
     'github.noPulls': 'No open pull requests.',
     'github.draft': 'draft',
     'github.by': '#{number} by {author}',
+    'github.limited': 'GitHub rate limit reached: data from {duration} ago, next update in {minutes} min. An access token raises the limit.',
 
     'disks.title': 'Displayed disks',
     'disks.help': 'Check the disks to show in the stats. The name is optional.',

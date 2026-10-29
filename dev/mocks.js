@@ -243,6 +243,21 @@ http.createServer((req, res) => {
 
 // ---------- Faux GitHub (API REST v3) ----------
 // Sans jeton, demo/private répond 404 comme le vrai GitHub ; un mauvais jeton répond 401.
+// Comme le vrai, il envoie un ETag et répond 304 à If-None-Match. Chaque requête est comptée dans la
+// console (« GitHub : n requêtes ») pour vérifier que le dashboard ménage la limite.
+// POST /__limit (réservé aux tests) simule la limite atteinte pendant 1 h ; un 2e appel la lève.
+// Dates figées au lancement : une réponse identique garde le même ETag.
+const ghStart = Date.now();
+const ghAgo = (min) => new Date(ghStart - min * 60_000).toISOString();
+let ghRequests = 0;
+let ghLimitedUntil = 0;
+const ghJson = (req, res, obj) => {
+  const body = JSON.stringify(obj);
+  const etag = `"${require('crypto').createHash('sha1').update(body).digest('hex')}"`;
+  if (req.headers['if-none-match'] === etag) { console.log('GitHub : 304 inchangé'); res.writeHead(304, { ETag: etag }); return res.end(); }
+  res.writeHead(200, { 'Content-Type': 'application/json', ETag: etag });
+  res.end(body);
+};
 const ghUser = (login) => ({ login });
 const ghIssue = (number, title, created, labels = [], extra = {}) => ({
   number, title, html_url: `https://github.com/circule-studio/server-dashboard/issues/${number}`,
@@ -270,9 +285,19 @@ const GH_REPOS = {
   'demo/empty': { private: false, stars: 0, releases: [], tags: [], empty: true, issues: [], issueCount: 0, pulls: [], pullCount: 0 },
 };
 http.createServer((req, res) => {
+  if (req.method === 'POST' && req.url === '/__limit') {
+    ghLimitedUntil = ghLimitedUntil > Date.now() ? 0 : Date.now() + 60 * 60_000;
+    console.log(`GitHub : limite ${ghLimitedUntil ? 'simulée pendant 1 h' : 'levée'}`);
+    res.writeHead(204); return res.end();
+  }
+  console.log(`GitHub : ${++ghRequests} requêtes (${req.url.split('?')[0]})`);
   const auth = req.headers.authorization;
   if (auth && auth !== 'Bearer gh-token') { res.writeHead(401); return res.end(); }
   const u = new URL(req.url, 'http://x');
+  if (ghLimitedUntil > Date.now()) {
+    res.writeHead(403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(ghLimitedUntil / 1000)) });
+    return res.end('{"message":"API rate limit exceeded"}');
+  }
   const notFound = () => { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end('{"message":"Not Found"}'); };
   if (u.pathname.startsWith('/repos/demo/rate-limited') || u.searchParams.get('q')?.includes('demo/rate-limited')) {
     res.writeHead(403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 25 * 60) });
@@ -284,29 +309,29 @@ http.createServer((req, res) => {
     const r = GH_REPOS[name];
     if (!r || (r.token && !auth)) { res.writeHead(422); return res.end('{"message":"Validation Failed"}'); }
     const pr = q.includes('is:pr');
-    return json(res, { total_count: pr ? r.pullCount : r.issueCount, incomplete_results: false, items: pr ? r.pulls : r.issues });
+    return ghJson(req, res, { total_count: pr ? r.pullCount : r.issueCount, incomplete_results: false, items: pr ? r.pulls : r.issues });
   }
   const m = u.pathname.match(/^\/repos\/([^/]+\/[^/]+)(\/.*)?$/);
   const r = m && GH_REPOS[m[1]];
   if (!r || (r.token && !auth)) return notFound();
   const html = `https://github.com/${m[1]}`;
   const rest = m[2] || '';
-  if (!rest) return json(res, {
+  if (!rest) return ghJson(req, res, {
     full_name: m[1], html_url: html, private: r.private, archived: false, default_branch: 'main',
-    stargazers_count: r.stars, forks_count: Math.round(r.stars / 9), pushed_at: ago(35),
+    stargazers_count: r.stars, forks_count: Math.round(r.stars / 9), pushed_at: ghAgo(35),
   });
-  if (rest === '/releases') return json(res, r.releases.map(([tag, min, pre]) => ({
-    tag_name: tag, name: tag, published_at: ago(min), prerelease: !!pre, draft: false, html_url: `${html}/releases/tag/${tag}`,
+  if (rest === '/releases') return ghJson(req, res, r.releases.map(([tag, min, pre]) => ({
+    tag_name: tag, name: tag, published_at: ghAgo(min), prerelease: !!pre, draft: false, html_url: `${html}/releases/tag/${tag}`,
   })));
-  if (rest === '/tags') return json(res, (r.tags || []).map((name) => ({ name })));
+  if (rest === '/tags') return ghJson(req, res, (r.tags || []).map((name) => ({ name })));
   if (rest === '/commits') {
     if (r.empty) { res.writeHead(409); return res.end('{"message":"Git Repository is empty."}'); }
-    return json(res, [{
+    return ghJson(req, res, [{
       sha: '3f9c2a17b4e8d0c6a5f1e2d3c4b5a69788776655', html_url: `${html}/commit/3f9c2a1`,
-      author: ghUser('thomas370'), commit: { message: 'Widget GitHub : versions, issues et PR\n\nDétails…', committer: { date: ago(35) } },
+      author: ghUser('thomas370'), commit: { message: 'Widget GitHub : versions, issues et PR\n\nDétails…', committer: { date: ghAgo(35) } },
     }]);
   }
-  if (rest.startsWith('/compare/')) return json(res, { status: r.unreleased ? 'ahead' : 'identical', ahead_by: r.unreleased, behind_by: 0, commits: [] });
+  if (rest.startsWith('/compare/')) return ghJson(req, res, { status: r.unreleased ? 'ahead' : 'identical', ahead_by: r.unreleased, behind_by: 0, commits: [] });
   notFound();
 }).listen(14000);
 

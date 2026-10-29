@@ -670,10 +670,16 @@ const RENDERERS = {
       : h('span', {}, text));
     const ago = (iso) => (iso ? t('github.ago', { duration: fmtAgo(iso) }) : '');
     const v = d.version;
-    const blocks = [h('div', { class: 'widget-stats' },
+    const blocks = [];
+    // Limite de GitHub atteinte : les dernières données reçues restent affichées.
+    if (d.limited) {
+      blocks.push(h('p', { class: 'gh-limited' },
+        `⏳ ${t('github.limited', { duration: fmtAgo(d.limited.since), minutes: d.limited.minutes })}`));
+    }
+    blocks.push(h('div', { class: 'widget-stats' },
       v ? h('div', { title: v.latest?.name || '' }, h('b', {}, v.latest?.tag || '–'), h('span', {}, t('github.version'))) : null,
       d.issues ? h('div', {}, h('b', {}, d.issues.total.toLocaleString(LOCALE)), h('span', {}, t('github.issues'))) : null,
-      d.pulls ? h('div', {}, h('b', {}, d.pulls.total.toLocaleString(LOCALE)), h('span', {}, t('github.pulls'))) : null)];
+      d.pulls ? h('div', {}, h('b', {}, d.pulls.total.toLocaleString(LOCALE)), h('span', {}, t('github.pulls'))) : null));
     blocks.push(h('p', { class: 'muted gh-meta' }, [
       d.repo.private ? t('github.private') : null,
       d.repo.archived ? t('github.archived') : null,

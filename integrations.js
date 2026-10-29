@@ -2,6 +2,7 @@
 
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 
 // Les erreurs réseau de Node (ECONNREFUSED…) n'ont souvent pas de message lisible.
 const NETWORK_ERRORS = {
@@ -536,16 +537,61 @@ const GITHUB_API = 'https://api.github.com';
 // Lien affiché dans l'interface : seulement une adresse web (pas de javascript: venant de l'API).
 const webUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null);
 
-// `optional` : codes HTTP qui veulent dire « rien à afficher » (ex. 409 pour un dépôt vide) -> null.
-async function githubGet(w, path, { optional = [] } = {}) {
+// Pour ménager la limite de GitHub :
+// - chaque réponse est gardée avec son ETag et redemandée avec If-None-Match : une réponse
+//   « 304 inchangé » ne compte pas dans la limite quand un jeton est utilisé ;
+// - une réponse de moins de GITHUB_SHARE_MS est réutilisée telle quelle : deux widgets sur le
+//   même dépôt (un bloc Version, un bloc Issues) ne font pas deux fois les mêmes requêtes ;
+// - une fois la limite atteinte, plus aucune requête jusqu'à l'heure de reprise annoncée par GitHub.
+const GITHUB_SHARE_MS = 60_000;
+const githubResponses = new Map(); // `${jeton}|${url}` -> { t, etag, status, json, pending }
+const githubLimits = new Map(); // `${jeton}|${API}|${core ou search}` -> heure de reprise (ms)
+
+const githubIdentity = (w) => (w.apiKey ? crypto.createHash('sha256').update(w.apiKey).digest('hex').slice(0, 16) : 'anonyme');
+
+function githubLimited(reset) {
+  return fail('github_rate_limit', 'Limite de requêtes GitHub atteinte', { minutes: Math.max(1, Math.ceil((reset - Date.now()) / 60_000)) });
+}
+
+async function githubFetch(w, url, key, limitKey) {
+  const reset = githubLimits.get(limitKey);
+  if (reset > Date.now()) throw githubLimited(reset);
   const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'server-dashboard' };
   if (w.apiKey) headers.Authorization = `Bearer ${w.apiKey}`;
-  const r = await request(join(w.url || GITHUB_API, path), { headers });
+  const known = githubResponses.get(key);
+  if (known?.etag) headers['If-None-Match'] = known.etag;
+  const r = await request(url, { headers });
   // Limite atteinte : 403 ou 429, avec x-ratelimit-remaining à 0 ou un retry-after (limite secondaire).
   if ((r.status === 403 || r.status === 429) && (r.headers['x-ratelimit-remaining'] === '0' || r.headers['retry-after'])) {
-    const reset = Number(r.headers['x-ratelimit-reset']) * 1000 || Date.now() + (Number(r.headers['retry-after']) || 60) * 1000;
-    throw fail('github_rate_limit', 'Limite de requêtes GitHub atteinte', { minutes: Math.max(1, Math.ceil((reset - Date.now()) / 60_000)) });
+    const until = Number(r.headers['x-ratelimit-reset']) * 1000 || Date.now() + (Number(r.headers['retry-after']) || 60) * 1000;
+    githubLimits.set(limitKey, until);
+    throw githubLimited(until);
   }
+  if (r.status === 304 && known) return { status: known.status, json: known.json, etag: known.etag };
+  return { status: r.status, json: r.json, etag: (r.status === 200 && r.headers.etag) || null };
+}
+
+// `optional` : codes HTTP qui veulent dire « rien à afficher » (ex. 409 pour un dépôt vide) -> null.
+async function githubGet(w, path, { optional = [] } = {}) {
+  const api = w.url || GITHUB_API;
+  const url = join(api, path);
+  const key = `${githubIdentity(w)}|${url}`;
+  const limitKey = `${githubIdentity(w)}|${api}|${path.startsWith('/search/') ? 'search' : 'core'}`;
+  let entry = githubResponses.get(key);
+  if (!entry?.pending && !(entry && Date.now() - entry.t < GITHUB_SHARE_MS)) {
+    const pending = githubFetch(w, url, key, limitKey);
+    entry = { ...entry, pending };
+    githubResponses.set(key, entry);
+    try {
+      const res = await pending;
+      entry = { t: Date.now(), ...res };
+      githubResponses.set(key, entry);
+    } catch (e) {
+      githubResponses.set(key, { ...entry, pending: null, t: 0 });
+      throw e;
+    }
+  }
+  const r = entry.pending ? await entry.pending : entry;
   if (optional.includes(r.status)) return null;
   if (r.status === 401) throw fail('github_token', 'Jeton GitHub refusé');
   // GitHub répond 404 aussi pour un dépôt privé quand le jeton manque ou n'y a pas accès.
@@ -555,6 +601,9 @@ async function githubGet(w, path, { optional = [] } = {}) {
   if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
   return r.json;
 }
+
+// Commits entre une version et un commit : ne change jamais, calculé une seule fois.
+const githubCompares = new Map(); // `${API}|${dépôt}|${tag}|${sha}` -> nombre de commits (ou null)
 
 async function githubVersion(w, repo) {
   const base = `/repos/${w.repo}`;
@@ -579,8 +628,12 @@ async function githubVersion(w, repo) {
   const at = list.indexOf(latest);
   let unreleased = null;
   if (latest && commits?.length) {
-    const cmp = await githubGet(w, `${base}/compare/${encodeURIComponent(latest.tag)}...${branch}?per_page=1`, { optional: [404, 422] });
-    unreleased = cmp?.ahead_by ?? null;
+    const key = `${w.url || GITHUB_API}|${w.repo}|${latest.tag}|${commits[0].sha}`;
+    if (!githubCompares.has(key)) {
+      const cmp = await githubGet(w, `${base}/compare/${encodeURIComponent(latest.tag)}...${commits[0].sha}?per_page=1`, { optional: [404, 422] });
+      githubCompares.set(key, cmp?.ahead_by ?? null);
+    }
+    unreleased = githubCompares.get(key);
   }
   const c = commits?.[0];
   return {
@@ -620,7 +673,24 @@ async function githubSearch(w, kind) {
   };
 }
 
+// Dernières données reçues par widget : affichées (avec un avertissement) quand la limite est
+// atteinte, plutôt qu'une erreur.
+const githubLast = new Map(); // id du widget -> { sig, t, data }
+
 async function github(w) {
+  const sig = JSON.stringify([w.url, w.repo, w.sections, githubIdentity(w)]);
+  try {
+    const data = await githubData(w);
+    githubLast.set(w.id, { sig, t: Date.now(), data });
+    return data;
+  } catch (e) {
+    const last = githubLast.get(w.id);
+    if (e.key !== 'github_rate_limit' || last?.sig !== sig) throw e;
+    return { ...last.data, limited: { since: new Date(last.t).toISOString(), minutes: e.params.minutes } };
+  }
+}
+
+async function githubData(w) {
   if (!w.repo) throw fail('github_repo_invalid', 'Dépôt manquant', { repo: '' });
   const sections = w.sections?.length ? w.sections : INTEGRATIONS.github.sections;
   const repo = await githubGet(w, `/repos/${w.repo}`);
@@ -682,6 +752,9 @@ function resetIntegrations() {
   cache.clear();
   qbitSids.clear();
   places.clear();
+  // Les heures de reprise de GitHub restent valables : elles ne dépendent pas de la config.
+  githubResponses.clear();
+  githubCompares.clear();
   // Ferme les sessions Pi-hole devenues inutiles pour libérer leurs places (sans attendre la réponse).
   for (const { url, sid } of piholeSids.values()) {
     sid.then((s) => s && request(join(url, '/api/auth'), { method: 'DELETE', headers: { 'X-FTL-SID': s }, discardBody: true }))

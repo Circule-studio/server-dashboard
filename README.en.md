@@ -72,7 +72,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
 | Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
 | Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
-| GitHub | Repository (`owner/repo` or its address) + optional token | Token required for a private repository: Settings > Developer settings > *Fine-grained tokens*, read-only (Contents, Issues, Pull requests, Metadata). Without a token, GitHub allows 60 requests per hour: refreshed every 15 min (2 min with a token). The API URL is only for GitHub Enterprise |
+| GitHub | Repository (`owner/repo` or its address) + optional token | Token required for a private repository: Settings > Developer settings > *Fine-grained tokens*, read-only (Contents, Issues, Pull requests, Metadata). Without a token, GitHub allows 60 requests per hour: refreshed every 15 min (2 min with a token), enough for 4 or 5 widgets. If the limit is reached, the last data stays on screen. The API URL is only for GitHub Enterprise |
 | Jellyfin | URL + API key | Dashboard > API Keys |
 | Plex | URL + token | Your `X-Plex-Token` |
 | qBittorrent | URL + Web UI username / password | Options > Web UI |

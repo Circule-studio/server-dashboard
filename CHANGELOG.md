@@ -5,7 +5,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 ## [Non publié]
 
 ### Ajouté
-- Widget **GitHub** : on connecte un dépôt (`propriétaire/dépôt` ou son adresse) pour suivre sa dernière version, les commits non publiés depuis, la pré-release en cours, le dernier commit, les issues et les pull requests ouvertes (avec leurs labels et les brouillons). Blocs au choix, comme pour Pulse. Jeton facultatif, obligatoire pour un dépôt privé ; sans jeton, les données sont rafraîchies toutes les 15 min pour rester sous la limite de GitHub, et un dépassement affiche quand réessayer. GitHub Enterprise pris en charge. Faux GitHub dans `npm run mocks` (#63).
+- Widget **GitHub** : on connecte un dépôt (`propriétaire/dépôt` ou son adresse) pour suivre sa dernière version, les commits non publiés depuis, la pré-release en cours, le dernier commit, les issues et les pull requests ouvertes (avec leurs labels et les brouillons). Blocs au choix, comme pour Pulse. Jeton facultatif, obligatoire pour un dépôt privé. Pour ménager la limite de GitHub (60 requêtes par heure sans jeton) : rafraîchissement toutes les 15 min sans jeton, requêtes conditionnelles (ETag, gratuites avec un jeton quand rien n’a changé), requêtes partagées entre widgets du même dépôt, et plus aucune requête jusqu’à l’heure de reprise une fois la limite atteinte. Le widget garde alors ses dernières données avec un avertissement, au lieu d’une erreur. GitHub Enterprise pris en charge. Faux GitHub dans `npm run mocks` (#63).
 
 ## [0.8.0] - 2026-10-28
 
