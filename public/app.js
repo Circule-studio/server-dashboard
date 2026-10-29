@@ -382,6 +382,17 @@ function progressBar(p, cls = '') {
   return h('div', { class: 'bar bar-thin' }, h('i', { class: cls, style: `width:${Math.min(100, (p || 0) * 100)}%` }));
 }
 
+// Couleur d'une jauge selon son remplissage (0 à 1) : orange à 70 %, rouge à 90 %.
+const levelOf = (ratio) => (ratio >= 0.9 ? 'bad' : ratio >= 0.7 ? 'warn' : 'ok');
+
+// Ligne « libellé, jauge, valeur » des widgets de supervision (Proxmox, Glances…).
+function meterEl(label, ratio, detail, title) {
+  return h('div', { class: 'meter', title },
+    h('span', { class: 'meter-label' }, label),
+    progressBar(ratio, levelOf(ratio)),
+    h('span', { class: 'meter-value' }, detail));
+}
+
 function widgetCard(w, i) {
   const type = WIDGET_TYPES[w.type];
   // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.

@@ -169,11 +169,36 @@ test('Glances : une autre machine, API v4 ou v3', async () => {
   const pc = await widget('glances-pc');
   assert.deepEqual([pc.version, pc.hostname, pc.uptime], ['4', 'pc-bureau', 3 * 86400 + 4 * 3600 + 5 * 60 + 6]);
   assert.deepEqual(pc.disks.map((d) => d.mount), ['C:\\', 'D:\\']);
-  assert.deepEqual(pc.temp, { value: 61, label: 'Tctl' }, 'capteur de température, pas le ventilateur');
+  assert.deepEqual(pc.temp, { value: 67, label: 'GPU' }, '°F converti, ventilateur ignoré');
   const pi = await widget('glances-pi');
   assert.deepEqual([pi.version, pi.hostname, pi.cpu], ['3', 'raspberrypi', 88.2]);
-  assert.deepEqual(pi.disks.map((d) => d.mount), ['/'], 'même disque monté deux fois, squashfs écarté');
+  assert.deepEqual(pi.disks.map((d) => d.mount), ['/'], 'même disque monté deux fois : point de montage le plus court ; squashfs écarté');
   assert.equal(pi.temp, null, 'plugin sensors absent');
+});
+
+test('Glances : version revérifiée, machine éteinte sondée une fois', async () => {
+  // Appel direct de l'intégration, sans le cache des widgets du serveur.
+  const { fetch: fetchGlances } = require('../integrations').INTEGRATIONS.glances;
+  const pi = { id: 'gl-direct', type: 'glances', url: 'http://localhost:61209', password: 'glances-pass' };
+  assert.equal((await fetchGlances(pi)).version, '3');
+  await fetch('http://localhost:61209/__version', { method: 'POST' }); // Glances mis à jour : API v4
+  try {
+    const d = await fetchGlances(pi);
+    assert.deepEqual([d.version, d.hostname], ['4', 'raspberrypi']);
+  } finally {
+    await fetch('http://localhost:61209/__version', { method: 'POST' });
+  }
+  // Machine qui coupe toutes les connexions : un seul essai, l'erreur est retenue 30 s.
+  let connections = 0;
+  const server = require('node:net').createServer((s) => { connections++; s.destroy(); });
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const off = { id: 'gl-off', type: 'glances', url: `http://localhost:${server.address().port}` };
+    for (let i = 0; i < 3; i++) await assert.rejects(fetchGlances(off), { key: 'glances_offline' });
+    assert.equal(connections, 1);
+  } finally {
+    server.close();
+  }
 });
 
 test('Frigate : caméras, événements et miniatures via le dashboard', async () => {

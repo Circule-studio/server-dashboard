@@ -2,7 +2,7 @@
 // Format commun : protection (enabled / disabled / failed / unknown), minuteur (s),
 // requêtes, bloquées, pourcentage, plus quelques compteurs propres au service.
 
-const { request, fail, join, getJson, sessionCache } = require('./lib');
+const { request, fail, join, getJson, sessionCache, basicAuth } = require('./lib');
 
 // Pi-hole limite le nombre de sessions ouvertes (« API seats ») : on garde la
 // session tant qu'elle est valide au lieu de se reconnecter à chaque appel.
@@ -59,7 +59,7 @@ async function pihole(w) {
 // AdGuard Home : authentification HTTP Basic (facultative si l'interface n'a pas de mot de passe).
 async function adguard(w) {
   const h = w.username || w.password
-    ? { Authorization: 'Basic ' + Buffer.from(`${w.username || ''}:${w.password || ''}`).toString('base64') }
+    ? basicAuth(w.username, w.password)
     : {};
   const [stats, status] = await Promise.all([
     getJson(join(w.url, '/control/stats'), h),

@@ -1,11 +1,16 @@
 // Faux Glances : deux machines, pour tester les deux versions de l'API.
 //   61208 : PC de bureau, API v4, sans mot de passe
 //   61209 : Raspberry Pi, API v3, mot de passe glances / glances-pass, presque saturé
+// POST /__version (réservé aux tests) fait passer une machine de l'API v3 à v4 et inversement.
 
 const { http, json, GB } = require('./lib');
 
 function glancesServer(port, version, { auth, data }) {
   http.createServer((req, res) => {
+    if (req.method === 'POST' && req.url === '/__version') {
+      version = version === 3 ? 4 : 3;
+      res.writeHead(204); return res.end();
+    }
     if (auth && req.headers.authorization !== `Basic ${Buffer.from(auth).toString('base64')}`) {
       res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Glances"' }); return res.end();
     }
@@ -24,7 +29,11 @@ glancesServer(61208, 4, { data: {
     { device_name: 'C:\\', fs_type: 'NTFS', mnt_point: 'C:\\', size: 953 * GB, used: 412 * GB, percent: 43.2 },
     { device_name: 'D:\\', fs_type: 'NTFS', mnt_point: 'D:\\', size: 1863 * GB, used: 1544 * GB, percent: 82.9 },
   ],
-  sensors: [{ label: 'Tctl', value: 61, unit: 'C', type: 'temperature_core' }, { label: 'fan1', value: 900, unit: 'R', type: 'fan_speed' }],
+  sensors: [
+    { label: 'Tctl', value: 61, unit: 'C', type: 'temperature_core' },
+    { label: 'GPU', value: 152.6, unit: 'F', type: 'temperature_hdd' }, // 67 °C : Glances lancé avec --fahrenheit
+    { label: 'fan1', value: 900, unit: 'R', type: 'fan_speed' },
+  ],
   uptime: '3 days, 4:05:06',
 } });
 
@@ -34,8 +43,9 @@ glancesServer(61209, 3, { auth: 'glances:glances-pass', data: {
   mem: { total: 4 * GB, used: 3.65 * GB, percent: 91.3 },
   load: { min1: 3.7, min5: 3.2, min15: 2.9, cpucore: 4 },
   fs: [
+    // Même disque monté sous un sous-dossier avant « / » (Glances dans Docker liste /etc/hosts en premier).
+    { device_name: '/dev/mmcblk0p2', fs_type: 'ext4', mnt_point: '/etc/hosts', size: 58 * GB, used: 27 * GB, percent: 46.5 },
     { device_name: '/dev/mmcblk0p2', fs_type: 'ext4', mnt_point: '/', size: 58 * GB, used: 27 * GB, percent: 46.5 },
-    { device_name: '/dev/mmcblk0p2', fs_type: 'ext4', mnt_point: '/var/log', size: 58 * GB, used: 27 * GB, percent: 46.5 },
     { device_name: '/dev/loop0', fs_type: 'squashfs', mnt_point: '/snap/core', size: 0.1 * GB, used: 0.1 * GB, percent: 100 },
   ],
   // sensors absent : plugin désactivé (404), le widget s'en passe.

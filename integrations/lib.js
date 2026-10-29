@@ -132,4 +132,7 @@ function sessionCache(login) {
   };
 }
 
-module.exports = { request, fail, join, pad, getJson, sessionCache };
+// En-tête d'authentification HTTP Basic (AdGuard Home, Glances…).
+const basicAuth = (user, password) => ({ Authorization: `Basic ${Buffer.from(`${user || ''}:${password || ''}`).toString('base64')}` });
+
+module.exports = { request, fail, join, pad, getJson, sessionCache, basicAuth };

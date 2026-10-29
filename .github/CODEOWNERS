@@ -2,7 +2,7 @@
 # Les fichiers sensibles (sécurité, installation, CI) exigent l'accord d'un mainteneur.
 *                         @thomas370
 /server.js                @thomas370
-/integrations.js          @thomas370
+/integrations/            @thomas370
 /packaging/               @thomas370
 /.github/                 @thomas370
 /Dockerfile               @thomas370

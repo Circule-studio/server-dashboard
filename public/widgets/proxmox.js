@@ -9,11 +9,6 @@ WIDGET_TYPES.proxmox = {
 };
 
 RENDERERS.proxmox = (d) => {
-  const level = (r) => (r >= 0.9 ? 'bad' : r >= 0.7 ? 'warn' : 'ok');
-  const meter = (label, ratio, detail) => h('div', { class: 'meter' },
-    h('span', { class: 'meter-label' }, label),
-    progressBar(ratio, level(ratio)),
-    h('span', { class: 'meter-value' }, detail));
   const multiNode = d.nodes.length > 1;
   return [
     ...d.nodes.map((n) => h('div', { class: 'pve-node' },
@@ -21,9 +16,9 @@ RENDERERS.proxmox = (d) => {
         h('span', { class: 'item-title' }, h('span', { class: `dot ${n.online ? 'ok' : 'bad'}` }), ` ${n.name}`),
         h('span', { class: 'muted' }, n.online ? t('pve.onlineFor', { duration: fmtUptime(n.uptime) }) : t('pve.offline'))),
       n.online ? [
-        meter('CPU', n.cpu, `${pct(n.cpu)} · ${t('pve.cores', { count: n.cores })}`),
-        meter('RAM', n.mem / n.maxmem, `${fmtBytes(n.mem)} / ${fmtBytes(n.maxmem)}`),
-        meter(t('pve.disk'), n.disk / n.maxdisk, `${fmtBytes(n.disk)} / ${fmtBytes(n.maxdisk)}`),
+        meterEl('CPU', n.cpu, `${pct(n.cpu)} · ${t('pve.cores', { count: n.cores })}`),
+        meterEl('RAM', n.mem / n.maxmem, `${fmtBytes(n.mem)} / ${fmtBytes(n.maxmem)}`),
+        meterEl(t('pve.disk'), n.disk / n.maxdisk, `${fmtBytes(n.disk)} / ${fmtBytes(n.maxdisk)}`),
       ] : null)),
     h('div', { class: 'widget-subhead' }, t('pve.guests', { running: d.running, total: d.guests.length })),
     d.guests.length
@@ -36,7 +31,7 @@ RENDERERS.proxmox = (d) => {
         multiNode ? h('div', { class: 'item-sub' }, g.node) : null)))
       : h('p', { class: 'muted' }, t('pve.noGuests')),
     d.storages.length ? h('div', { class: 'widget-subhead' }, t('pve.storages')) : null,
-    ...d.storages.map((s) => meter(multiNode ? `${s.name} (${s.node})` : s.name, s.used / s.total,
+    ...d.storages.map((s) => meterEl(multiNode ? `${s.name} (${s.node})` : s.name, s.used / s.total,
       `${fmtBytes(s.used)} / ${fmtBytes(s.total)}`)),
   ];
 };
