@@ -212,7 +212,7 @@
       </div>
       <div class="shot">
         <img src="screenshots/dashboard.png" width="1440" height="1780"
-             alt="Le dashboard : stats CPU, mémoire, disque, widgets Jellyfin, qBittorrent, Sonarr et Radarr, tuiles d'applications et liste des conteneurs Docker">
+             alt="Le dashboard : stats CPU, mémoire, disque, tuiles d'applications, widgets Proxmox VE, Pulse, Météo, Immich, qBittorrent, Jellyfin, Sonarr, Radarr et Uptime Kuma, et liste des conteneurs Docker">
       </div>
     </header>
   </div>
@@ -286,7 +286,7 @@
         </ul>
       </div>
       <div class="phone">
-        <img src="screenshots/mobile.png" width="780" height="2480" loading="lazy" alt="Le dashboard sur un téléphone : stats du serveur, widgets Jellyfin et qBittorrent">
+        <img src="screenshots/mobile.png" width="780" height="2480" loading="lazy" alt="Le dashboard sur un téléphone : stats du serveur et tuiles d'applications">
       </div>
     </div>
   </section>
@@ -306,7 +306,7 @@
           <div>
             <h3>Récupère la configuration</h3>
             <div class="code"><pre>mkdir server-dashboard &amp;&amp; cd server-dashboard
-curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env</pre><button class="copy" type="button">Copier</button></div>
           </div>
         </div>
@@ -333,7 +333,7 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
       <p class="section-lead">Où en est le projet et ce qui arrive. Chaque point est une issue GitHub : choisis-en une et lance-toi !</p>
       <div class="roadmap">
         <article class="phase phase-done">
-          <div class="phase-head"><h3>Versions 0.1 – 0.9</h3><span class="tag tag-done">Disponible</span></div>
+          <div class="phase-head"><h3>Versions 0.1 – 0.15</h3><span class="tag tag-done">Disponible</span></div>
           <ul>
             <li>Tuiles d'apps avec statut en ligne</li>
             <li>Stats CPU, mémoire, uptime et plusieurs disques</li>
@@ -345,8 +345,9 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
             <li>Grille de mise en page et glisser-déposer, aussi au doigt</li>
             <li>Interface adaptée au téléphone</li>
             <li>Widgets GitHub, Uptime Kuma, Home Assistant, Frigate et Nginx Proxy Manager</li>
+            <li>Widgets GoAccess, Alwaysdata et flux RSS / Atom</li>
             <li>Plusieurs machines sur le même dashboard (Glances ou agent)</li>
-            <li>Notifications ntfy, Gotify, Discord ou webhook quand une app tombe</li>
+            <li>Notifications ntfy, Gotify, Discord ou webhook quand une app tombe, une VM s’arrête ou un disque se remplit</li>
             <li>Catalogue d'apps connues et taille des tuiles</li>
             <li>Export et import de la configuration</li>
             <li>Installation Docker (image amd64 / arm64) ou systemd</li>

@@ -135,4 +135,12 @@ function sessionCache(login) {
 // En-tête d'authentification HTTP Basic (AdGuard Home, Glances…).
 const basicAuth = (user, password) => ({ Authorization: `Basic ${Buffer.from(`${user || ''}:${password || ''}`).toString('base64')}` });
 
-module.exports = { request, fail, join, pad, getJson, sessionCache, basicAuth };
+// ---------- Alertes (case « M'alerter », voir integrations/index.js) ----------
+// Disques : alerte au-delà de DISK_ALERT (part utilisée), « de nouveau sous » en dessous.
+const DISK_ALERT = 0.9;
+const diskAlerts = (w, disks, label = (d) => d.mount) => disks.filter((d) => d.size > 0).map((d) => ({
+  id: `${w.id}:disk:${label(d)}`, name: `${w.name} · ${label(d)}`, url: w.url, problem: 'disk',
+  online: d.used / d.size < DISK_ALERT, value: Math.round((d.used / d.size) * 100),
+}));
+
+module.exports = { request, fail, join, pad, getJson, sessionCache, basicAuth, diskAlerts };

@@ -79,9 +79,12 @@ async function frigateThumbnail(w, eventId) {
   return r && /^image\/(jpeg|png|webp)$/.test(type.split(';')[0]) ? { type: type.split(';')[0], body: r.body } : null;
 }
 
+// Alertes : une caméra hors ligne (plus aucune image par seconde).
+const alerts = (d, w) => d.cameras.map((c) => ({ id: `${w.id}:${c.name}`, name: `${w.name} · ${c.name}`, url: w.url, online: c.online }));
+
 module.exports = {
   frigate: {
-    fields: ['url', 'username', 'password'], cacheMs: 10_000, fetch: frigate, thumbnail: frigateThumbnail,
+    fields: ['url', 'username', 'password'], cacheMs: 10_000, fetch: frigate, thumbnail: frigateThumbnail, alerts,
     reset: () => frigateSessions.clear(),
   },
 };

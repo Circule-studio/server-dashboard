@@ -569,6 +569,10 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 /* ---------- Widget GitHub ---------- */
 .gh-meta { margin: -4px 0 10px; font-size: 0.82rem; }
 .gh-limited { margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; color: var(--warn); background: rgba(251, 191, 36, 0.08); }
+.rss-title { display: block; white-space: normal; }
+.widget-rss a.rss-title { color: inherit; text-decoration: none; }
+.widget-rss a.rss-title:hover { text-decoration: underline; }
+.rss-failed { margin: 8px 0 0; font-size: 0.8rem; }
 .goaccess-period { margin: 8px 0 0; font-size: 0.8rem; }
 .widget-alwaysdata a.item-title { color: inherit; text-decoration: none; }
 .widget-alwaysdata a.item-title:hover { text-decoration: underline; }

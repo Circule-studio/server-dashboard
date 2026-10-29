@@ -5,9 +5,9 @@ const { http, json } = require('./lib');
 http.createServer((req, res) => {
   if (req.headers['x-emby-token'] !== 'jf-key') { res.writeHead(401); return res.end(); }
   if (req.url.startsWith('/Sessions')) return json(res, [
-    { UserName: 'thomas', DeviceName: 'TV Salon', PlayState: { PositionTicks: 3.1e10, IsPaused: false },
+    { UserName: 'thomas', DeviceName: 'Living room TV', PlayState: { PositionTicks: 3.1e10, IsPaused: false },
       NowPlayingItem: { Type: 'Episode', SeriesName: 'The Expanse', ParentIndexNumber: 2, IndexNumber: 5, Name: 'Home', RunTimeTicks: 5.4e10 } },
-    { UserName: 'invité', DeviceName: 'Firefox', PlayState: { PositionTicks: 1e10, IsPaused: true },
+    { UserName: 'guest', DeviceName: 'Firefox', PlayState: { PositionTicks: 1e10, IsPaused: true },
       NowPlayingItem: { Type: 'Movie', Name: 'Dune', ProductionYear: 2021, RunTimeTicks: 9.3e10 } },
     { UserName: 'idle', DeviceName: 'Phone' },
   ]);

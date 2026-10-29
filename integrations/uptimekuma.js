@@ -51,6 +51,9 @@ async function uptimekuma(w) {
   };
 }
 
+// Alertes : une sonde hors ligne (« en attente » et maintenance ne sont pas des pannes).
+const alerts = (d, w) => d.monitors.map((m) => ({ id: `${w.id}:${m.name}`, name: m.name, url: w.url, online: m.status !== 'down' }));
+
 module.exports = {
-  uptimekuma: { fields: ['url', 'slug'], fetch: uptimekuma },
+  uptimekuma: { fields: ['url', 'slug'], fetch: uptimekuma, alerts },
 };

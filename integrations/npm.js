@@ -5,6 +5,7 @@
 const { request, fail, join, sessionCache } = require('./lib');
 
 const NPM_SOON_DAYS = 14; // un certificat qui expire avant est mis en évidence
+const NPM_ALERT_DAYS = 7; // … et déclenche une alerte (case « M'alerter »)
 
 async function npmLogin(w) {
   const body = JSON.stringify({ identity: w.username || '', secret: w.password || '' });
@@ -75,6 +76,12 @@ async function nginxProxyManager(w) {
   };
 }
 
+// Alertes : un certificat expiré ou qui expire dans NPM_ALERT_DAYS jours, puis renouvelé.
+const alerts = (d, w) => d.certificates.map((c) => ({
+  id: `${w.id}:cert:${c.name}`, name: c.name, url: w.url, problem: 'cert',
+  online: !c.expired && (c.days == null || c.days > NPM_ALERT_DAYS), value: c.expired ? 0 : c.days,
+}));
+
 module.exports = {
-  npm: { fields: ['url', 'username', 'password'], userRequired: true, cacheMs: 60_000, fetch: nginxProxyManager, reset: () => npmSessions.clear() },
+  npm: { fields: ['url', 'username', 'password'], userRequired: true, cacheMs: 60_000, fetch: nginxProxyManager, alerts, reset: () => npmSessions.clear() },
 };

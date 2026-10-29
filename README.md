@@ -4,7 +4,7 @@
 
 Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page. Interface en **français et en anglais** (bouton EN / FR).
 
-![Vue d'ensemble du dashboard : stats du serveur, widgets Jellyfin, qBittorrent, Sonarr, Radarr, tuiles d'applications et conteneurs Docker](docs/screenshots/dashboard.png)
+![Vue d'ensemble du dashboard : stats du serveur, tuiles d'applications, widgets Proxmox VE, Pulse, Météo, Immich, qBittorrent, Jellyfin, Sonarr, Radarr, Uptime Kuma et conteneurs Docker](docs/screenshots/dashboard.png)
 
 <details>
 <summary>Version mobile</summary>
@@ -30,6 +30,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas. Si un compteur de téléchargements `dl-stats` est placé devant Immich, ses totaux (téléchargements, photos téléchargées, visiteurs) s’affichent aussi.
   - **GoAccess** : visiteurs uniques d’un site (total, aujourd’hui, 7 derniers jours), requêtes et trafic, lus dans un rapport JSON de GoAccess.
   - **Alwaysdata** : les sites d’un compte d’hébergement, chacun testé par le dashboard (en ligne, en panne, temps de réponse), ceux en panne en premier.
+  - **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
   - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
   - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
@@ -37,7 +38,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **GitHub** : suivre un dépôt, avec sa dernière version, les commits non publiés depuis, les issues et les pull requests ouvertes.
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
 - **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](agent/README.md).
-- **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé. Avec la case « M’alerter » du widget Proxmox, aussi quand le nœud, une VM ou un conteneur s’arrête.
+- **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé. Avec la case « M’alerter » d’un widget, aussi pour ce qu’il surveille : VM, conteneur ou nœud Proxmox arrêté, disque à plus de 90 % (Proxmox, Glances, Agent), machine Glances ou Agent hors ligne, certificat Nginx Proxy Manager qui expire dans 7 jours, sonde Uptime Kuma hors ligne, caméra Frigate coupée.
 - **Sauvegarde** : export de la configuration en un fichier (avec ou sans les clés API), et import pour la restaurer ou la recopier sur une autre machine.
 
 Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
@@ -50,11 +51,11 @@ L'image est publiée à chaque version sur `ghcr.io/circule-studio/server-dashbo
 
    ```bash
    mkdir server-dashboard && cd server-dashboard
-   curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+   curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
    curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
    ```
 
-2. Ouvre `.env` et remplace `change-moi` par un vrai mot de passe. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `docker-compose.yml`.
+2. Ouvre `.env` et remplace `change-moi` par un vrai mot de passe. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `compose.yaml`.
 3. Lance :
 
    ```bash
@@ -65,7 +66,7 @@ L'image est publiée à chaque version sur `ghcr.io/circule-studio/server-dashbo
 
 **Mettre à jour** : `docker compose pull && docker compose up -d`. La config reste dans `./data`.
 
-**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `docker-compose.yml` par `build: .`, puis `docker compose up -d --build`.
+**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `compose.yaml` par `build: .`, puis `docker compose up -d --build`.
 
 ## Installation sans Docker (Debian / Ubuntu, LXC Proxmox)
 
@@ -113,7 +114,7 @@ Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js)
 
 En mode édition, le bouton **Disques** liste les disques détectés sur la machine (`C:\`, `D:\`… sous Windows, les partitions réelles comme `/` ou `/mnt/data` sous Linux). Coche ceux à afficher et donne-leur un nom (« Films », « Sauvegardes »…) : chacun a sa carte dans les stats. Tu peux aussi saisir un chemin à la main (partage réseau monté, dossier…).
 
-**Avec Docker**, le conteneur ne voit que ce qui est monté. `docker-compose.yml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
+**Avec Docker**, le conteneur ne voit que ce qui est monté. `compose.yaml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
 
 ```yaml
     volumes:

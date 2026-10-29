@@ -7,7 +7,7 @@ const MONITORS = [
   [1, 'Jellyfin', beat(1, 42), 0.9998],
   [2, 'Nextcloud', beat(0, null, 'connect ECONNREFUSED 192.168.1.20:443'), 0.9312],
   [3, 'Immich', beat(2, null), 0.995],
-  [4, 'Sauvegardes', beat(3, null), 1],
+  [4, 'Backups', beat(3, null), 1],
   [5, 'Home Assistant', beat(1, 18), 1],
 ];
 

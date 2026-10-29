@@ -67,6 +67,8 @@ const WIDGETS = [
   { id: 'alwaysdata', type: 'alwaysdata', url: 'http://localhost:17443/v1', username: 'thomas', apiKey: 'alwaysdata-token' },
   { id: 'alwaysdata-bad', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'mauvais-jeton-ad' },
   { id: 'alwaysdata-ip', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'alwaysdata-ip-token' },
+  { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
+  { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
   { id: 'goaccess-bad', type: 'goaccess', url: 'http://localhost:17890/pas-un-rapport' },
   { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
@@ -196,6 +198,26 @@ test('Alwaysdata : sites testés un par un, ceux en panne d’abord', async () =
   assert.equal(d.sites[2].note, 'Blog');
   assert.equal(d.sites[2].scheme, 'http', 'HTTP quand HTTPS échoue');
   assert.ok(!d.sites.some((s) => s.address.startsWith('*')), 'adresse joker ignorée');
+});
+
+test('Flux RSS / Atom : articles mélangés par date, texte brut, liens sûrs', async () => {
+  const d = await widget('rss');
+  assert.equal(d.failed, 1, 'flux injoignable compté');
+  assert.deepEqual(d.items.map((i) => i.title), [
+    'Proxmox 9 : migration & retour d’expérience'.replace('’', '\''), 'v2.0 — nouveautés', 'Sauvegardes 3-2-1 avec restic', 'v1.9', 'Un vieil article',
+  ]);
+  assert.deepEqual(d.items.map((i) => i.source), ['Blog du homelab', 'Notes de version', 'Blog du homelab', 'Notes de version', 'Blog du homelab']);
+  assert.equal(d.items[1].link, 'https://releases.example.com/v2.0', 'lien rel="alternate"');
+  assert.equal(d.items[2].link, '', 'lien javascript: écarté');
+  assert.ok(d.items.every((i) => !/[<>]/.test(i.title)), 'aucune balise');
+});
+
+test('Flux RSS : adresses invalides refusées à l’enregistrement', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  for (const [feeds, code] of [[[], 'feeds_missing'], [['ftp://x/flux'], 'invalid_url']]) {
+    const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { id: 'rss-x', type: 'rss', feeds }] });
+    assert.deepEqual([r.status, r.json.code], [400, code]);
+  }
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
@@ -328,6 +350,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
+    'rss-bad': 'rss_invalid',
     'alwaysdata-bad': 'auth_refused',
     'alwaysdata-ip': 'alwaysdata_ip',
     'pihole-bad': 'pihole_password',
@@ -614,6 +637,37 @@ test('Notifications : conteneur Proxmox arrêté puis redémarré (« M’alerte
     await api('PUT', '/api/config', { ...now, notify: { type: '' }, widgets: now.widgets.map((w) => (w.id === 'proxmox' ? { ...w, alert: false } : w)) });
     hook.close();
   }
+});
+
+test('Alertes des widgets : éléments surveillés et messages', async () => {
+  const { INTEGRATIONS } = require('../integrations');
+  const { message } = require('../notify');
+  const of = async (id, type, name = type) => INTEGRATIONS[type].alerts(await widget(id), { id, name, url: 'http://x' });
+  const find = (items, id) => items.find((i) => i.id === id);
+
+  const pve = await of('proxmox', 'proxmox', 'Proxmox VE');
+  assert.equal(find(pve, 'proxmox:pve:102').online, true);
+  assert.equal(find(pve, 'proxmox:pve:120').online, false, 'VM arrêtée');
+  assert.deepEqual([find(pve, 'proxmox:disk:pve/local-lvm').online, find(pve, 'proxmox:disk:pve/local-lvm').problem], [true, 'disk'], 'stockage à 74 %');
+
+  const certs = await of('npm', 'npm');
+  assert.deepEqual(certs.filter((c) => !c.online).map((c) => [c.name, c.value]).sort(), [['ha.maison.fr', 5], ['vieux.maison.fr', 0]]);
+
+  const kuma = await of('kuma', 'uptimekuma');
+  assert.deepEqual(kuma.filter((m) => !m.online).map((m) => m.name), ['Nextcloud'], '« en attente » et maintenance ne sont pas des pannes');
+
+  const cams = await of('frigate', 'frigate', 'Frigate');
+  assert.ok(cams.length && cams.every((c) => c.name.startsWith('Frigate · ')));
+
+  const glances = await of('glances-pc', 'glances', 'PC');
+  assert.deepEqual(find(glances, 'glances-pc:machine'), { id: 'glances-pc:machine', name: 'PC', url: 'http://x', online: true });
+  assert.ok(glances.some((d) => d.problem === 'disk'));
+  assert.deepEqual(INTEGRATIONS.glances.offlineCodes, ['glances_offline'], 'machine éteinte = alerte');
+
+  const t = (event, lang = 'fr') => message({ lang }, event).title;
+  assert.equal(t({ kind: 'down', problem: 'disk', name: 'NAS · /', value: 93 }), '🟠 Disque presque plein : NAS · / (93 %)');
+  assert.equal(t({ kind: 'up', problem: 'cert', name: 'ha.maison.fr' }, 'en'), '🟢 Certificate renewed: ha.maison.fr');
+  assert.equal(t({ kind: 'down', name: 'LXC 103 · twingate' }), '🔴 LXC 103 · twingate est hors ligne');
 });
 
 test('Widget lent : la réponse précédente est servie pendant le rechargement (module seul)', async () => {

@@ -4,6 +4,7 @@
 WIDGET_TYPES.glances = {
   label: 'Glances', icon: 'glances', kind: 'glances', refresh: 10_000, fields: ['url', 'username', 'password'],
   port: 61208, userHelp: 'key.glancesUser', passwordHelp: 'key.glancesHelp',
+  alerts: 'glances.alertHelp', // case « M'alerter » : texte d'aide
 };
 
 RENDERERS.glances = (d) => {

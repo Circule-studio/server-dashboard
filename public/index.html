@@ -114,6 +114,10 @@
         <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
         <small class="muted" data-url-help></small>
       </label>
+      <label data-field="feeds"><span data-i18n="widget.feeds"></span>
+        <textarea name="feeds" rows="3" autocomplete="off" spellcheck="false" placeholder="https://example.com/feed.xml"></textarea>
+        <small class="muted" data-i18n="widget.feedsHelp"></small>
+      </label>
       <label data-field="entities"><span data-i18n="widget.entities"></span>
         <textarea name="entities" rows="4" autocomplete="off" spellcheck="false" data-i18n-placeholder="widget.entitiesPlaceholder"></textarea>
         <small class="muted" data-i18n="widget.entitiesHelp"></small>
@@ -267,6 +271,7 @@
   <script src="widgets/immich.js"></script>
   <script src="widgets/goaccess.js"></script>
   <script src="widgets/alwaysdata.js"></script>
+  <script src="widgets/rss.js"></script>
   <script src="widgets/dns.js"></script>
   <script src="widgets/frigate.js"></script>
   <script src="widgets/homeassistant.js"></script>

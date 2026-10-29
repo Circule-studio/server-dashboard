@@ -16,9 +16,9 @@ http.createServer((req, res) => {
   });
   if (req.url.startsWith('/api/alerts/active')) return json(res, [
     { id: 'a1', type: 'disk', level: 'critical', resourceId: 'storage-backup', resourceName: 'backup', node: 'pve',
-      message: 'Storage backup is 94% full', summary: 'Disque à 94 %', value: 94, threshold: 90, startTime: ago(180), acknowledged: false },
+      message: 'Storage backup is 94% full', summary: 'Disk at 94%', value: 94, threshold: 90, startTime: ago(180), acknowledged: false },
     { id: 'a2', type: 'memory', level: 'warning', resourceId: 'lxc-102', resourceName: 'pulse', node: 'pve',
-      message: 'Container pulse memory at 86%', summary: 'Mémoire à 86 %', value: 86, threshold: 85, startTime: ago(25), acknowledged: true },
+      message: 'Container pulse memory at 86%', summary: 'Memory at 86%', value: 86, threshold: 85, startTime: ago(25), acknowledged: true },
   ]);
   if (req.url.startsWith('/api/resources')) {
     const r = (id, type, name, status, cpu, mem, verdict = 'ok') => ({

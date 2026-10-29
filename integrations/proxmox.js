@@ -2,7 +2,7 @@
 // Un jeton d'API en lecture seule suffit (rôle PVEAuditor). `username` = identifiant du
 // jeton (ex. root@pam!dashboard), `apiKey` = son secret.
 
-const { join, getJson } = require('./lib');
+const { join, getJson, diskAlerts } = require('./lib');
 
 async function proxmox(w) {
   const { data } = await getJson(join(w.url, '/api2/json/cluster/resources'), {
@@ -33,13 +33,15 @@ async function proxmox(w) {
   return { nodes, guests, storages, running: guests.filter((g) => g.running).length };
 }
 
-// Alertes (case « M'alerter ») : un nœud hors ligne, une VM ou un conteneur arrêté. Les modèles
-// (templates) sont déjà écartés. Une machine déjà arrêtée au démarrage du suivi ne déclenche rien.
+// Alertes (case « M'alerter ») : un nœud hors ligne, une VM ou un conteneur arrêté, un stockage
+// presque plein. Les modèles (templates) sont déjà écartés. Une machine déjà arrêtée au démarrage
+// du suivi ne déclenche rien.
 function alerts(d, w) {
   return [
-    ...d.nodes.map((n) => ({ id: `${w.id}:node:${n.name}`, name: `Proxmox ${n.name}`, online: n.online })),
-    ...d.guests.map((g) => ({ id: `${w.id}:${g.node}:${g.id}`, name: `${g.type} ${g.id} · ${g.name}`, online: g.running })),
-  ].map((a) => ({ ...a, url: w.url }));
+    ...d.nodes.map((n) => ({ id: `${w.id}:node:${n.name}`, name: `Proxmox ${n.name}`, online: n.online, url: w.url })),
+    ...d.guests.map((g) => ({ id: `${w.id}:${g.node}:${g.id}`, name: `${g.type} ${g.id} · ${g.name}`, online: g.running, url: w.url })),
+    ...diskAlerts(w, d.storages.map((s) => ({ mount: s.name, node: s.node, used: s.used, size: s.total })), (s) => `${s.node}/${s.mount}`),
+  ];
 }
 
 module.exports = {

@@ -6,7 +6,14 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 
 **🌐 Project website: [circule-studio.github.io/server-dashboard/en](https://circule-studio.github.io/server-dashboard/en/)**
 
-![Dashboard overview: server stats, Proxmox, Jellyfin, qBittorrent, Sonarr, Radarr widgets, app tiles and Docker containers](docs/screenshots/dashboard.png)
+![Dashboard overview: server stats, app tiles, Proxmox VE, Pulse, Weather, Immich, qBittorrent, Jellyfin, Sonarr, Radarr and Uptime Kuma widgets, and Docker containers](docs/screenshots/dashboard-en.png)
+
+<details>
+<summary>Mobile view</summary>
+
+<img src="docs/screenshots/mobile-en.png" alt="The dashboard on a phone screen" width="320">
+
+</details>
 
 ## Features
 
@@ -21,6 +28,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
   - **Immich**: photo and video counts, storage used, per-user breakdown with quotas, plus `dl-stats` download totals when present.
   - **Alwaysdata**: the sites of a hosting account, each checked by the dashboard (up, down, response time), down ones first.
+  - **RSS / Atom feeds**: the 10 latest articles of one or more feeds, mixed by date.
   - **GoAccess**: a website’s unique visitors (total, today, last 7 days), requests and traffic, from a GoAccess JSON report.
   - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
   - **Frigate**: cameras online and frames per second, detection speed, latest events (person, car…) with their thumbnail, served by the dashboard.
@@ -32,7 +40,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
 - **Edit mode** (password protected) with drag & drop, and a welcome screen on first launch.
 - **Agent** for machines behind NAT or without an open port: a small script (Node.js, no dependency) pushes CPU, memory, disks and temperature to the dashboard itself; see [agent/README.md](agent/README.md) (in French).
-- **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With the Proxmox widget’s “Alert me” box, also when the node, a VM or a container stops.
+- **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With a widget’s “Alert me” box, also for what it monitors: stopped Proxmox VM, container or node, disk over 90% (Proxmox, Glances, Agent), Glances or Agent machine offline, Nginx Proxy Manager certificate expiring within 7 days, Uptime Kuma monitor down, Frigate camera off.
 - **Backup**: export the configuration to a file (with or without API keys), and import it to restore it or copy it to another machine.
 - API keys and passwords **never leave the server**.
 
@@ -44,7 +52,7 @@ The image is published at `ghcr.io/circule-studio/server-dashboard` for **amd64 
 
 ```bash
 mkdir server-dashboard && cd server-dashboard
-curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
 ```
 
