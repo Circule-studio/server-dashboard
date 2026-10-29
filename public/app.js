@@ -396,12 +396,15 @@ const WIDGET_TYPES = {
   // Sans URL, l'API publique de github.com ; le jeton est facultatif (dépôt public).
   github: {
     label: 'GitHub', icon: '/icons/github.svg', kind: 'github', refresh: 2 * 60_000,
-    fields: ['repo', 'apiKey', 'url'], nameFrom: 'repo', namePlaceholder: 'widget.namePlaceholderRepo',
+    fields: ['repo', 'apiKey', 'url'], namePlaceholder: 'widget.namePlaceholderRepo', serverName: true,
     keyLabel: 'key.github', keyHelp: 'key.githubHelp', keyOptional: true,
     urlOptional: true, urlLabel: 'github.url', urlHelp: 'github.urlHelp', scheme: 'https', placeholder: 'https://api.github.com',
     sections: ['version', 'issues', 'pulls'],
-    // Le titre mène à la page du dépôt (GitHub Enterprise : l'adresse de l'API sans /api/v3).
-    href: (w) => `${w.url ? w.url.replace(/\/api\/v3\/?$/, '') : 'https://github.com'}/${w.repo}`,
+    // Le titre mène à la page du dépôt : github.com, ou l'adresse de GitHub Enterprise sans /api/v3.
+    href: (w) => {
+      const web = !w.url || /^https:\/\/api\.github\.com\/?$/i.test(w.url) ? 'https://github.com' : w.url.replace(/\/api\/v3\/?$/, '');
+      return w.repo ? `${web}/${w.repo}` : null;
+    },
   },
 };
 const fieldsOf = (type) => WIDGET_TYPES[type].fields || ['url', 'apiKey'];
@@ -901,33 +904,25 @@ function syncClearBoxes() {
   }
 }
 
-// Valeur d'un champ du formulaire ; le dépôt est ramené à « propriétaire/dépôt »
-// (le serveur fait de même et refuse un dépôt invalide).
-function fieldValue(f, field) {
-  const v = f[field].value.trim();
-  if (field !== 'repo') return v;
-  const [owner = '', name = ''] = v.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').split(/[/?#]/);
-  return name ? `${owner}/${name.replace(/\.git$/i, '')}` : v;
-}
-
 function submitWidget(e) {
   e.preventDefault();
   const f = e.target.elements;
   const typeId = f.type.value;
   const fields = fieldsOf(typeId);
   const prev = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : null;
-  // Nom par défaut : le lieu pour la météo (« Nantes »), le dépôt pour GitHub, sinon le type.
-  const nameFrom = WIDGET_TYPES[typeId].nameFrom;
+  const type = WIDGET_TYPES[typeId];
+  // Nom par défaut : le lieu pour la météo (« Nantes »), le dépôt normalisé par le serveur pour
+  // GitHub (serverName), sinon le type.
   const w = {
     id: prev?.id || uid('wid'),
     type: typeId,
-    name: f.name.value.trim() || (nameFrom && fieldValue(f, nameFrom)) || WIDGET_TYPES[typeId].label,
+    name: f.name.value.trim() || (type.nameFrom && f[type.nameFrom].value.trim()) || (type.serverName ? '' : type.label),
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
-  if (fields.includes('repo')) w.repo = fieldValue(f, 'repo');
+  if (fields.includes('repo')) w.repo = f.repo.value.trim(); // normalisé par le serveur
   if (fields.includes('apiKey')) {
     if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });
     else w.apiKey = f.apiKey.value.trim();
@@ -937,7 +932,6 @@ function submitWidget(e) {
     if (f.clearPassword.checked) Object.assign(w, { clearPassword: true, hasPassword: false });
     else w.password = f.password.value;
   }
-  const type = WIDGET_TYPES[typeId];
   if (type.sections) {
     w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
     if (!w.sections.length) {
@@ -945,7 +939,7 @@ function submitWidget(e) {
       return;
     }
     // Un seul bloc sans nom choisi : « Pulse · Alertes » plutôt que « Pulse ».
-    if (!f.name.value.trim() && w.sections.length === 1) {
+    if (!f.name.value.trim() && !type.serverName && w.sections.length === 1) {
       w.name = `${type.label} · ${t(`${typeId}.sec.${w.sections[0]}.short`)}`;
     }
   }

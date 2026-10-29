@@ -11,7 +11,7 @@
 //   Pi-hole v6   http://localhost:10080  mot de passe  pihole-pass (2fa-pass : 2FA activée, refusé sans code)
 //   AdGuard Home http://localhost:13000  admin / adguard-pass
 //   GitHub       http://localhost:14000  dépôt  circule-studio/server-dashboard (jeton facultatif)
-//                demo/private (jeton gh-token obligatoire), demo/tags-only, demo/empty, demo/rate-limited
+//                demo/private (jeton gh-token obligatoire), demo/tags-only, demo/empty, demo/rate-limited, demo/secondary
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 const http = require('http');
 const day = (n, h = 0) => { const d = new Date(); d.setHours(h, 0, 0, 0); d.setDate(d.getDate() + n); return d.toISOString(); };
@@ -246,11 +246,14 @@ http.createServer((req, res) => {
 // Comme le vrai, il envoie un ETag et répond 304 à If-None-Match. Chaque requête est comptée dans la
 // console (« GitHub : n requêtes ») pour vérifier que le dashboard ménage la limite.
 // POST /__limit (réservé aux tests) simule la limite atteinte pendant 1 h ; un 2e appel la lève.
+// POST /__limit?search ne limite que la recherche (issues et PR), qui a sa propre limite chez GitHub.
+// demo/secondary répond toujours par la limite secondaire (retry-after de 30 s).
 // Dates figées au lancement : une réponse identique garde le même ETag.
 const ghStart = Date.now();
 const ghAgo = (min) => new Date(ghStart - min * 60_000).toISOString();
 let ghRequests = 0;
 let ghLimitedUntil = 0;
+let ghSearchLimitedUntil = 0;
 const ghJson = (req, res, obj) => {
   const body = JSON.stringify(obj);
   const etag = `"${require('crypto').createHash('sha1').update(body).digest('hex')}"`;
@@ -281,22 +284,29 @@ const GH_REPOS = {
     ], pullCount: 2,
   },
   'demo/private': { private: true, stars: 0, releases: [['1.2.0', 60 * 24 * 9]], unreleased: 0, issues: [], issueCount: 0, pulls: [], pullCount: 0, token: true },
-  'demo/tags-only': { private: false, stars: 7, releases: [], tags: ['v2.1.0', 'v2.0.0'], unreleased: 12, issues: [], issueCount: 0, pulls: [], pullCount: 0 },
+  'demo/tags-only': { private: false, stars: 7, releases: [], tags: ['v2.9.0', 'v2.10.0', 'v2.1.0'], unreleased: 12, issues: [], issueCount: 0, pulls: [], pullCount: 0 },
   'demo/empty': { private: false, stars: 0, releases: [], tags: [], empty: true, issues: [], issueCount: 0, pulls: [], pullCount: 0 },
 };
 http.createServer((req, res) => {
-  if (req.method === 'POST' && req.url === '/__limit') {
-    ghLimitedUntil = ghLimitedUntil > Date.now() ? 0 : Date.now() + 60 * 60_000;
-    console.log(`GitHub : limite ${ghLimitedUntil ? 'simulée pendant 1 h' : 'levée'}`);
+  if (req.method === 'POST' && req.url.startsWith('/__limit')) {
+    const search = req.url.endsWith('?search');
+    const until = (search ? ghSearchLimitedUntil : ghLimitedUntil) > Date.now() ? 0 : Date.now() + 60 * 60_000;
+    if (search) ghSearchLimitedUntil = until; else ghLimitedUntil = until;
+    console.log(`GitHub : limite${search ? ' de la recherche' : ''} ${until ? 'simulée pendant 1 h' : 'levée'}`);
     res.writeHead(204); return res.end();
   }
   console.log(`GitHub : ${++ghRequests} requêtes (${req.url.split('?')[0]})`);
   const auth = req.headers.authorization;
   if (auth && auth !== 'Bearer gh-token') { res.writeHead(401); return res.end(); }
   const u = new URL(req.url, 'http://x');
-  if (ghLimitedUntil > Date.now()) {
-    res.writeHead(403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(ghLimitedUntil / 1000)) });
+  const limit = u.pathname.startsWith('/search/') ? ghSearchLimitedUntil : ghLimitedUntil;
+  if (limit > Date.now()) {
+    res.writeHead(403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(limit / 1000)) });
     return res.end('{"message":"API rate limit exceeded"}');
+  }
+  if (u.pathname.startsWith('/repos/demo/secondary')) {
+    res.writeHead(403, { 'retry-after': '30', 'x-ratelimit-remaining': '41', 'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 3000) });
+    return res.end('{"message":"You have exceeded a secondary rate limit."}');
   }
   const notFound = () => { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end('{"message":"Not Found"}'); };
   if (u.pathname.startsWith('/repos/demo/rate-limited') || u.searchParams.get('q')?.includes('demo/rate-limited')) {
