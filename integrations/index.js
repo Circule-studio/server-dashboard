@@ -15,7 +15,7 @@
 const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
-const FILES = ['weather', 'github', 'immich', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pulse',
+const FILES = ['weather', 'github', 'immich', 'goaccess', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pulse',
   'glances', 'agent', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
