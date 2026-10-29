@@ -34,11 +34,16 @@ REQUIRE_LOGIN=false
 EOF2
 chown root:server-dashboard /etc/server-dashboard/server-dashboard.env
 chmod 0640 /etc/server-dashboard/server-dashboard.env
-{
-  echo "Server Dashboard"
-  echo "Admin password: ${ADMIN_PASS}"
-  echo "Settings: /etc/server-dashboard/server-dashboard.env"
-} >>~/server-dashboard.creds
+# Le fichier contient le mot de passe admin : lisible par root seulement.
+(
+  umask 077
+  {
+    echo "Server Dashboard"
+    echo "Admin password: ${ADMIN_PASS}"
+    echo "Settings: /etc/server-dashboard/server-dashboard.env"
+  } >>~/server-dashboard.creds
+)
+chmod 600 ~/server-dashboard.creds
 msg_ok "Installed Server Dashboard"
 
 msg_info "Creating service"
