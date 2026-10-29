@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.10.0] - 2026-10-29
+
+### Ajouté
+- **Redimensionner en hauteur** : la poignée en bas à droite règle maintenant la largeur **et** la hauteur des widgets et des catégories. Le contenu qui dépasse défile à l’intérieur, l’en-tête reste visible. Revenir près de la hauteur du contenu, ou double-cliquer sur la poignée, rétablit la hauteur automatique (#75).
+
 ## [0.9.1] - 2026-10-29
 
 ### Corrigé
@@ -156,7 +161,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.7.0...v0.8.0

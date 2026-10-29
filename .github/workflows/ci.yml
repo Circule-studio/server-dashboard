@@ -72,13 +72,13 @@ jobs:
         run: |
           curl -fsS -c jar -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
           curl -fsS http://127.0.0.1:7575/api/config > cfg.json
-          node -e 'const c=require("./cfg.json"); c.title="CI"; c.display={search:false}; c.categories=[{id:"cat-ci",name:"CI",apps:[]}]; c.layout=[{kind:"category",id:"cat-ci",w:40},{kind:"category",id:"absente",w:3}]; c.statsOrder=["up","pirate","cpu","up"]; require("fs").writeFileSync("cfg.json", JSON.stringify(c))'
+          node -e 'const c=require("./cfg.json"); c.title="CI"; c.display={search:false}; c.categories=[{id:"cat-ci",name:"CI",apps:[]}]; c.layout=[{kind:"category",id:"cat-ci",w:40,h:5},{kind:"category",id:"absente",w:3}]; c.statsOrder=["up","pirate","cpu","up"]; require("fs").writeFileSync("cfg.json", JSON.stringify(c))'
           curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @cfg.json http://127.0.0.1:7575/api/config
           sudo grep -q '"title": "CI"' /var/lib/server-dashboard/config.json
           # Options d'affichage : seule la barre de recherche est masquée.
           curl -fsS http://127.0.0.1:7575/api/config | grep -q '"display":{"search":false,"theme":true,"lang":true}'
-          # Mise en page : largeur bornée à 12, élément inexistant écarté (#61).
-          curl -fsS http://127.0.0.1:7575/api/config | grep -q '"layout":\[{"kind":"category","id":"cat-ci","w":12}\]'
+          # Mise en page : largeur bornée à 12, hauteur à 60 px minimum, élément inexistant écarté (#61, #75).
+          curl -fsS http://127.0.0.1:7575/api/config | grep -q '"layout":\[{"kind":"category","id":"cat-ci","w":12,"h":60}\]'
           # Ordre des cartes de stats : clés inconnues et doublons écartés (#60).
           curl -fsS http://127.0.0.1:7575/api/config | grep -q '"statsOrder":\["up","cpu"\]'
 

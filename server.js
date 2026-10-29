@@ -305,7 +305,11 @@ function sanitizeLayout(layout, cfg) {
     if (!kind || seen.has(key) || !cfg[LAYOUT_KINDS[kind]].some((x) => x.id === id)) return [];
     seen.add(key);
     const w = Math.round(Number(it.w));
-    return [{ kind, id, w: Number.isFinite(w) ? Math.min(12, Math.max(1, w)) : 12 }];
+    const out = { kind, id, w: Number.isFinite(w) ? Math.min(12, Math.max(1, w)) : 12 };
+    // Hauteur fixe en pixels (#75), facultative : sans elle, la hauteur suit le contenu.
+    const h = Math.round(Number(it.h));
+    if (it.h != null && Number.isFinite(h)) out.h = Math.min(3000, Math.max(60, h));
+    return [out];
   });
 }
 
