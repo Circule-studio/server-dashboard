@@ -1,0 +1,28 @@
+# Vérifie que les icônes du catalogue d'applications et des widgets existent sur dashboardicons.com.
+# À part de la CI : il dépend d'un service extérieur, une panne du CDN ne doit pas bloquer une PR.
+name: Icônes
+
+on:
+  push:
+    branches: [main, preprod]
+    paths: ['public/catalog.js', 'public/widgets/**', 'dev/check-icons.js', '.github/workflows/icons.yml']
+  pull_request:
+    paths: ['public/catalog.js', 'public/widgets/**', 'dev/check-icons.js']
+  # Chaque lundi : une icône peut être renommée ou retirée du dépôt d'icônes.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  icons:
+    name: Noms d'icônes (dashboardicons.com)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node dev/check-icons.js

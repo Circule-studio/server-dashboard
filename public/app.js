@@ -120,6 +120,7 @@ function render() {
   itemObserver.disconnect();
   const board = $('#board');
   board.replaceChildren();
+  board.dataset.tiles = cfg.tileSize || 'normal'; // taille des tuiles : style.css
 
   $('#pwBanner').hidden = !(state.authed && state.defaultPassword);
 
@@ -360,306 +361,47 @@ function tileEl(app, ci, ai) {
 }
 
 // ---------- Widgets d'intégration ----------
-// keyLabel, keyHelp, userLabel… sont des clés de traduction.
-const WIDGET_TYPES = {
-  pulse: {
-    label: 'Pulse', icon: 'pulse', kind: 'pulse', refresh: 15_000, port: 7655,
-    keyLabel: 'key.pulse', keyHelp: 'key.pulseHelp',
-    sections: ['health', 'alerts', 'resources'],
-  },
-  proxmox: {
-    label: 'Proxmox VE', icon: 'proxmox', kind: 'proxmox', refresh: 10_000, fields: ['url', 'username', 'apiKey'],
-    scheme: 'https', port: 8006,
-    userLabel: 'key.proxmoxUser', userHelp: 'key.proxmoxUserHelp', userRequired: true,
-    keyLabel: 'key.proxmox', keyHelp: 'key.proxmoxHelp',
-  },
-  jellyfin: { label: 'Jellyfin', icon: 'jellyfin', kind: 'media', refresh: 10_000, keyHelp: 'key.jellyfinHelp', port: 8096 },
-  plex: { label: 'Plex', icon: 'plex', kind: 'media', refresh: 10_000, keyLabel: 'key.plex', keyHelp: 'key.plexHelp', port: 32400 },
-  qbittorrent: { label: 'qBittorrent', icon: 'qbittorrent', kind: 'torrent', refresh: 5_000, fields: ['url', 'username', 'password'], port: 8080 },
-  sonarr: { label: 'Sonarr', icon: 'sonarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 8989 },
-  radarr: { label: 'Radarr', icon: 'radarr', kind: 'arr', refresh: 60_000, keyHelp: 'key.arrHelp', port: 7878 },
-  immich: { label: 'Immich', icon: 'immich', kind: 'immich', refresh: 5 * 60_000, keyHelp: 'key.immichHelp', port: 2283 },
-  pihole: {
-    label: 'Pi-hole', icon: 'pi-hole', kind: 'dns', refresh: 30_000, fields: ['url', 'password'],
-    placeholder: 'http://192.168.1.10', passwordLabel: 'key.piholePassword', passwordHelp: 'key.piholePasswordHelp',
-  },
-  adguard: {
-    label: 'AdGuard Home', icon: 'adguard-home', kind: 'dns', refresh: 30_000, fields: ['url', 'username', 'password'],
-    placeholder: 'http://192.168.1.10', passwordHelp: 'key.adguardHelp',
-  },
-  // Sans URL, le serveur utilise le service public open-meteo.com.
-  weather: {
-    label: t('weather.label'), icon: '/icons/weather.svg', kind: 'weather', refresh: 10 * 60_000,
-    fields: ['location', 'url'], nameFrom: 'location', urlOptional: true, urlLabel: 'weather.url', urlHelp: 'weather.urlHelp',
-    scheme: 'https', placeholder: 'https://api.open-meteo.com',
-  },
-};
+// Types de widgets et leur rendu (par « kind ») : un fichier par service dans public/widgets/,
+// chargé après app.js. keyLabel, keyHelp, userLabel… sont des clés de traduction.
+const WIDGET_TYPES = {};
+const RENDERERS = {};
 const fieldsOf = (type) => WIDGET_TYPES[type].fields || ['url', 'apiKey'];
 
 state.widgetData = {}; // { widgetId: { data } | { error } }
 let widgetTimers = [];
 
-const fmtSpeed = (b) => `${fmtBytes(b)}/s`;
 const fmtEta = (s) => (s == null || s >= 8640000 ? '∞' : s < 60 ? `${s} s` : fmtUptime(s));
 const pct = (p) => `${Math.round(Math.min(1, Math.max(0, p || 0)) * 100)} %`;
-
-function fmtDay(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((new Date(d).setHours(0, 0, 0, 0) - today) / 864e5);
-  // Les dates Radarr sont à minuit UTC : l'heure n'a pas de sens.
-  const time = d.getUTCHours() || d.getUTCMinutes()
-    ? ' ' + d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }) : '';
-  if (diff === 0) return `${t('day.today')}${time}`;
-  if (diff === 1) return `${t('day.tomorrow')}${time}`;
-  return d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }) + time;
-}
-
-// Codes météo WMO (doc Open-Meteo) -> icône ; le texte est dans weather.code.<code>.
-const WEATHER_ICONS = [
-  [[0], '☀️', '🌙'], [[1], '🌤️', '🌙'], [[2], '⛅', '☁️'], [[3], '☁️'], [[45, 48], '🌫️'],
-  [[51, 53, 55, 56, 57, 80, 81, 82], '🌦️', '🌧️'], [[61, 63, 65, 66, 67], '🌧️'],
-  [[71, 73, 75, 77, 85, 86], '🌨️'], [[95, 96, 97, 99], '⛈️'],
-];
-function weatherIcon(code, day = true) {
-  const entry = WEATHER_ICONS.find(([codes]) => codes.includes(code));
-  return entry ? (day ? entry[1] : entry[2] || entry[1]) : '🌡️';
-}
-const weatherText = (code) => (I18N[LANG][`weather.code.${code}`] ? t(`weather.code.${code}`) : '–');
-
-function regionName(code) {
-  try { return code ? new Intl.DisplayNames([LOCALE], { type: 'region' }).of(code) : ''; } catch { return code; }
-}
+// Durée écoulée depuis une date : « < 1 min », « 5 min », « 3 h », « 2 j ».
+const fmtAgo = (iso) => {
+  const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return t('unit.lessThanMinute');
+  return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
+};
 
 function progressBar(p, cls = '') {
   return h('div', { class: 'bar bar-thin' }, h('i', { class: cls, style: `width:${Math.min(100, (p || 0) * 100)}%` }));
 }
 
-const RENDERERS = {
-  media: (d) => [
-    h('div', { class: 'widget-stats' }, d.stats.map((s) =>
-      h('div', {}, h('b', {}, (s.value ?? 0).toLocaleString(LOCALE)), h('span', {}, t(`stat.${s.key}`))))),
-    d.sessions.length
-      ? h('ul', { class: 'widget-list' }, d.sessions.map((s) => h('li', {},
-        h('div', { class: 'row' },
-          h('span', { class: 'item-title', title: s.title }, `${s.paused ? '⏸' : '▶'} ${s.title}`),
-          h('span', { class: 'muted' }, s.user || '')),
-        h('div', { class: 'item-sub' }, [s.subtitle, s.device].filter(Boolean).join(' · ')),
-        progressBar(s.progress, s.paused ? 'warn' : ''))))
-      : h('p', { class: 'muted' }, t('media.nothing')),
-  ],
+// Couleur d'une jauge selon son remplissage (0 à 1) : orange à 70 %, rouge à 90 %.
+const levelOf = (ratio) => (ratio >= 0.9 ? 'bad' : ratio >= 0.7 ? 'warn' : 'ok');
 
-  torrent: (d) => [
-    h('div', { class: 'widget-stats' },
-      h('div', {}, h('b', {}, fmtSpeed(d.download)), h('span', {}, t('torrent.down'))),
-      h('div', {}, h('b', {}, fmtSpeed(d.upload)), h('span', {}, t('torrent.up'))),
-      h('div', {}, h('b', {}, `${d.counts.downloading} / ${d.counts.seeding}`), h('span', {}, t('torrent.dlSeed')))),
-    d.torrents.length
-      ? h('ul', { class: 'widget-list' }, d.torrents.map((tor) => h('li', {},
-        h('div', { class: 'row' },
-          h('span', { class: 'item-title', title: tor.name }, tor.name),
-          h('span', { class: 'muted' }, pct(tor.progress))),
-        h('div', { class: 'item-sub' }, tor.group === 'downloading'
-          ? `↓ ${fmtSpeed(tor.dlspeed)} · ${t('torrent.left', { eta: fmtEta(tor.eta) })}`
-          : tor.group === 'seeding' ? `↑ ${fmtSpeed(tor.upspeed)} · ${fmtBytes(tor.size)}`
-            : tor.group === 'error' ? t('torrent.error') : `${t('torrent.paused')} · ${fmtBytes(tor.size)}`),
-        progressBar(tor.progress, tor.group === 'error' ? 'bad' : tor.group === 'paused' ? 'warn' : ''))))
-      : h('p', { class: 'muted' }, t('torrent.none')),
-  ],
-
-  pulse: (d) => {
-    const VERDICTS = [['ok', 'ok'], ['attention', 'warn'], ['critical', 'bad'], ['stale', 'warn'], ['off', '']];
-    const verdictDot = (v) => (VERDICTS.find(([k]) => k === v) || [, ''])[1];
-    const levelDot = { critical: 'bad', warning: 'warn', info: '' };
-    const reason = (code) => (I18N[LANG][`pulse.reason.${code}`] ? t(`pulse.reason.${code}`) : code.replace(/[-_]/g, ' '));
-    const typeLabel = (type) => (I18N[LANG][`pulse.type.${type}`] ? t(`pulse.type.${type}`) : type);
-    const ago = (iso) => {
-      const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
-      return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
-    };
-    const blocks = [];
-    const many = d.sections.length > 1;
-
-    if (d.health) {
-      const { verdicts, counts, attention } = d.health;
-      if (many) blocks.push(h('div', { class: 'widget-subhead' }, t('pulse.health')));
-      blocks.push(h('div', { class: 'widget-stats pulse-verdicts' }, VERDICTS
-        .filter(([k]) => k !== 'stale' || verdicts.stale)
-        .map(([k, cls]) => h('div', { class: `verdict-${cls || 'off'}` },
-          h('b', {}, String(verdicts[k] || 0)), h('span', {}, t(`pulse.verdict.${k}`))))));
-      blocks.push(h('p', { class: 'pulse-counts muted' }, [
-        tp('pulse.nodes', counts.nodes), t('pulse.vms', { count: counts.vms }), tp('pulse.containers', counts.containers),
-        counts.docker ? tp('pulse.docker', counts.docker) : null,
-      ].filter(Boolean).join(' · ')));
-      if (attention.length) {
-        blocks.push(h('ul', { class: 'widget-list' }, attention.map((a) => h('li', {},
-          h('div', { class: 'row' },
-            h('span', { class: 'item-title', title: typeLabel(a.type) }, h('span', { class: `dot ${verdictDot(a.verdict)}` }), ` ${a.name}`),
-            h('span', { class: 'muted' }, reason(a.reason)))))));
-      }
-    }
-
-    if (d.alerts) {
-      if (many) blocks.push(h('div', { class: 'widget-subhead' }, t('pulse.alerts', { count: d.alerts.length })));
-      blocks.push(d.alerts.length
-        ? h('ul', { class: 'widget-list' }, d.alerts.map((a) => h('li', {},
-          h('div', { class: 'row' },
-            h('span', { class: 'item-title', title: a.text },
-              h('span', { class: `dot ${levelDot[a.level] ?? ''}` }), ` ${a.resource}`),
-            h('span', { class: 'muted' }, a.acknowledged ? t('pulse.acknowledged') : t('pulse.since', { duration: ago(a.since) }))),
-          h('div', { class: 'item-sub' }, a.text))))
-        : h('p', { class: 'muted' }, t('pulse.noAlerts')));
-    }
-
-    if (d.resources) {
-      if (many) blocks.push(h('div', { class: 'widget-subhead' }, t('pulse.resources')));
-      const fmt = (v) => (v == null ? '–' : `${Math.round(v)} %`);
-      blocks.push(d.resources.length
-        ? h('ul', { class: 'widget-list' }, d.resources.map((r) => {
-          const dot = r.verdict ? verdictDot(r.verdict) : r.status === 'online' ? 'ok' : r.status === 'warning' ? 'warn' : '';
-          return h('li', {},
-            h('div', { class: 'row' },
-              h('span', { class: 'item-title', title: r.parent ? `${r.name} (${r.parent})` : r.name },
-                h('span', { class: `dot ${dot}` }), ' ', h('span', { class: 'badge' }, typeLabel(r.type)), ` ${r.name}`),
-              h('span', { class: 'muted' }, r.status === 'offline' ? t('pulse.stopped') : `${fmt(r.cpu)} CPU · ${fmt(r.mem)} RAM`)));
-        }))
-        : h('p', { class: 'muted' }, t('pulse.noResources')));
-    }
-    return blocks;
-  },
-
-  proxmox: (d) => {
-    const level = (r) => (r >= 0.9 ? 'bad' : r >= 0.7 ? 'warn' : 'ok');
-    const meter = (label, ratio, detail) => h('div', { class: 'meter' },
-      h('span', { class: 'meter-label' }, label),
-      progressBar(ratio, level(ratio)),
-      h('span', { class: 'meter-value' }, detail));
-    const multiNode = d.nodes.length > 1;
-    return [
-      ...d.nodes.map((n) => h('div', { class: 'pve-node' },
-        h('div', { class: 'row' },
-          h('span', { class: 'item-title' }, h('span', { class: `dot ${n.online ? 'ok' : 'bad'}` }), ` ${n.name}`),
-          h('span', { class: 'muted' }, n.online ? t('pve.onlineFor', { duration: fmtUptime(n.uptime) }) : t('pve.offline'))),
-        n.online ? [
-          meter('CPU', n.cpu, `${pct(n.cpu)} · ${t('pve.cores', { count: n.cores })}`),
-          meter('RAM', n.mem / n.maxmem, `${fmtBytes(n.mem)} / ${fmtBytes(n.maxmem)}`),
-          meter(t('pve.disk'), n.disk / n.maxdisk, `${fmtBytes(n.disk)} / ${fmtBytes(n.maxdisk)}`),
-        ] : null)),
-      h('div', { class: 'widget-subhead' }, t('pve.guests', { running: d.running, total: d.guests.length })),
-      d.guests.length
-        ? h('ul', { class: 'widget-list' }, d.guests.map((g) => h('li', {},
-          h('div', { class: 'row' },
-            h('span', { class: 'item-title', title: `${g.type} ${g.id} · ${g.name}` },
-              h('span', { class: `dot ${g.running ? 'ok' : ''}` }), ' ',
-              h('span', { class: 'badge' }, g.type), ` ${g.id} · ${g.name}`),
-            h('span', { class: 'muted' }, g.running ? `${pct(g.cpu)} CPU · ${pct(g.mem)} RAM` : t('pve.stopped'))),
-          multiNode ? h('div', { class: 'item-sub' }, g.node) : null)))
-        : h('p', { class: 'muted' }, t('pve.noGuests')),
-      d.storages.length ? h('div', { class: 'widget-subhead' }, t('pve.storages')) : null,
-      ...d.storages.map((s) => meter(multiNode ? `${s.name} (${s.node})` : s.name, s.used / s.total,
-        `${fmtBytes(s.used)} / ${fmtBytes(s.total)}`)),
-    ];
-  },
-
-  arr: (d) => [
-    h('div', { class: 'widget-subhead' }, t('arr.upcoming')),
-    d.upcoming.length
-      ? h('ul', { class: 'widget-list' }, d.upcoming.map((e) => {
-        const title = e.title || t('arr.unknownSeries');
-        const sub = e.subtitle ?? [e.year, e.release && t(`arr.release.${e.release}`)].filter(Boolean).join(' · ');
-        return h('li', {},
-          h('div', { class: 'row' },
-            h('span', { class: 'item-title', title }, title),
-            h('span', { class: e.hasFile ? 'badge ok' : 'muted' }, e.hasFile ? t('arr.available') : fmtDay(e.date))),
-          h('div', { class: 'item-sub' }, sub));
-      }))
-      : h('p', { class: 'muted' }, t('arr.nothing')),
-    h('div', { class: 'widget-subhead' }, t('arr.queue', { count: d.queue.total })),
-    d.queue.items.length
-      ? h('ul', { class: 'widget-list' }, d.queue.items.map((q) => h('li', {},
-        h('div', { class: 'row' },
-          h('span', { class: 'item-title', title: q.title }, q.title),
-          h('span', { class: 'muted' }, pct(q.progress))),
-        h('div', { class: 'item-sub' }, [q.status, q.timeleft && t('torrent.left', { eta: q.timeleft })].filter(Boolean).join(' · ')),
-        progressBar(q.progress))))
-      : h('p', { class: 'muted' }, t('arr.noDownloads')),
-  ],
-
-  immich: (d) => [
-    h('div', { class: 'widget-stats' },
-      h('div', {}, h('b', {}, (d.photos ?? 0).toLocaleString(LOCALE)), h('span', {}, t('stat.photos'))),
-      h('div', {}, h('b', {}, (d.videos ?? 0).toLocaleString(LOCALE)), h('span', {}, t('stat.videos'))),
-      h('div', {}, h('b', {}, fmtBytes(d.usage)), h('span', {}, t('stat.usage')))),
-    // Le détail par utilisateur n'a d'intérêt qu'à partir de deux comptes.
-    ...(d.users.length > 1 ? [
-      h('div', { class: 'widget-subhead' }, t('immich.users')),
-      h('ul', { class: 'widget-list' }, d.users.map((u) => h('li', {},
-        h('div', { class: 'row' },
-          h('span', { class: 'item-title', title: u.name }, u.name),
-          h('span', { class: 'muted' }, u.quota ? `${fmtBytes(u.usage)} / ${fmtBytes(u.quota)}` : fmtBytes(u.usage))),
-        h('div', { class: 'item-sub' }, t('immich.userLine', { photos: u.photos.toLocaleString(LOCALE), videos: u.videos.toLocaleString(LOCALE) })),
-        u.quota ? progressBar(u.usage / u.quota, u.usage / u.quota >= 0.9 ? 'bad' : u.usage / u.quota >= 0.7 ? 'warn' : '') : null))),
-    ] : []),
-  ],
-
-  dns: (d) => {
-    const STATES = { enabled: 'ok', disabled: 'bad', failed: 'bad' };
-    const protection = STATES[d.protection] ? d.protection : 'unknown';
-    const extra = d.extra.filter((e) => e.value != null).map((e) => (e.key === 'avgTime'
-      ? t('dns.avgTime', { ms: (e.value * 1000).toLocaleString(LOCALE, { maximumFractionDigits: 1 }) })
-      : tp(`dns.${e.key}`, e.value, { n: e.value.toLocaleString(LOCALE) })));
-    return [
-      h('div', { class: 'widget-stats' },
-        h('div', {}, h('b', {}, d.queries.toLocaleString(LOCALE)), h('span', {}, t('dns.queries'))),
-        h('div', {}, h('b', {}, d.blocked.toLocaleString(LOCALE)), h('span', {}, t('dns.blocked'))),
-        h('div', {}, h('b', {}, `${d.percent.toLocaleString(LOCALE, { maximumFractionDigits: 1 })} %`), h('span', {}, t('dns.percent')))),
-      h('p', { class: 'dns-status' },
-        h('span', { class: `dot ${STATES[protection] || ''}` }), ' ', t(`dns.${protection}`),
-        // Pause temporaire : la protection revient d'elle-même.
-        protection === 'disabled' && d.timer ? h('span', { class: 'muted' }, ` · ${t('dns.timer', { duration: fmtEta(Math.round(d.timer)) })}`) : null),
-      extra.length ? h('p', { class: 'muted dns-extra' }, extra.join(' · ')) : null,
-    ];
-  },
-
-  weather: (d) => {
-    const c = d.current;
-    const deg = (v) => (v == null ? '–' : `${Math.round(v)}°`);
-    const place = d.place.name
-      ? [d.place.name, regionName(d.place.country)].filter(Boolean).join(', ')
-      : `${d.place.latitude}, ${d.place.longitude}`;
-    const today = new Date().toLocaleDateString('sv'); // AAAA-MM-JJ, comme l'API
-    return [
-      h('div', { class: 'weather-now' },
-        h('span', { class: 'weather-icon', role: 'img', 'aria-label': weatherText(c.code) }, weatherIcon(c.code, c.day)),
-        h('div', { class: 'weather-main' },
-          h('b', { class: 'weather-temp' }, c.temp == null ? '–' : `${Math.round(c.temp)} ${d.units.temp}`),
-          h('div', {}, weatherText(c.code)),
-          h('div', { class: 'item-sub' }, [
-            c.feels != null ? t('weather.feels', { temp: deg(c.feels) }) : null,
-            c.wind != null ? t('weather.wind', { speed: `${Math.round(c.wind)} ${d.units.wind}` }) : null,
-          ].filter(Boolean).join(' · ')),
-          h('div', { class: 'item-sub', title: place }, `📍 ${place}`))),
-      h('div', { class: 'weather-days' }, d.days.map((day) => h('div', { title: weatherText(day.code) },
-        h('span', { class: 'weather-day' }, day.date === today
-          ? t('weather.today')
-          : new Date(`${day.date}T12:00`).toLocaleDateString(LOCALE, { weekday: 'short' })),
-        h('span', { class: 'weather-icon-sm', role: 'img', 'aria-label': weatherText(day.code) }, weatherIcon(day.code)),
-        h('b', {}, deg(day.max)),
-        h('span', { class: 'muted' }, deg(day.min)),
-        day.rain ? h('small', { class: 'weather-rain', title: t('weather.rainChance') }, `💧 ${day.rain} %`) : null))),
-    ];
-  },
-};
+// Ligne « libellé, jauge, valeur » des widgets de supervision (Proxmox, Glances…).
+function meterEl(label, ratio, detail, title) {
+  return h('div', { class: 'meter', title },
+    h('span', { class: 'meter-label' }, label),
+    progressBar(ratio, levelOf(ratio)),
+    h('span', { class: 'meter-value' }, detail));
+}
 
 function widgetCard(w, i) {
   const type = WIDGET_TYPES[w.type];
   // Sans URL (ex. météo sur le service public), le titre n'est pas un lien.
+  const href = type.href ? type.href(w) : w.url;
   const head = h('div', { class: 'widget-head' },
     iconEl({ name: w.name, icon: type.icon }),
-    w.url
-      ? h('a', { class: 'widget-title', href: w.url, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
+    href
+      ? h('a', { class: 'widget-title', href, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
       : h('span', { class: 'widget-title' }, w.name || type.label));
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) return card;
@@ -677,7 +419,7 @@ function widgetBody(w) {
   if (!saved) content = h('p', { class: 'muted' }, t('widget.saveToLoad'));
   else if (!entry) content = h('p', { class: 'muted' }, t('common.loading'));
   else if (entry.error) content = h('p', { class: 'error' }, `⚠ ${entry.error}`);
-  else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data);
+  else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w);
   return h('div', { class: 'widget-body' }, content);
 }
 
@@ -741,6 +483,9 @@ function openWidgetDialog(i) {
   f.type.disabled = i != null; // changer de type mélangerait les identifiants
   f.name.value = w.name || '';
   f.location.value = w.location || '';
+  f.repo.value = w.repo || '';
+  f.slug.value = w.slug || '';
+  f.entities.value = (w.entities || []).join('\n');
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
@@ -776,17 +521,20 @@ function updateWidgetFields() {
   form.querySelector('[data-password-label]').textContent = t(type.passwordLabel || 'widget.password');
   form.querySelector('[data-password-help]').textContent = type.passwordHelp ? t(type.passwordHelp) : '';
   form.elements.url.required = !type.urlOptional;
-  form.elements.name.placeholder = t(type.nameFrom ? 'widget.namePlaceholderLocation' : 'widget.namePlaceholder');
+  form.elements.name.placeholder = t(type.namePlaceholder || 'widget.namePlaceholder');
   form.elements.location.required = fields.includes('location');
+  form.elements.repo.required = fields.includes('repo');
+  form.elements.entities.required = fields.includes('entities');
   form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
   form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
-  form.elements.apiKey.required = fields.includes('apiKey') && !w.hasApiKey;
+  form.elements.apiKey.required = fields.includes('apiKey') && !type.keyOptional && !w.hasApiKey;
   form.elements.username.required = !!type.userRequired;
   form.querySelector('[data-user-label]').textContent = t(type.userLabel || 'widget.username');
   form.elements.username.placeholder = type.userHelp ? t(type.userHelp) : '';
   form.elements.url.placeholder = type.placeholder || `${type.scheme || 'http'}://192.168.1.10:${type.port}`;
 
   syncClearBoxes();
+  agentSetup(type, w.type === typeId ? w : {});
 
   // Blocs au choix (ex. Pulse) : une case par bloc, toutes cochées par défaut.
   const box = form.querySelector('[data-sections]');
@@ -796,6 +544,67 @@ function updateWidgetFields() {
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', name: 'section', value: s, checked: chosen.includes(s) }),
       t(`${typeId}.sec.${s}`))));
+}
+
+function regenerateAgentToken(id) {
+  if (!confirm(t('agent.regenerateConfirm'))) return;
+  const w = state.draft.widgets.find((x) => x.id === id);
+  if (w) w.regenerateKey = true;
+  $('#widgetDialog').close();
+  render();
+  toast(t('agent.regenerateSave'));
+}
+
+// Copie dans le presse-papiers. En http:// sur le réseau local (contexte non sécurisé),
+// navigator.clipboard n'existe pas : le texte est alors sélectionné pour un Ctrl + C.
+function copyText(code, el) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => toast(t('agent.copied')), () => toast(t('agent.selectToCopy')));
+    return;
+  }
+  window.getSelection().selectAllChildren(el);
+  toast(t('agent.selectToCopy'));
+}
+
+// Widget Agent : commande d'installation, avec le jeton généré par le serveur (admin seulement).
+// Un widget pas encore enregistré n'a pas de jeton : il faut d'abord enregistrer.
+let agentSetupRun = 0; // une réponse arrivée après un changement de type est ignorée
+async function agentSetup(type, w) {
+  const run = ++agentSetupRun;
+  const box = $('#widgetForm [data-agent-setup]');
+  box.hidden = !type.agentSetup;
+  if (!type.agentSetup) return;
+  const text = box.querySelector('[data-agent-setup-text]');
+  const commands = box.querySelector('[data-agent-setup-commands]');
+  commands.replaceChildren();
+  if (!state.config.widgets.some((x) => x.id === w.id && x.type === w.type)) {
+    text.textContent = t('agent.saveFirst');
+    return;
+  }
+  text.textContent = t('common.loading');
+  let s;
+  try {
+    s = await api(`/api/agent/${encodeURIComponent(w.id)}/setup`);
+  } catch (e) {
+    if (run === agentSetupRun) text.textContent = errMsg(e);
+    return;
+  }
+  if (run !== agentSetupRun) return;
+  text.textContent = t('agent.setupHelp');
+  const base = location.origin; // l'adresse utilisée par l'admin, celle que l'agent pourra joindre en général
+  const script = `${base}/agent/server-dashboard-agent.js`;
+  const block = (label, code) => {
+    const el = h('code', {}, code);
+    return h('div', { class: 'agent-command' },
+      h('div', { class: 'row' }, h('b', {}, label),
+        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => copyText(code, el) }, t('agent.copy'))),
+      h('pre', {}, el));
+  };
+  commands.replaceChildren(
+    block('Linux / macOS', `curl -fsSLO ${script}\nDASHBOARD_URL=${base} AGENT_ID=${s.id} AGENT_TOKEN=${s.token} node server-dashboard-agent.js`),
+    block('Windows (PowerShell)', `Invoke-WebRequest ${script} -OutFile server-dashboard-agent.js\n$env:DASHBOARD_URL="${base}"; $env:AGENT_ID="${s.id}"; $env:AGENT_TOKEN="${s.token}"; node server-dashboard-agent.js`),
+    // Jeton à changer (commande partagée par erreur, historique du terminal…) : effectif à l'enregistrement.
+    h('button', { type: 'button', class: 'btn btn-sm', onclick: () => regenerateAgentToken(w.id) }, t('agent.regenerate')));
 }
 
 // Case « Effacer » cochée : le champ du secret est vidé et désactivé.
@@ -817,17 +626,21 @@ function submitWidget(e) {
   const typeId = f.type.value;
   const fields = fieldsOf(typeId);
   const prev = widgetDialogIndex != null ? state.draft.widgets[widgetDialogIndex] : null;
-  // Nom par défaut : le lieu pour la météo (« Nantes »), sinon le type.
-  const nameFrom = WIDGET_TYPES[typeId].nameFrom;
+  const type = WIDGET_TYPES[typeId];
+  // Nom par défaut : le lieu pour la météo (« Nantes »), le dépôt normalisé par le serveur pour
+  // GitHub (serverName), sinon le type.
   const w = {
     id: prev?.id || uid('wid'),
     type: typeId,
-    name: f.name.value.trim() || (nameFrom && f[nameFrom].value.trim()) || WIDGET_TYPES[typeId].label,
+    name: f.name.value.trim() || (type.nameFrom && f[type.nameFrom].value.trim()) || (type.serverName ? '' : type.label),
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
+  if (fields.includes('repo')) w.repo = f.repo.value.trim(); // normalisé par le serveur
+  if (fields.includes('slug')) w.slug = f.slug.value.trim(); // ou tiré de l'adresse de la page par le serveur
+  if (fields.includes('entities')) w.entities = f.entities.value.split(/[\s,;]+/).filter(Boolean); // vérifiées par le serveur
   if (fields.includes('apiKey')) {
     if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });
     else w.apiKey = f.apiKey.value.trim();
@@ -837,7 +650,6 @@ function submitWidget(e) {
     if (f.clearPassword.checked) Object.assign(w, { clearPassword: true, hasPassword: false });
     else w.password = f.password.value;
   }
-  const type = WIDGET_TYPES[typeId];
   if (type.sections) {
     w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
     if (!w.sections.length) {
@@ -845,7 +657,7 @@ function submitWidget(e) {
       return;
     }
     // Un seul bloc sans nom choisi : « Pulse · Alertes » plutôt que « Pulse ».
-    if (!f.name.value.trim() && w.sections.length === 1) {
+    if (!f.name.value.trim() && !type.serverName && w.sections.length === 1) {
       w.name = `${type.label} · ${t(`${typeId}.sec.${w.sections[0]}.short`)}`;
     }
   }
@@ -1141,7 +953,36 @@ function openAppDialog(ci, ai) {
   form.elements.description.value = app.description || '';
   form.elements.category.replaceChildren(...state.draft.categories.map((c, i) =>
     h('option', { value: i, selected: i === ci }, c.name)));
+  // Le catalogue ne sert qu'à créer une application.
+  form.querySelector('[data-catalog]').hidden = ai != null;
+  form.elements.catalog.value = '';
   $('#appDialog').showModal();
+}
+
+// ---------- Catalogue d'applications connues (catalog.js) ----------
+function fillCatalogList() {
+  $('#appCatalog').replaceChildren(...APP_CATALOG.map((a) => h('option', { value: a.name, label: a[LANG] || a.fr })));
+}
+
+// Une application du catalogue choisie : le formulaire est rempli, et l'adresse de l'URL est
+// sélectionnée pour qu'on n'ait qu'à taper celle de la machine.
+function applyCatalog() {
+  const form = $('#appForm').elements;
+  const q = fold(form.catalog.value.trim());
+  const app = q && APP_CATALOG.find((a) => fold(a.name) === q);
+  if (!app) return;
+  // Hôte déjà saisi, sinon celui du dashboard (souvent la même machine).
+  let host = location.hostname || '192.168.1.10';
+  try { host = new URL(form.url.value).hostname || host; } catch { /* URL vide ou incomplète */ }
+  const scheme = app.scheme || 'http';
+  const defaultPort = { http: 80, https: 443 }[scheme] === app.port;
+  form.name.value = app.name;
+  form.icon.value = app.icon;
+  form.description.value = app[LANG] || app.fr;
+  form.url.value = `${scheme}://${host}${defaultPort ? '' : `:${app.port}`}${app.path || ''}`;
+  form.url.focus();
+  const start = scheme.length + 3;
+  form.url.setSelectionRange(start, start + host.length);
 }
 
 function submitApp(e) {
@@ -1288,11 +1129,150 @@ function submitDisks(e) {
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
+// ---------- Notifications (mode édition) ----------
+// Le serveur vérifie les apps toutes les minutes et prévient quand l'une tombe ou revient. L'URL et
+// le jeton ne sont jamais renvoyés au navigateur : vides = inchangés.
+const NOTIFY_TYPES = {
+  ntfy: { placeholder: 'https://ntfy.sh/mon-sujet', token: 'optional' },
+  gotify: { placeholder: 'https://gotify.exemple.fr', token: 'required' },
+  discord: { placeholder: 'https://discord.com/api/webhooks/…', token: null },
+  webhook: { placeholder: 'https://exemple.fr/hook', token: 'optional' },
+};
+
+function openNotifyDialog() {
+  const f = $('#notifyForm').elements;
+  const n = state.draft.notify || { type: '' };
+  f.type.replaceChildren(...['', ...Object.keys(NOTIFY_TYPES)].map((k) =>
+    h('option', { value: k, selected: k === (n.type || '') }, t(`notify.type.${k || 'none'}`))));
+  f.url.value = '';
+  f.token.value = '';
+  f.clearToken.checked = false;
+  updateNotifyFields();
+  $('#notifyDialog').showModal();
+}
+
+function updateNotifyFields() {
+  const form = $('#notifyForm');
+  const f = form.elements;
+  const type = f.type.value;
+  const spec = NOTIFY_TYPES[type];
+  const saved = state.draft.notify?.type === type ? state.draft.notify : {};
+  form.querySelector('[data-notify-field="url"]').hidden = !spec;
+  form.querySelector('[data-notify-field="token"]').hidden = !spec?.token;
+  form.querySelector('[data-notify-test]').hidden = !spec;
+  // Champ masqué : jamais obligatoire (le navigateur bloquerait l'envoi sur un champ invisible).
+  f.url.required = false;
+  f.token.required = false;
+  if (!spec) return;
+  f.url.placeholder = saved.hasUrl ? t('notify.urlUnchanged') : spec.placeholder;
+  f.url.required = !saved.hasUrl;
+  form.querySelector('[data-notify-url-help]').textContent = t(`notify.urlHelp.${type}`);
+  form.querySelector('[data-notify-token-label]').textContent = t(spec.token === 'required' ? 'notify.token' : 'notify.tokenOptional');
+  form.querySelector('[data-notify-token-help]').textContent = spec.token ? t(`notify.tokenHelp.${type}`) : '';
+  f.token.placeholder = saved.hasToken ? t('widget.keyUnchanged') : '';
+  f.token.required = spec.token === 'required' && !saved.hasToken;
+  form.querySelector('[data-notify-clear]').hidden = !(spec.token === 'optional' && saved.hasToken);
+}
+
+// Réglages du formulaire, au format attendu par le serveur.
+function notifyFromForm() {
+  const f = $('#notifyForm').elements;
+  const type = f.type.value;
+  if (!type) return { type: '' };
+  const out = { type, lang: LANG };
+  if (f.url.value.trim()) out.url = f.url.value.trim();
+  if (f.token.value.trim()) out.token = f.token.value.trim();
+  if (!f.clearToken.closest('[hidden]') && f.clearToken.checked) out.clearToken = true;
+  return out;
+}
+
+function submitNotify(e) {
+  e.preventDefault();
+  const n = notifyFromForm();
+  const saved = state.draft.notify?.type === n.type ? state.draft.notify : {};
+  state.draft.notify = n.type
+    ? { ...n, hasUrl: !!n.url || !!saved.hasUrl, hasToken: !n.clearToken && (!!n.token || !!saved.hasToken) }
+    : { type: '' };
+  $('#notifyDialog').close();
+  render();
+}
+
+async function testNotify(btn) {
+  btn.disabled = true;
+  try {
+    await api('/api/notify/test', { method: 'POST', body: notifyFromForm() });
+    toast(t('notify.testOk'));
+  } catch (e) {
+    toast(errMsg(e), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------- Sauvegarde : export et import de la config (mode édition) ----------
+// L'export télécharge la config enregistrée (route serveur, admin seulement). L'import remplace le
+// brouillon : rien n'est écrit avant « Enregistrer », qui passe par les vérifications habituelles.
+function openBackupDialog() {
+  const form = $('#backupForm');
+  form.elements.secrets.checked = false;
+  form.querySelector('[data-backup-warning]').hidden = true;
+  $('#backupDialog').showModal();
+}
+
+function exportConfig() {
+  const secrets = $('#backupForm').elements.secrets.checked;
+  // Lien de téléchargement : le cookie de session part avec la requête, le serveur nomme le fichier.
+  const link = h('a', { href: `/api/config/export${secrets ? '?secrets=1' : ''}`, download: '', hidden: true });
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
+
+async function importConfig(file) {
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    toast(t('backup.invalid'), true);
+    return;
+  }
+  // Fichier exporté, ou data/config.json copié tel quel.
+  const cfg = data?.format === 'server-dashboard-config' ? data.config : data;
+  if (!cfg || typeof cfg !== 'object' || !Array.isArray(cfg.categories)) {
+    toast(t('backup.invalid'), true);
+    return;
+  }
+  if (isDirty() && !confirm(t('backup.replaceConfirm'))) return;
+  // Sans secret dans le fichier, le serveur garde ceux des widgets de même identifiant et de même
+  // type : le formulaire doit alors les afficher comme « inchangés ».
+  const saved = new Map(state.config.widgets.map((w) => [w.id, w]));
+  const widgets = (Array.isArray(cfg.widgets) ? cfg.widgets : []).filter((w) => w && typeof w === 'object').map((w) => {
+    const old = saved.get(w.id);
+    const keep = old && old.type === w.type ? old : {};
+    return { ...w, hasApiKey: !!w.apiKey || !!keep.hasApiKey, hasPassword: !!w.password || !!keep.hasPassword };
+  });
+  // Notifications : URL présente dans le fichier (export avec secrets) = appliquées telles quelles.
+  // Sinon on garde celles du dashboard si le service est le même, ou on les désactive (une URL
+  // manquante empêcherait l'enregistrement) ; absentes du fichier (ancien config.json) = inchangées.
+  const current = state.draft.notify || { type: '' };
+  let notify = current;
+  if (cfg.notify && typeof cfg.notify === 'object') {
+    if (!cfg.notify.type || cfg.notify.url) notify = cfg.notify;
+    else if (current.type === cfg.notify.type) notify = { ...current, lang: cfg.notify.lang || current.lang };
+    else notify = { type: '' };
+  }
+  state.draft = { ...cfg, widgets, notify, revision: state.draft.revision };
+  $('#backupDialog').close();
+  render();
+  toast(t(data.secrets === false ? 'backup.importedNoSecrets' : 'backup.imported'));
+}
+
 // ---------- Options d'affichage (mode édition) ----------
 function openDisplayDialog() {
   const form = $('#displayForm');
   const display = displayOptions(state.draft);
   for (const key of Object.keys(display)) form.elements[key].checked = display[key];
+  form.elements.tileSize.value = state.draft.tileSize || 'normal';
   $('#displayDialog').showModal();
 }
 
@@ -1300,6 +1280,7 @@ function submitDisplay(e) {
   e.preventDefault();
   const form = e.target;
   state.draft.display = Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked]));
+  state.draft.tileSize = form.elements.tileSize.value;
   $('#displayDialog').close();
   render();
 }
@@ -1464,9 +1445,25 @@ async function init() {
     if (title) { state.draft.title = title; render(); }
   });
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
+  fillCatalogList();
+  $('#appForm').elements.catalog.addEventListener('input', applyCatalog);
   $('#disksBtn').addEventListener('click', openDisksDialog);
   $('#disksForm').addEventListener('submit', submitDisks);
   $('#displayBtn').addEventListener('click', openDisplayDialog);
+  $('#backupBtn').addEventListener('click', openBackupDialog);
+  $('#notifyBtn').addEventListener('click', openNotifyDialog);
+  $('#notifyForm').elements.type.addEventListener('change', updateNotifyFields);
+  $('#notifyForm').addEventListener('submit', submitNotify);
+  $('#notifyForm').querySelector('[data-notify-test]').addEventListener('click', (e) => testNotify(e.target));
+  const backup = $('#backupForm');
+  backup.elements.secrets.addEventListener('change', (e) => { backup.querySelector('[data-backup-warning]').hidden = !e.target.checked; });
+  backup.querySelector('[data-backup-export]').addEventListener('click', exportConfig);
+  backup.querySelector('[data-backup-import]').addEventListener('click', () => backup.elements.file.click());
+  backup.elements.file.addEventListener('change', (e) => {
+    const [file] = e.target.files;
+    e.target.value = ''; // le même fichier pourra être rechoisi
+    if (file) importConfig(file);
+  });
   $('#displayForm').addEventListener('submit', submitDisplay);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
@@ -1514,4 +1511,7 @@ function showLoginGate() {
   onAuthClick();
 }
 
-init().catch((e) => showBlocker(t('gate.loadError', { error: errMsg(e) })));
+// Après le chargement de tous les scripts, dont ceux de public/widgets/.
+document.addEventListener('DOMContentLoaded', () => {
+  init().catch((e) => showBlocker(t('gate.loadError', { error: errMsg(e) })));
+});

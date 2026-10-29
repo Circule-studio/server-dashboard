@@ -9,6 +9,7 @@ const os = require('os');
 const http = require('http');
 const crypto = require('crypto');
 const { INTEGRATIONS, fetchWidget, resetIntegrations, request } = require('./integrations');
+const { NOTIFY_TYPES, sendNotification, createMonitor } = require('./notify');
 
 // En local (npm start), lit le fichier .env s'il existe. Les variables déjà définies
 // (Docker, systemd) restent prioritaires.
@@ -54,15 +55,27 @@ const DEFAULT_CONFIG = {
   categories: [],
 };
 
+// Config gardée en mémoire : avant, chaque requête (stats toutes les 5 s, chaque widget…) relisait
+// et analysait le fichier. On ne le relit que si sa date ou sa taille a changé (modification à la
+// main). L'objet renvoyé est partagé : ne jamais le modifier, sanitizeConfig() en crée un nouveau.
+let configCache = null; // { stamp, cfg }
+
+// Empreinte du fichier : date de modification et de changement d'état, taille, inode (un éditeur
+// qui réécrit le fichier par renommage change l'inode même dans la même seconde).
+const stampOf = (stat) => `${stat.mtimeMs}|${stat.ctimeMs}|${stat.size}|${stat.ino}`;
+
 async function readConfig() {
-  let text;
+  let stat;
   try {
-    text = await fsp.readFile(CONFIG_FILE, 'utf8');
+    stat = await fsp.stat(CONFIG_FILE);
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
-    await writeConfig(DEFAULT_CONFIG);
-    return structuredClone(DEFAULT_CONFIG);
+    const cfg = structuredClone(DEFAULT_CONFIG);
+    await writeConfig(cfg);
+    return cfg;
   }
+  if (configCache?.stamp === stampOf(stat)) return configCache.cfg;
+  const text = await fsp.readFile(CONFIG_FILE, 'utf8');
   // Un fichier invalide n'est jamais écrasé : on préfère une erreur à une perte de config.
   let cfg;
   try {
@@ -73,6 +86,12 @@ async function readConfig() {
   cfg.widgets ||= [];
   cfg.categories ||= [];
   cfg.revision = Number.isInteger(cfg.revision) ? cfg.revision : 0;
+  // Modifié à la main : URL ou identifiants ont pu changer, comme après un enregistrement.
+  if (configCache) {
+    resetIntegrations();
+    statusCache = null;
+  }
+  configCache = { stamp: stampOf(stat), cfg };
   return cfg;
 }
 
@@ -94,6 +113,7 @@ function writeConfig(cfg) {
     const tmp = `${CONFIG_FILE}.${crypto.randomUUID()}.tmp`;
     await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2));
     await fsp.rename(tmp, CONFIG_FILE);
+    configCache = { stamp: stampOf(await fsp.stat(CONFIG_FILE)), cfg };
   };
   const result = writeQueue.then(run, run);
   writeQueue = result.catch(() => {});
@@ -110,6 +130,44 @@ const SECRET_FIELDS = ['apiKey', 'password'];
 function checkUrl(url) {
   if (url && !/^https?:\/\//i.test(url)) throw fail('invalid_url', `URL invalide : ${url}`, { url });
   return url;
+}
+
+// Dépôt GitHub : « propriétaire/dépôt », ou une adresse copiée (https://github.com/propriétaire/dépôt/issues,
+// github.com/propriétaire/dépôt, git@github.com:propriétaire/dépôt.git…), ramenée à « propriétaire/dépôt ».
+function githubRepo(value) {
+  const path = value
+    .replace(/^[a-z+]+:\/\/[^/]+/i, '') // https://github.com, ssh://git@github.com
+    .replace(/^git@[^:/]+:/i, '')
+    .replace(/^\/+/, '')
+    .replace(/^[^/]*\.[^/]*\//, ''); // hôte sans « https:// » : un propriétaire GitHub n'a pas de point
+  const [owner = '', name = ''] = path.split(/[/?#]/);
+  const repo = `${owner}/${name.replace(/\.git$/i, '')}`;
+  // Noms autorisés par GitHub ; « . » et « .. » sont exclus (ils changeraient le chemin de l'API).
+  if (!/^(?!\.+\/)[\w.-]+\/(?!\.+$)[\w.-]+$/.test(repo)) throw fail('github_repo_invalid', `Dépôt invalide : ${value}`, { repo: value });
+  return repo;
+}
+
+// Page de statut Uptime Kuma : son nom (slug), ou l'adresse de la page collée dans l'URL
+// (http://IP:3001/status/maison, aussi derrière un chemin de reverse proxy) dont on tire l'URL et le nom.
+function statusPage(url, slug) {
+  const pasted = url.match(/^(https?:\/\/.+?)\/status\/([^/?#]+)\/?(?:[?#].*)?$/i);
+  const out = { url: pasted ? pasted[1] : url, slug: slug || (pasted ? pasted[2] : '') };
+  if (!/^[a-z0-9-]{1,100}$/i.test(out.slug)) throw fail('kuma_slug_invalid', `Page de statut invalide : ${out.slug}`, { slug: out.slug });
+  return out;
+}
+
+// Entités Home Assistant : « domaine.nom » (sensor.salon_temperature), une par ligne ou séparées
+// par des virgules dans le formulaire. Sans doublon, 30 au plus.
+const MAX_ENTITIES = 30;
+
+function sanitizeEntities(list) {
+  const raw = Array.isArray(list) ? list : String(list || '').split(/[\s,;]+/);
+  const entities = [...new Set(raw.map((e) => str(e, 255).toLowerCase()).filter(Boolean))];
+  const invalid = entities.find((e) => !/^[a-z0-9_]+\.[a-z0-9_]+$/.test(e));
+  if (invalid) throw fail('ha_entity_invalid', `Entité invalide : ${invalid}`, { entity: invalid });
+  if (!entities.length) throw fail('ha_entities_missing', 'Aucune entité choisie');
+  if (entities.length > MAX_ENTITIES) throw fail('ha_too_many', `${MAX_ENTITIES} entités au plus`, { max: MAX_ENTITIES });
+  return entities;
 }
 
 // Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
@@ -141,19 +199,34 @@ function sanitizeWidgets(list, previous = []) {
     // Doublon venu d'un config.json modifié à la main : le n-ième garde les secrets du n-ième.
     const n = occurrences.get(raw) || 0;
     occurrences.set(raw, n + 1);
+    // Même type seulement : la clé d'un ancien widget Sonarr ne doit pas partir vers un Radarr.
     const old = (raw && previous.filter((p) => p.id === raw)[n]) || {};
+    if (old.type && old.type !== type) for (const f of SECRET_FIELDS) delete old[f];
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
     // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
     if (INTEGRATIONS[type].fields.includes('username')) {
       out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
+      if (INTEGRATIONS[type].userRequired && !out.username) throw fail('username_required', `Utilisateur obligatoire (${type})`, { type });
     }
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
+    if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
+    if (INTEGRATIONS[type].fields.includes('slug')) Object.assign(out, statusPage(out.url, str(w.slug, 100)));
+    if (INTEGRATIONS[type].fields.includes('repo')) {
+      out.repo = githubRepo(str(w.repo, 300));
+      // Nom par défaut : le dépôt normalisé (le navigateur affiche le type en attendant l'enregistrement).
+      if (!str(w.name, 100)) out.name = out.repo;
+    }
     // Blocs à afficher, pour les intégrations qui en proposent (ex. Pulse).
     const allowed = INTEGRATIONS[type].sections;
     if (allowed) {
       const chosen = (Array.isArray(w.sections) ? w.sections : []).filter((s) => allowed.includes(s));
       out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
+    }
+    // Jeton créé par le serveur (agent) : jamais saisi, gardé d'un enregistrement à l'autre.
+    // regenerateKey : nouveau jeton demandé (l'ancien cesse de marcher).
+    if (INTEGRATIONS[type].generatedKey) {
+      out.apiKey = (w.regenerateKey !== true && old.apiKey) || crypto.randomBytes(24).toString('base64url');
     }
     for (const f of SECRET_FIELDS) {
       if (!INTEGRATIONS[type].fields.includes(f)) continue;
@@ -168,8 +241,11 @@ function sanitizeWidgets(list, previous = []) {
 // Version envoyée au navigateur : jamais de clés API ni de mots de passe,
 // et les noms d'utilisateur seulement pour un admin connecté.
 function publicConfig(cfg, authed) {
+  const { notify, ...rest } = cfg;
   return {
-    ...cfg,
+    ...rest,
+    // Notifications : réglage visible des admins seulement, sans l'URL ni le jeton.
+    ...(authed && notify ? { notify: { type: notify.type, lang: notify.lang, hasUrl: !!notify.url, hasToken: !!notify.token } } : {}),
     widgets: cfg.widgets.map((w) => {
       const pub = { ...w };
       for (const f of SECRET_FIELDS) {
@@ -183,6 +259,32 @@ function publicConfig(cfg, authed) {
 
 // Éléments de la barre du haut que l'admin peut masquer (tous visibles par défaut).
 const DISPLAY_OPTIONS = ['search', 'theme', 'lang'];
+
+// Notifications. `url` et `token` sont des secrets : vides = inchangés (si le type ne change pas),
+// clearToken = effacer le jeton. Sans type : désactivées.
+function sanitizeNotify(input, previous) {
+  if (input === undefined) return previous || { type: '' }; // ancienne interface : inchangées
+  const src = input && typeof input === 'object' ? input : {};
+  const type = NOTIFY_TYPES.includes(src.type) ? src.type : '';
+  if (!type) return { type: '' };
+  const same = previous?.type === type ? previous : {};
+  const out = {
+    type,
+    lang: src.lang === 'en' ? 'en' : 'fr',
+    url: checkUrl(str(src.url, 2000)) || same.url || '',
+    token: src.clearToken === true ? '' : str(src.token, 500) || same.token || '',
+  };
+  if (!out.url) throw fail('notify_url_missing', 'URL de notification manquante');
+  // ntfy : l'adresse du sujet (https://ntfy.sh/mon-sujet), pas seulement celle du serveur.
+  let pathname;
+  try { ({ pathname } = new URL(out.url)); } catch { throw fail('invalid_url', `URL invalide : ${out.url}`, { url: out.url }); }
+  if (type === 'ntfy' && pathname.replace(/\/+$/, '') === '') throw fail('notify_topic_missing', 'Sujet ntfy manquant');
+  if (type === 'gotify' && !out.token) throw fail('notify_token_missing', 'Jeton Gotify manquant');
+  return out;
+}
+
+// Taille des tuiles d'apps (réglage global).
+const TILE_SIZES = ['compact', 'normal', 'large'];
 
 function sanitizeDisplay(display) {
   const src = display && typeof display === 'object' ? display : {};
@@ -223,7 +325,10 @@ function sanitizeConfig(input, previous) {
     title: str(input.title, 100) || 'Mon serveur',
     // Absent de la requête (ancienne interface) = inchangé.
     display: sanitizeDisplay(input.display ?? previous?.display),
+    // Absente ou invalide (ancienne interface, script) : inchangée.
+    tileSize: [input.tileSize, previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
+    notify: sanitizeNotify(input.notify, previous?.notify),
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
       .filter((d) => d.path),
@@ -368,8 +473,9 @@ async function computeStatuses() {
   return Object.fromEntries(results);
 }
 
-function getStatuses() {
-  if (!statusCache || Date.now() - statusCache.t > STATUS_CACHE_MS) {
+// `maxAge` : âge maximal des statuts partagés (plus court pour la vérification des notifications).
+function getStatuses(maxAge = STATUS_CACHE_MS) {
+  if (!statusCache || Date.now() - statusCache.t > maxAge) {
     const entry = { t: Date.now(), promise: computeStatuses() };
     entry.promise.catch(() => { if (statusCache === entry) statusCache = null; });
     statusCache = entry;
@@ -507,7 +613,10 @@ const app = express();
 app.disable('x-powered-by');
 // Derrière un reverse proxy, indiquer TRUST_PROXY (ex. 1) pour obtenir la vraie IP des visiteurs.
 if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
-app.use(express.json({ limit: '1mb' }));
+// Relevés des agents : petits, et reçus de machines hors de la session admin (64 Ko au plus).
+const jsonBody = express.json({ limit: '1mb' });
+const agentBody = express.json({ limit: '64kb' });
+app.use((req, res, next) => (req.path.startsWith('/api/agent/') ? agentBody : jsonBody)(req, res, next));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Express 4 ne capture pas les erreurs des handlers async : on les renvoie à next().
@@ -557,6 +666,28 @@ app.get('/api/config', readAuth, route(async (req, res) => {
   res.json(publicConfig(await readConfig(), isAuthed(req)));
 }));
 
+// Export de la config (mode édition > Sauvegarde), admin seulement. Sans ?secrets=1, les clés API
+// et mots de passe sont retirés : le fichier peut être partagé. L'import se fait dans le navigateur,
+// puis passe par PUT /api/config comme un enregistrement normal.
+const EXPORT_FORMAT = 'server-dashboard-config';
+const { version: APP_VERSION } = require('./package.json');
+
+app.get('/api/config/export', requireAuth, route(async (req, res) => {
+  const { revision, ...cfg } = await readConfig();
+  const secrets = req.query.secrets === '1';
+  const config = secrets ? cfg : {
+    ...cfg,
+    notify: cfg.notify && { type: cfg.notify.type, lang: cfg.notify.lang },
+    widgets: cfg.widgets.map((w) => Object.fromEntries(Object.entries(w).filter(([k]) => !SECRET_FIELDS.includes(k)))),
+  };
+  const date = new Date().toISOString().slice(0, 10);
+  res.set({
+    'Content-Disposition': `attachment; filename="server-dashboard-${date}${secrets ? '-avec-secrets' : ''}.json"`,
+    'Cache-Control': 'no-store',
+  });
+  res.json({ format: EXPORT_FORMAT, version: APP_VERSION, exportedAt: new Date().toISOString(), secrets, config });
+}));
+
 app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(async () => {
   const previous = await readConfig();
   // Verrouillage optimiste : on refuse d'écraser une config modifiée depuis que le
@@ -594,6 +725,56 @@ app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
     res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
   }
 }));
+
+// Images d'un widget (miniatures des événements Frigate) : passent par le dashboard, avec les
+// mêmes droits que ses données (REQUIRE_LOGIN), pour ne jamais exposer le service lui-même.
+app.get('/api/widgets/:id/thumbnail/:key', readAuth, route(async (req, res) => {
+  const cfg = await readConfig();
+  const widget = cfg.widgets.find((w) => w.id === req.params.id);
+  const thumbnail = widget && INTEGRATIONS[widget.type].thumbnail;
+  if (!thumbnail) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  let image;
+  try {
+    image = await thumbnail(widget, req.params.key);
+  } catch (e) {
+    return res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+  }
+  if (!image) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  // Gardée par le navigateur (jamais par un proxy partagé). Événement en cours (?live) : Frigate
+  // remplace la miniature quand il trouve une meilleure image, elle n'est donc gardée que 10 s.
+  const maxAge = 'live' in req.query ? 10 : 86400;
+  res.set({ 'Content-Type': image.type, 'Cache-Control': `private, max-age=${maxAge}`, 'X-Content-Type-Options': 'nosniff' });
+  res.send(image.body);
+}));
+
+// ---------- Agents (machines qui envoient elles-mêmes leurs ressources) ----------
+// Authentifiés par le jeton de leur widget, pas par le cookie : REQUIRE_LOGIN ne s'applique pas.
+const AGENT_SCRIPT = path.join(__dirname, 'agent', 'server-dashboard-agent.js');
+
+function agentWidget(cfg, id) {
+  const w = cfg.widgets.find((x) => x.id === id);
+  return w && INTEGRATIONS[w.type]?.receive ? w : null;
+}
+
+app.post('/api/agent/:id', route(async (req, res) => {
+  const w = agentWidget(await readConfig(), req.params.id);
+  if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!w.apiKey || !safeEqual(token, w.apiKey)) return res.status(401).json({ error: 'Jeton refusé', code: 'auth_refused' });
+  if (!INTEGRATIONS[w.type].receive(w, req.body)) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
+  res.json({ ok: true });
+}));
+
+// Identifiant et jeton de l'agent, pour sa commande d'installation : admin seulement. L'adresse du
+// dashboard est celle du navigateur de l'admin (juste même derrière un reverse proxy HTTPS).
+app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
+  const w = agentWidget(await readConfig(), req.params.id);
+  if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  res.set('Cache-Control', 'no-store');
+  res.json({ id: w.id, token: w.apiKey });
+}));
+
+app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));
 
 app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses())));
 
@@ -653,4 +834,60 @@ app.use((err, req, res, next) => {
     : { error: 'Requête invalide', code: 'bad_request' });
 });
 
-app.listen(PORT, () => console.log(`Server Dashboard sur http://localhost:${PORT}`));
+// ---------- Notifications : vérification des apps en tâche de fond ----------
+// Toutes les NOTIFY_INTERVAL_MS, même sans visiteur, quand des notifications sont configurées.
+// Le résultat sert aussi aux visiteurs (statusCache), pour ne pas pinguer deux fois.
+const NOTIFY_INTERVAL_MS = Number(process.env.NOTIFY_INTERVAL_MS) || 60_000;
+const monitor = createMonitor();
+let monitoring = false;
+
+async function checkForNotifications() {
+  if (monitoring) return; // vérification précédente pas finie (services lents)
+  monitoring = true;
+  try {
+    const cfg = await readConfig();
+    if (!cfg.notify?.type) { monitor.clear(); return; } // réactivées plus tard : pas d'alerte sur l'état ancien
+    // Statuts d'un visiteur réutilisés s'ils sont assez récents : pas de double ping.
+    const statuses = await getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2));
+    const events = monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), statuses);
+    // En parallèle : un service lent ne retarde pas les autres alertes ; un échec repart au tour suivant.
+    await Promise.all(events.map((event) => sendNotification(cfg.notify, { ...event, board: cfg.title }).catch((e) => {
+      monitor.failed(event);
+      console.error(`[notifications] envoi impossible (${event.kind} ${event.name}) : ${e.message}`);
+    })));
+  } catch (e) {
+    console.error('[notifications]', e.message);
+  } finally {
+    monitoring = false;
+  }
+}
+setInterval(checkForNotifications, NOTIFY_INTERVAL_MS).unref();
+
+// Bouton « Envoyer un test » : réglages du formulaire, même pas encore enregistrés (URL et jeton
+// vides = ceux enregistrés).
+app.post('/api/notify/test', requireAuth, route(async (req, res) => {
+  const cfg = await readConfig();
+  let notify;
+  try {
+    notify = sanitizeNotify(req.body || {}, cfg.notify);
+    if (!notify.type) throw fail('notify_missing', 'Notifications non configurées');
+  } catch (e) {
+    return res.status(400).json({ error: e.message, code: e.key || 'bad_request', params: e.params });
+  }
+  try {
+    await sendNotification(notify, { kind: 'test', board: cfg.title });
+  } catch (e) {
+    return res.status(502).json({ error: e.message, code: e.key, params: e.params });
+  }
+  res.json({ ok: true });
+}));
+
+// Express 5 passe l'erreur d'écoute (port déjà pris…) au rappel : sans ce contrôle, le dashboard
+// annonçait démarrer puis s'arrêtait avec le code 0, que systemd (Restart=on-failure) ne relance pas.
+app.listen(PORT, (err) => {
+  if (err) {
+    console.error(`[!] Impossible d'écouter sur le port ${PORT} : ${err.code === 'EADDRINUSE' ? 'déjà utilisé par un autre programme' : err.message}`);
+    process.exit(1);
+  }
+  console.log(`Server Dashboard sur http://localhost:${PORT}`);
+});

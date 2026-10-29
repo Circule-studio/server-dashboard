@@ -40,9 +40,12 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Syntaxe JavaScript
-        run: for f in server.js integrations.js dev/mocks.js dev/check-i18n.js public/app.js public/i18n.js public/theme.js; do node --check "$f"; done
+        run: for f in server.js notify.js agent/*.js integrations/*.js dev/*.js dev/mocks/*.js public/*.js public/widgets/*.js test/*.js; do node --check "$f"; done
       - name: Traductions complètes (fr / en)
         run: node dev/check-i18n.js
+      # Faux services + dashboard : un widget de chaque type, erreurs traduites, aucun secret envoyé.
+      - name: Tests des widgets
+        run: npm test
       - name: ShellCheck
         run: shellcheck packaging/install.sh
 
@@ -143,6 +146,37 @@ jobs:
           sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD='ci test àé !@#%&*()+=' bash packaging/install.sh
           curl -fsS -H 'Content-Type: application/json' -d '{"password":"ci test àé !@#%&*()+="}' http://127.0.0.1:7575/api/login
           sudo bash packaging/install.sh --uninstall --purge
+
+      - name: Logs du service en cas d'échec
+        if: failure()
+        run: sudo journalctl -u server-dashboard -n 100 --no-pager
+
+  # Script community-scripts (packaging/proxmox) : la partie qui s'exécute dans le conteneur LXC
+  # tourne sur n'importe quelle Debian / Ubuntu ; les fonctions de community-scripts sont simulées.
+  proxmox:
+    name: Script Proxmox (community-scripts, hors Proxmox)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: ShellCheck
+        run: shellcheck -e SC1090,SC1091,SC2034,SC2154 packaging/proxmox/ct/server-dashboard.sh packaging/proxmox/install/server-dashboard-install.sh packaging/proxmox/test-install.sh
+
+      - name: Installation
+        run: sudo env "PATH=$PATH" bash packaging/proxmox/test-install.sh
+
+      - name: Le service tourne et le mot de passe généré fonctionne
+        run: |
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7575/api/me >/dev/null 2>&1 && break; sleep 1; done
+          systemctl is-active server-dashboard
+          pass="$(sudo sed -n 's/^Admin password: //p' /root/server-dashboard.creds)"
+          test -n "$pass"
+          curl -fsS -H 'Content-Type: application/json' -d "{\"password\":\"$pass\"}" http://127.0.0.1:7575/api/login
+          test "$(sudo stat -c '%U %a' /var/lib/server-dashboard)" = "server-dashboard 750"
+          test "$(sudo stat -c '%U:%G %a' /etc/server-dashboard/server-dashboard.env)" = "root:server-dashboard 640"
 
       - name: Logs du service en cas d'échec
         if: failure()

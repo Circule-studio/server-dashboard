@@ -241,6 +241,8 @@ a { color: var(--accent); }
   background: var(--veil-soft); min-width: 0;
 }
 .widget-stats b { font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widget-stats > .stat-warn b { color: var(--warn); } /* ex. caméra hors ligne, certificat à renouveler */
+.widget-stats > .stat-bad b { color: var(--bad); }
 .widget-stats span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
 .widget-subhead { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 6px; }
@@ -257,6 +259,8 @@ a { color: var(--accent); }
 .bar-thin i { background: var(--accent); }
 .badge { flex: none; font-size: 0.72rem; padding: 1px 8px; border-radius: 99px; }
 .badge.ok { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
+/* Pastille d'état au début d'une ligne de widget (Proxmox, Pulse, Frigate, Home Assistant, NPM…). */
+.widget .item-title .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 
 /* ---------- Catégories & tuiles ---------- */
 .category { padding-bottom: 8px; }
@@ -293,6 +297,23 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 .tile-text { min-width: 0; flex: 1; }
 .tile-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-desc { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Taille des tuiles (mode édition > Affichage) : compacte sans description, grande sur deux lignes. */
+[data-tiles="compact"] .grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }
+[data-tiles="compact"] .tile { gap: 10px; padding: 9px 10px; }
+[data-tiles="compact"] .tile-icon { width: 32px; height: 32px; border-radius: 8px; font-size: 0.95rem; }
+[data-tiles="compact"] .tile-icon img { width: 24px; height: 24px; }
+[data-tiles="compact"] .tile-name { font-size: 0.9rem; }
+[data-tiles="compact"] .tile-desc { display: none; }
+[data-tiles="large"] .grid { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+[data-tiles="large"] .tile { gap: 16px; padding: 18px; }
+[data-tiles="large"] .tile-icon { width: 58px; height: 58px; border-radius: 12px; font-size: 1.5rem; }
+[data-tiles="large"] .tile-icon img { width: 44px; height: 44px; }
+[data-tiles="large"] .tile-name { font-size: 1.05rem; }
+[data-tiles="large"] .tile-desc {
+  font-size: 0.84rem; margin-top: 2px; white-space: normal;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
 
 .dot {
   flex: none; width: 9px; height: 9px; border-radius: 50%;
@@ -400,7 +421,6 @@ dialog input:focus, dialog select:focus { outline: 2px solid var(--accent); outl
 .meter .bar { margin: 0; }
 .widget-proxmox .widget-subhead + .meter, .widget-proxmox .meter + .meter { margin-top: 0; }
 .widget-proxmox .badge { color: var(--muted); background: var(--veil); padding: 0 6px; font-size: 0.68rem; }
-.widget-proxmox .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 
 /* ---------- Choix des disques ---------- */
 .dialog-help { margin: -8px 0 14px; font-size: 0.85rem; }
@@ -427,7 +447,6 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 .pulse-verdicts .verdict-off b { color: var(--muted); }
 .pulse-counts { margin: -4px 0 10px; font-size: 0.82rem; }
 .widget-pulse .badge { color: var(--muted); background: var(--veil); padding: 0 6px; font-size: 0.68rem; }
-.widget-pulse .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 
 /* ---------- Écran d'accueil et bandeau mot de passe ---------- */
 .welcome {
@@ -465,6 +484,73 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 .dns-status { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 0.88rem; flex-wrap: wrap; }
 .dns-extra { margin: 0; font-size: 0.8rem; }
 
+/* Fenêtre Notifications : le bouton de test à gauche, Annuler et OK à droite. */
+#notifyDialog .notify-test { margin-right: auto; }
+
+/* Fenêtre Sauvegarde */
+#backupDialog fieldset .btn { margin-top: 10px; }
+#backupDialog fieldset small { display: block; }
+.backup-warning { margin: 8px 0 0; padding: 6px 10px; border-radius: 8px; font-size: 0.8rem; color: var(--warn); background: rgba(251, 191, 36, 0.08); }
+
 /* Case « Effacer » sous un secret déjà enregistré */
 dialog label.check-inline { flex-direction: row; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--text); font-size: 0.85rem; }
 dialog label.check-inline input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ---------- Widget Agent ---------- */
+.agent-offline { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.8rem; color: var(--bad); background: rgba(248, 113, 113, 0.08); }
+.agent-stale { opacity: 0.55; }
+.agent-setup { margin: 0 0 14px; font-size: 0.85rem; }
+.agent-setup > p { margin: 0 0 8px; }
+.agent-command { margin-bottom: 10px; }
+.agent-command .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.agent-command pre {
+  margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border);
+  font-size: 0.75rem; white-space: pre-wrap; word-break: break-all;
+}
+
+/* ---------- Widget Uptime Kuma ---------- */
+.widget-kuma .badge.bad { color: var(--bad); background: rgba(248, 113, 113, 0.12); }
+.widget-kuma .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); }
+.kuma-more { margin: 8px 0 0; font-size: 0.8rem; }
+
+/* ---------- Widget Glances ---------- */
+.glances-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.88rem; margin-bottom: 8px; }
+.glances-head .item-title { font-weight: 600; }
+.glances-temp { margin: 4px 0 0; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.glances-temp.temp-warn { color: var(--warn); }
+.glances-temp.temp-bad { color: var(--bad); }
+
+/* ---------- Widget Frigate ---------- */
+.frigate-cams { margin-bottom: 4px; }
+.frigate-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.frigate-events figure { margin: 0; min-width: 0; }
+.frigate-events img, .frigate-noimg {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--veil);
+}
+.frigate-noimg { display: grid; place-items: center; font-size: 1.4rem; opacity: 0.5; }
+.frigate-events figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 4px; font-size: 0.78rem; }
+.frigate-events figcaption .muted { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.widget-frigate .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); padding: 0 6px; font-size: 0.68rem; }
+
+/* ---------- Widget Home Assistant ---------- */
+.ha-value { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; }
+dialog textarea {
+  font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; resize: vertical;
+  color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px;
+}
+dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* ---------- Widget Nginx Proxy Manager ---------- */
+.widget-npm .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); }
+.widget-npm .badge.bad { color: var(--bad); background: rgba(248, 113, 113, 0.12); }
+
+/* ---------- Widget GitHub ---------- */
+.gh-meta { margin: -4px 0 10px; font-size: 0.82rem; }
+.gh-limited { margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; color: var(--warn); background: rgba(251, 191, 36, 0.08); }
+.widget-github .item-title a { color: inherit; text-decoration: none; }
+.widget-github .item-title a:hover { text-decoration: underline; }
+.widget-github .badge { color: var(--muted); background: var(--veil); padding: 0 6px; margin-right: 6px; font-size: 0.68rem; }
+.widget-github .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); margin: 0 0 0 6px; }
+.gh-sha { font-size: 0.75rem; color: var(--muted); }
+.gh-label { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
+.gh-label i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }

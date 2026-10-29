@@ -34,6 +34,8 @@
       <button id="addWidgetBtn" class="btn btn-ghost" data-i18n="edit.addWidget"></button>
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
       <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
+      <button id="notifyBtn" class="btn btn-ghost" data-i18n="edit.notify"></button>
+      <button id="backupBtn" class="btn btn-ghost" data-i18n="edit.backup"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
       <button id="cancelBtn" class="btn btn-ghost" data-i18n="edit.done"></button>
     </div>
@@ -71,6 +73,11 @@
   <dialog id="appDialog">
     <form method="dialog" id="appForm">
       <h3 id="appDialogTitle" data-i18n="app.dialogTitle"></h3>
+      <label data-catalog><span data-i18n="app.catalog"></span>
+        <input name="catalog" type="search" list="appCatalog" autocomplete="off" data-i18n-placeholder="app.catalogPlaceholder">
+        <small class="muted" data-i18n="app.catalogHelp"></small>
+      </label>
+      <datalist id="appCatalog"></datalist>
       <label><span data-i18n="common.name"></span><input name="name" required maxlength="100"></label>
       <label><span data-i18n="app.url"></span><input name="url" type="url" required placeholder="http://192.168.1.10:8096"></label>
       <label><span data-i18n="app.icon"></span>
@@ -95,9 +102,21 @@
         <input name="location" maxlength="200" autocomplete="off" data-i18n-placeholder="widget.locationPlaceholder">
         <small class="muted" data-i18n="widget.locationHelp"></small>
       </label>
+      <label data-field="repo"><span data-i18n="widget.repo"></span>
+        <input name="repo" maxlength="300" autocomplete="off" data-i18n-placeholder="widget.repoPlaceholder">
+        <small class="muted" data-i18n="widget.repoHelp"></small>
+      </label>
+      <label data-field="slug"><span data-i18n="widget.slug"></span>
+        <input name="slug" maxlength="100" autocomplete="off" data-i18n-placeholder="widget.slugPlaceholder">
+        <small class="muted" data-i18n="widget.slugHelp"></small>
+      </label>
       <label data-field="url"><span data-url-label></span>
         <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
         <small class="muted" data-url-help></small>
+      </label>
+      <label data-field="entities"><span data-i18n="widget.entities"></span>
+        <textarea name="entities" rows="4" autocomplete="off" spellcheck="false" data-i18n-placeholder="widget.entitiesPlaceholder"></textarea>
+        <small class="muted" data-i18n="widget.entitiesHelp"></small>
       </label>
       <label data-field="apiKey"><span data-key-label></span>
         <input name="apiKey" type="password" autocomplete="off">
@@ -110,6 +129,10 @@
         <small class="muted" data-password-help></small>
       </label>
       <label class="check-inline" data-clear="password" hidden><input type="checkbox" name="clearPassword"><span data-i18n="widget.clearPassword"></span></label>
+      <div class="agent-setup" data-agent-setup hidden>
+        <p class="muted" data-agent-setup-text></p>
+        <div data-agent-setup-commands></div>
+      </div>
       <fieldset class="sections" data-sections hidden>
         <legend data-i18n="widget.sections"></legend>
         <div data-sections-list></div>
@@ -138,6 +161,50 @@
     </form>
   </dialog>
 
+  <dialog id="notifyDialog">
+    <form method="dialog" id="notifyForm">
+      <h3 data-i18n="notify.title"></h3>
+      <p class="muted dialog-help" data-i18n="notify.help"></p>
+      <label><span data-i18n="notify.type"></span><select name="type"></select></label>
+      <label data-notify-field="url"><span data-i18n="notify.url"></span>
+        <input name="url" type="url" autocomplete="off">
+        <small class="muted" data-notify-url-help></small>
+      </label>
+      <label data-notify-field="token"><span data-notify-token-label></span>
+        <input name="token" type="password" autocomplete="off">
+        <small class="muted" data-notify-token-help></small>
+      </label>
+      <label class="check-inline" data-notify-clear hidden><input type="checkbox" name="clearToken"><span data-i18n="widget.clearKey"></span></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost notify-test" data-notify-test data-i18n="notify.test"></button>
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="backupDialog">
+    <form method="dialog" id="backupForm">
+      <h3 data-i18n="backup.title"></h3>
+      <fieldset class="sections">
+        <legend data-i18n="backup.export"></legend>
+        <label class="check"><input type="checkbox" name="secrets"><span data-i18n="backup.withSecrets"></span></label>
+        <small class="muted" data-i18n="backup.exportHelp"></small>
+        <p class="backup-warning" data-backup-warning hidden data-i18n="backup.secretsWarning"></p>
+        <button type="button" class="btn" data-backup-export data-i18n="backup.download"></button>
+      </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="backup.import"></legend>
+        <small class="muted" data-i18n="backup.importHelp"></small>
+        <input type="file" name="file" accept="application/json,.json" hidden>
+        <button type="button" class="btn" data-backup-import data-i18n="backup.chooseFile"></button>
+      </fieldset>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.close"></button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="displayDialog">
     <form method="dialog" id="displayForm">
       <h3 data-i18n="display.title"></h3>
@@ -147,6 +214,12 @@
         <label class="check"><input type="checkbox" name="theme"><span data-i18n="display.theme"></span></label>
         <label class="check"><input type="checkbox" name="lang"><span data-i18n="display.lang"></span></label>
         <small class="muted" data-i18n="display.help"></small>
+      </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="display.tiles"></legend>
+        <label class="check"><input type="radio" name="tileSize" value="compact"><span data-i18n="display.tileCompact"></span></label>
+        <label class="check"><input type="radio" name="tileSize" value="normal"><span data-i18n="display.tileNormal"></span></label>
+        <label class="check"><input type="radio" name="tileSize" value="large"><span data-i18n="display.tileLarge"></span></label>
       </fieldset>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
@@ -176,6 +249,23 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="i18n.js"></script>
+  <script src="catalog.js"></script>
   <script src="app.js"></script>
+  <!-- Un fichier par widget, dans l'ordre de la liste « Type » du formulaire. -->
+  <script src="widgets/pulse.js"></script>
+  <script src="widgets/proxmox.js"></script>
+  <script src="widgets/glances.js"></script>
+  <script src="widgets/agent.js"></script>
+  <script src="widgets/uptimekuma.js"></script>
+  <script src="widgets/media.js"></script>
+  <script src="widgets/qbittorrent.js"></script>
+  <script src="widgets/arr.js"></script>
+  <script src="widgets/immich.js"></script>
+  <script src="widgets/dns.js"></script>
+  <script src="widgets/frigate.js"></script>
+  <script src="widgets/homeassistant.js"></script>
+  <script src="widgets/npm.js"></script>
+  <script src="widgets/weather.js"></script>
+  <script src="widgets/github.js"></script>
 </body>
 </html>

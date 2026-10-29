@@ -11,7 +11,7 @@ git clone <url-du-dépôt>
 cd server-dashboard
 npm install
 npm run dev      # dashboard sur http://localhost:7575 (mot de passe : admin)
-npm run mocks    # dans un 2e terminal : faux Jellyfin / qBittorrent / Sonarr / Radarr
+npm run mocks    # dans un 2e terminal : un faux service par widget, et un faux Docker
 ```
 
 Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les widgets via **Connexion > Éditer > + Widget**.
@@ -22,22 +22,30 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 |---|---|
 | `public/index.html` | Structure de la page et des fenêtres de dialogue |
 | `public/style.css` | Tout le style (les couleurs sont des variables dans `:root`) |
-| `public/app.js` | Logique de l'interface : rendu des tuiles et widgets, mode édition, rafraîchissement |
+| `public/app.js` | Logique de l'interface : rendu des tuiles, mode édition, rafraîchissement, outils partagés (`h()`, `fmtAgo`…) |
+| `public/widgets/<service>.js` | Un widget : son type (`WIDGET_TYPES`) et son rendu (`RENDERERS`) |
+| `public/catalog.js` | Catalogue d'applications connues (nom, icône, port par défaut) : un objet par application, facile à compléter ; `node dev/check-icons.js` vérifie les noms d'icônes (lancé aussi par la CI) |
+| `agent/server-dashboard-agent.js` | Agent à lancer sur une autre machine : il envoie ses ressources au dashboard (widget Agent) |
+| `notify.js` | Notifications : envoi vers ntfy, Gotify, Discord ou un webhook, et suivi des changements d'état des applications |
 | `server.js` | API Express : config, auth, statut, stats système, Docker |
-| `integrations.js` | Appels aux services (Jellyfin, Plex, qBittorrent, Sonarr, Radarr) et normalisation des données |
-| `dev/mocks.js` | Faux services pour le développement |
+| `integrations/<service>.js` | Appels à un service et normalisation des données ; `integrations/index.js` les rassemble, `integrations/lib.js` contient les outils communs (requêtes, erreurs, sessions) |
+| `dev/mocks/<service>.js` | Un faux service pour le développement ; `dev/mocks.js` les lance tous (identifiants en tête du fichier) |
+| `test/widgets.test.js` | Tests de bout en bout des widgets avec les faux services (`npm test`) |
 
 L'interface est en HTML/CSS/JS sans framework ni étape de build : on modifie, on recharge la page.
 
 ## Traductions
 
-L'interface est en français et en anglais. Tous les textes sont dans [`public/i18n.js`](public/i18n.js) : on les affiche avec `t('clé')` dans `public/app.js`, ou avec un attribut `data-i18n="clé"` dans `public/index.html`. **Ajoute toujours la clé dans les deux langues.** Le serveur renvoie des codes (`movies`, `unreachable`…) que l'interface traduit : pas de texte affiché en dur côté serveur. Pour ajouter une langue, copie le bloc `en` et traduis-le.
+L'interface est en français et en anglais. Tous les textes sont dans [`public/i18n.js`](public/i18n.js) : on les affiche avec `t('clé')` dans `public/app.js` et `public/widgets/`, ou avec un attribut `data-i18n="clé"` dans `public/index.html`. **Ajoute toujours la clé dans les deux langues.** Le serveur renvoie des codes (`movies`, `unreachable`…) que l'interface traduit : pas de texte affiché en dur côté serveur. Pour ajouter une langue, copie le bloc `en` et traduis-le.
 
 ## Ajouter un widget
 
-1. Dans `integrations.js`, écris une fonction `async (widget) => données` et ajoute-la à `INTEGRATIONS` avec ses champs (`url`, `apiKey`, `username`, `password`, `location`). `cacheMs` règle la durée pendant laquelle les données sont partagées entre visiteurs (4 s par défaut, 10 min pour la météo).
-2. Dans `public/app.js`, ajoute le type à `WIDGET_TYPES` et, si besoin, un rendu dans `RENDERERS`.
-3. Ajoute un faux service dans `dev/mocks.js` pour que tout le monde puisse le tester.
+Chaque widget tient dans trois fichiers à son nom, sans toucher à ceux des autres : deux contributions ne se marchent plus dessus.
+
+1. **Serveur** : crée `integrations/<service>.js`. Il exporte `{ <type>: { fields, fetch } }` : `fetch` est une fonction `async (widget) => données`, `fields` la liste des champs (`url`, `apiKey`, `username`, `password`, `location`, `repo`, `entities`, `slug`). Options : `cacheMs`, `sections`, `userRequired`, `reset()` (détails en tête de `integrations/index.js`). Ajoute le nom du fichier à `FILES` dans `integrations/index.js`. Les outils communs (`request`, `getJson`, `fail`, `sessionCache`…) sont dans `integrations/lib.js`.
+2. **Interface** : crée `public/widgets/<service>.js`, avec `WIDGET_TYPES.<type> = { label, icon, kind, refresh… }` et `RENDERERS.<kind> = (données, widget) => éléments`, puis ajoute une balise `<script>` dans `public/index.html`, après `app.js`, à l'endroit voulu dans la liste « Type ». Prends exemple sur `public/widgets/immich.js`, le plus court.
+3. **Faux service** : crée `dev/mocks/<service>.js` et ajoute-le à `SERVICES` dans `dev/mocks.js`, avec ses identifiants dans l'en-tête de ce fichier.
+4. Ajoute le widget (et ses principaux cas d'erreur) dans `test/widgets.test.js`, puis lance `npm test` : les tests démarrent eux-mêmes les faux services et un dashboard temporaire. La CI les lance à chaque push.
 
 ## Branches
 

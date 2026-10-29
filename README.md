@@ -23,11 +23,20 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.
   - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
+  - **Uptime Kuma** : sondes d’une page de statut, celles en panne en premier, avec le temps de réponse et la disponibilité sur 24 h.
+  - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
   - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
   - **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
   - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
+  - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
+  - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
+  - **Nginx Proxy Manager** : hôtes actifs et désactivés, certificats SSL triés par date d’expiration, ceux qui expirent dans les 14 jours mis en évidence.
+  - **GitHub** : suivre un dépôt, avec sa dernière version, les commits non publiés depuis, les issues et les pull requests ouvertes.
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
+- **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](agent/README.md).
+- **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé.
+- **Sauvegarde** : export de la configuration en un fichier (avec ou sans les clés API), et import pour la restaurer ou la recopier sur une autre machine.
 
 Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
 
@@ -90,7 +99,7 @@ npm run dev
 
 Puis ouvre http://localhost:7575. Le mot de passe est celui de ton fichier `.env` s'il existe (attention aux majuscules), sinon `admin`.
 
-Pour travailler sur les widgets sans avoir les vrais services, lance de faux Jellyfin, qBittorrent, Sonarr et Radarr dans un second terminal :
+Pour travailler sur les widgets sans avoir les vrais services, lance un faux service pour chaque widget (Jellyfin, Plex, Proxmox, Home Assistant, GitHub…) et un faux Docker dans un second terminal :
 
 ```bash
 npm run mocks
@@ -125,6 +134,12 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
+| Uptime Kuma | URL (`http://IP:3001`) + nom de la page de statut, ou l’adresse complète de la page | Aucune clé : les pages de statut sont publiques (Uptime Kuma > Pages de statut) |
+| Glances | URL (`http://IP:61208`) + mot de passe facultatif | Lance `glances -w` sur la machine (avec `--password` pour en exiger un ; utilisateur `glances` par défaut) |
+| Frigate | URL (`http://IP:5000`), ou `https://IP:8971` + utilisateur / mot de passe | Port 5000 : rien à saisir. Port 8971 (Frigate 0.14+) : un compte Frigate, idéalement avec le rôle « viewer ». Les miniatures passent par le dashboard et suivent `REQUIRE_LOGIN` |
+| Home Assistant | URL (`http://IP:8123`) + jeton + entités (une par ligne) | Ton profil > Sécurité > Jetons d’accès longue durée. Les identifiants d’entités (`sensor.salon_temperature`) sont dans Paramètres > Appareils et services > Entités |
+| Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / mot de passe | Le compte de l’interface d’administration. Un compte dédié avec la permission « Proxy Hosts » en lecture suffit |
+| GitHub | Dépôt (`propriétaire/dépôt` ou son adresse) + jeton facultatif | Jeton obligatoire pour un dépôt privé : Settings > Developer settings > *Fine-grained tokens*, en lecture seule (Contents, Issues, Pull requests, Metadata). Sans jeton, GitHub limite à 60 requêtes par heure : rafraîchi toutes les 15 min (2 min avec un jeton), ce qui permet 4 à 5 widgets. Si la limite est atteinte, les dernières données restent affichées. L’URL de l’API ne sert que pour GitHub Enterprise |
 
 **Pulse** : coche les blocs à afficher (Santé, Alertes, Nœuds / VM / LXC). Pour les placer librement, ajoute plusieurs widgets Pulse avec chacun un bloc, puis déplace-les par glisser-déposer.
 
@@ -160,6 +175,7 @@ Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIB
 | `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
 | `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
+| `NOTIFY_INTERVAL_MS` | `60000` | Intervalle de vérification des applications pour les notifications (en millisecondes) |
 
 ## Sécurité
 
