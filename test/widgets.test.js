@@ -583,6 +583,25 @@ test('Notifications : une app qui tombe puis revient, deux notifications', async
   }
 });
 
+test('Widget lent : la réponse précédente est servie pendant le rechargement (module seul)', async () => {
+  const { INTEGRATIONS, fetchWidget } = require('../integrations');
+  let calls = 0;
+  // 1er appel immédiat, les suivants mettent 1 s.
+  INTEGRATIONS.lent = { fields: [], cacheMs: 50, fetch: () => new Promise((r) => setTimeout(() => r(++calls), calls ? 1000 : 0)) };
+  try {
+    const w = { id: 'lent', type: 'lent' };
+    assert.equal(await fetchWidget(w), 1);
+    await new Promise((r) => setTimeout(r, 60));
+    const start = Date.now();
+    assert.equal(await fetchWidget(w), 1, 'ancienne réponse');
+    assert.ok(Date.now() - start < 800, 'sans attendre le service');
+    await new Promise((r) => setTimeout(r, 1100));
+    assert.equal(await fetchWidget(w), 2, 'nouvelle réponse une fois arrivée');
+  } finally {
+    delete INTEGRATIONS.lent;
+  }
+});
+
 test('Notifications : suivi des changements d’état (module seul)', () => {
   const { createMonitor } = require('../notify');
   const apps = [{ id: 'a', name: 'A', url: 'http://a' }];

@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const crypto = require('crypto');
-const { INTEGRATIONS, fetchWidget, resetIntegrations, request } = require('./integrations');
+const { INTEGRATIONS, fetchWidget, resetIntegrations, request, orStale } = require('./integrations');
 const { NOTIFY_TYPES, sendNotification, createMonitor } = require('./notify');
 
 // En local (npm start), lit le fichier .env s'il existe. Les variables déjà définies
@@ -478,12 +478,16 @@ async function computeStatuses() {
 }
 
 // `maxAge` : âge maximal des statuts partagés (plus court pour la vérification des notifications).
-function getStatuses(maxAge = STATUS_CACHE_MS) {
+// `stale` : pendant un recalcul, renvoyer vite les derniers statuts connus plutôt que d'attendre
+// l'application la plus lente (jusqu'à 5 s). Les notifications attendent les statuts frais.
+function getStatuses(maxAge = STATUS_CACHE_MS, { stale = false } = {}) {
+  const previous = statusCache;
   if (!statusCache || Date.now() - statusCache.t > maxAge) {
-    const entry = { t: Date.now(), promise: computeStatuses() };
-    entry.promise.catch(() => { if (statusCache === entry) statusCache = null; });
+    const entry = { t: Date.now(), promise: computeStatuses(), last: previous?.value ?? previous?.last };
+    entry.promise.then((value) => { entry.value = value; entry.last = null; }, () => { if (statusCache === entry) statusCache = null; });
     statusCache = entry;
   }
+  if (stale && !statusCache.value && statusCache.last) return orStale(statusCache.promise, statusCache.last);
   return statusCache.promise;
 }
 
@@ -780,7 +784,7 @@ app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
 
 app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));
 
-app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses())));
+app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses(STATUS_CACHE_MS, { stale: true }))));
 
 app.get('/api/system', readAuth, route(async (req, res) => {
   const disks = await Promise.all(disksOf(await readConfig()).map(diskInfo));
