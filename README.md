@@ -4,7 +4,7 @@
 
 Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page. Interface en **français et en anglais** (bouton EN / FR).
 
-![Vue d'ensemble du dashboard : stats du serveur, widgets Jellyfin, qBittorrent, Sonarr, Radarr, tuiles d'applications et conteneurs Docker](docs/screenshots/dashboard.png)
+![Vue d'ensemble du dashboard : stats du serveur, tuiles d'applications, widgets Proxmox VE, Pulse, Météo, Immich, qBittorrent, Jellyfin, Sonarr, Radarr, Uptime Kuma et conteneurs Docker](docs/screenshots/dashboard.png)
 
 <details>
 <summary>Version mobile</summary>
@@ -50,11 +50,11 @@ L'image est publiée à chaque version sur `ghcr.io/circule-studio/server-dashbo
 
    ```bash
    mkdir server-dashboard && cd server-dashboard
-   curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+   curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
    curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
    ```
 
-2. Ouvre `.env` et remplace `change-moi` par un vrai mot de passe. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `docker-compose.yml`.
+2. Ouvre `.env` et remplace `change-moi` par un vrai mot de passe. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `compose.yaml`.
 3. Lance :
 
    ```bash
@@ -65,7 +65,7 @@ L'image est publiée à chaque version sur `ghcr.io/circule-studio/server-dashbo
 
 **Mettre à jour** : `docker compose pull && docker compose up -d`. La config reste dans `./data`.
 
-**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `docker-compose.yml` par `build: .`, puis `docker compose up -d --build`.
+**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `compose.yaml` par `build: .`, puis `docker compose up -d --build`.
 
 ## Installation sans Docker (Debian / Ubuntu, LXC Proxmox)
 
@@ -113,7 +113,7 @@ Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js)
 
 En mode édition, le bouton **Disques** liste les disques détectés sur la machine (`C:\`, `D:\`… sous Windows, les partitions réelles comme `/` ou `/mnt/data` sous Linux). Coche ceux à afficher et donne-leur un nom (« Films », « Sauvegardes »…) : chacun a sa carte dans les stats. Tu peux aussi saisir un chemin à la main (partage réseau monté, dossier…).
 
-**Avec Docker**, le conteneur ne voit que ce qui est monté. `docker-compose.yml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
+**Avec Docker**, le conteneur ne voit que ce qui est monté. `compose.yaml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
 
 ```yaml
     volumes:

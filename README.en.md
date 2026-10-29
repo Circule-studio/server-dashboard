@@ -6,7 +6,14 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 
 **🌐 Project website: [circule-studio.github.io/server-dashboard/en](https://circule-studio.github.io/server-dashboard/en/)**
 
-![Dashboard overview: server stats, Proxmox, Jellyfin, qBittorrent, Sonarr, Radarr widgets, app tiles and Docker containers](docs/screenshots/dashboard.png)
+![Dashboard overview: server stats, app tiles, Proxmox VE, Pulse, Weather, Immich, qBittorrent, Jellyfin, Sonarr, Radarr and Uptime Kuma widgets, and Docker containers](docs/screenshots/dashboard-en.png)
+
+<details>
+<summary>Mobile view</summary>
+
+<img src="docs/screenshots/mobile-en.png" alt="The dashboard on a phone screen" width="320">
+
+</details>
 
 ## Features
 
@@ -44,7 +51,7 @@ The image is published at `ghcr.io/circule-studio/server-dashboard` for **amd64 
 
 ```bash
 mkdir server-dashboard && cd server-dashboard
-curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
 ```
 

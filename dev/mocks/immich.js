@@ -16,7 +16,7 @@ http.createServer((req, res) => {
   const usageByUser = [
     user('Thomas', 48213, 1904, 412 * GB, 389 * GB),
     user('Camille', 15377, 622, 96 * GB, 71 * GB, 200 * GB),
-    user('Invité', 312, 12, 1.1 * GB, 0.4 * GB, 2 * GB),
+    user('Guest', 312, 12, 1.1 * GB, 0.4 * GB, 2 * GB),
   ].map((u) => ({ ...u, usage: Math.round(u.usage), usagePhotos: Math.round(u.usagePhotos), usageVideos: Math.round(u.usageVideos) }));
   const sum = (k) => usageByUser.reduce((n, u) => n + u[k], 0);
   json(res, { photos: sum('photos'), videos: sum('videos'), usage: sum('usage'), usagePhotos: sum('usagePhotos'), usageVideos: sum('usageVideos'), usageByUser });

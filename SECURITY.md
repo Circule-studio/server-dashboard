@@ -23,5 +23,5 @@ Nous répondons en général sous 7 jours. Une fois la faille corrigée, nous pu
 ## Points d'attention pour les utilisateurs
 
 - **Le panneau Docker donne un accès équivalent à root sur la machine.** N'expose pas le dashboard directement sur Internet : passe par un reverse proxy en HTTPS ou un VPN, et active `REQUIRE_LOGIN=true` s'il est accessible depuis l'extérieur.
-- Ne mets jamais de mot de passe ou de clé API dans `docker-compose.yml` ni dans un fichier suivi par Git : utilise `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd).
+- Ne mets jamais de mot de passe ou de clé API dans `compose.yaml` ni dans un fichier suivi par Git : utilise `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd).
 - Change le mot de passe par défaut : changer `ADMIN_PASSWORD` déconnecte aussi toutes les sessions ouvertes.

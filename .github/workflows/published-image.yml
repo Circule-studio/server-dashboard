@@ -26,7 +26,7 @@ jobs:
       - name: Procédure du README
         run: |
           mkdir server-dashboard && cd server-dashboard
-          curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/docker-compose.yml
+          curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
           curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
           sed -i 's/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=ci-test/' .env
           docker compose pull
