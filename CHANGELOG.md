@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.13.2] - 2026-10-29
+
+### Corrigé
+- Dashboard plus réactif : quand les statuts des tuiles ou les données d’un widget ont expiré, le serveur renvoie les précédentes au bout de 300 ms au lieu d’attendre le service le plus lent (jusqu’à 5 s pour les pastilles, 2 à 3 s pour le widget Alwaysdata). Les nouvelles valeurs arrivent au rafraîchissement suivant. Les notifications attendent toujours des statuts frais.
+
 ## [0.13.1] - 2026-10-29
 
 ### Corrigé
@@ -181,7 +186,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.2...HEAD
+[0.13.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.11.0...v0.12.0
