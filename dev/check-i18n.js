@@ -15,11 +15,15 @@ const langs = Object.keys(ctx.I18N);
 const app = read('public/app.js');
 const html = read('public/index.html');
 
-// Clés écrites en toutes lettres…
-const used = new Set([...app.matchAll(/\bt\('([\w.-]+)'/g)].map((m) => m[1]));
-for (const m of app.matchAll(/(?:keyLabel|keyHelp|userLabel|userHelp|urlLabel|urlHelp|passwordLabel|passwordHelp|namePlaceholder): '([\w.]+)'/g)) used.add(m[1]);
-// Libellés par défaut des champs du widget : t(type.xxx || 'clé').
-for (const m of app.matchAll(/t\(type\.\w+ \|\| '([\w.]+)'\)/g)) used.add(m[1]);
+// Clés écrites en toutes lettres : toute chaîne 'espace.nom' de app.js dont l'espace existe
+// (widget., github.…), où qu'elle soit écrite : t('clé'), keyLabel: 'clé', t(cond ? 'clé.a' : 'clé.b')…
+// Les chaînes passées à t() ou tp() comptent même si leur espace est inconnu (faute de frappe).
+const namespaces = new Set(Object.keys(ctx.I18N[langs[0]]).map((k) => k.split('.')[0]));
+const used = new Set();
+const plurals = new Set(); // bases de tp('clé', n) : clé.one et clé.other
+for (const m of app.matchAll(/'([a-z][\w-]*\.[\w.-]*[\w-])'/g)) if (namespaces.has(m[1].split('.')[0])) used.add(m[1]);
+for (const m of app.matchAll(/\bt\('([\w.-]+)'/g)) used.add(m[1]);
+for (const m of app.matchAll(/\btp\('([\w.-]+)'/g)) plurals.add(m[1]);
 for (const m of html.matchAll(/data-i18n(?:-html|-placeholder|-title|-aria)?="([\w.-]+)"/g)) used.add(m[1]);
 // … et clés construites dynamiquement dans app.js.
 const dynamic = {
@@ -29,11 +33,12 @@ const dynamic = {
   'pulse.sec.': ['health', 'alerts', 'resources', 'health.short', 'alerts.short', 'resources.short'],
   'dns.': ['enabled', 'disabled', 'failed', 'unknown', 'blocklist.one', 'blocklist.other', 'clients.one', 'clients.other'],
   'weather.code.': [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 97, 99],
-  'pulse.': ['nodes.one', 'nodes.other', 'containers.one', 'containers.other', 'docker.one', 'docker.other'],
   'github.sec.': ['version', 'issues', 'pulls', 'version.short', 'issues.short', 'pulls.short'],
-  'github.': ['forks.one', 'forks.other', 'unreleased.one', 'unreleased.other'],
 };
 for (const [prefix, names] of Object.entries(dynamic)) for (const n of names) used.add(prefix + n);
+// Une base de pluriel n'est pas une clé : on vérifie ses deux formes.
+for (const base of [...used].filter((k) => plurals.has(k))) used.delete(base);
+for (const base of plurals) used.add(`${base}.one`).add(`${base}.other`);
 
 let errors = 0;
 for (const lang of langs) {
