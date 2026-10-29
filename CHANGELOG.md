@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.12.0] - 2026-10-29
+
+### Ajouté
+- Widget **GoAccess** : visiteurs uniques d’un site (total, aujourd’hui et 7 derniers jours), requêtes et trafic, lus dans un rapport JSON de GoAccess, sans clé. La doc explique comment produire un rapport limité au panneau des visiteurs, qui ne contient aucune adresse IP. Faux GoAccess dans `npm run mocks`.
+
 ## [0.11.0] - 2026-10-29
 
 ### Ajouté
@@ -166,7 +171,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.11.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.0...v0.9.1

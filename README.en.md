@@ -19,7 +19,8 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
   - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
   - **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
-  - **Immich**: photo and video counts, storage used, per-user breakdown with quotas.
+  - **Immich**: photo and video counts, storage used, per-user breakdown with quotas, plus `dl-stats` download totals when present.
+  - **GoAccess**: a website’s unique visitors (total, today, last 7 days), requests and traffic, from a GoAccess JSON report.
   - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
   - **Frigate**: cameras online and frames per second, detection speed, latest events (person, car…) with their thumbnail, served by the dashboard.
   - **Home Assistant**: the sensors you choose (temperature, power, doors, motion, lights, presence…), with their translated state and since when.
@@ -79,6 +80,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Pi-hole (v6) | URL (`http://IP`) + password | The web interface password. With 2FA: an app password (Settings > Web interface / API, Expert mode, "Configure app password"). Empty if Pi-hole has no password |
 | AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
 | Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
+| GoAccess | URL of the JSON report (`goaccess … -o report.json`) | No key. To expose nothing sensitive, generate a report limited to the visitors panel (`--ignore-panel` for all others, including `HOSTS`): it contains no IP address |
 | Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
 | Uptime Kuma | URL (`http://IP:3001`) + status page name, or the full page address | No key: status pages are public (Uptime Kuma > Status Pages) |
 | Glances | URL (`http://IP:61208`) + optional password | Run `glances -w` on the machine (add `--password` to require one; username `glances` by default) |
@@ -113,6 +115,6 @@ URLs must be reachable **from the dashboard server**.
 
 ## Contributing
 
-Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, Plex, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, Pi-hole, AdGuard Home, Glances, Uptime Kuma, Frigate, Home Assistant, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
+Contributions are welcome, especially on the interface and new widgets. Pull requests target the **`preprod`** branch. Run `npm run dev` and `npm run mocks` (fake Proxmox, Pulse, Jellyfin, Plex, qBittorrent, Sonarr, Radarr, Open-Meteo, Immich, GoAccess, Pi-hole, AdGuard Home, Glances, Uptime Kuma, Frigate, Home Assistant, Nginx Proxy Manager, GitHub and Docker) to work without installing anything. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
 License: [MIT](LICENSE).

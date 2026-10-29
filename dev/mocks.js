@@ -7,6 +7,7 @@
 //   Radarr       http://localhost:17878  clé API  radarr-key
 //   Proxmox VE   http://localhost:18006  jeton    root@pam!dashboard / pve-secret
 //   Pulse        http://localhost:17655  jeton    pulse-token
+//   GoAccess     http://localhost:17890  rapport JSON, sans clé
 //   Uptime Kuma  http://localhost:13001  page de statut  maison (ou coller http://localhost:13001/status/maison)
 //   Glances      http://localhost:61208  sans mot de passe (PC, API v4)
 //                http://localhost:61209  glances / glances-pass (Raspberry Pi, API v3)
@@ -23,7 +24,7 @@
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
-  'frigate', 'homeassistant', 'npm', 'github'];
+  'frigate', 'homeassistant', 'npm', 'github', 'goaccess'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 

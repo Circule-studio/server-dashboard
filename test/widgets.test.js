@@ -64,6 +64,8 @@ const WIDGETS = [
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
   { id: 'agent', type: 'agent', name: 'PC de bureau' },
+  { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
+  { id: 'goaccess-bad', type: 'goaccess', url: 'http://localhost:17890/pas-un-rapport' },
   { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
   { id: 'kuma-pasted', type: 'uptimekuma', url: 'http://localhost:13001/status/maison' },
   { id: 'glances-pc', type: 'glances', url: 'http://localhost:61208' },
@@ -173,6 +175,14 @@ test('Immich : photos, vidéos et utilisateurs', async () => {
   // Module dl-stats : totaux seulement, jamais les noms ou e-mails des visiteurs.
   assert.deepEqual(d.downloads, { total: 37, images: 35, visitors: 2 });
   assert.ok(!JSON.stringify(d).includes('alice'));
+});
+
+test('GoAccess : visiteurs uniques et 7 derniers jours, du plus récent au plus ancien', async () => {
+  const d = await widget('goaccess');
+  assert.deepEqual([d.visitors, d.requests, d.bandwidth], [312, 14350, 1_850_000_000]);
+  assert.equal(d.days.length, 7);
+  assert.ok(d.days.every((x, i) => i === 0 || d.days[i - 1].date > x.date));
+  assert.equal(d.days[0].visitors, 40, 'aujourd’hui en premier');
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
@@ -304,6 +314,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',
+    'goaccess-bad': 'unexpected_response',
     'pihole-bad': 'pihole_password',
     'adguard-bad': 'adguard_credentials',
     'weather-unknown': 'location_not_found',

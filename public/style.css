@@ -569,6 +569,7 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 /* ---------- Widget GitHub ---------- */
 .gh-meta { margin: -4px 0 10px; font-size: 0.82rem; }
 .gh-limited { margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; color: var(--warn); background: rgba(251, 191, 36, 0.08); }
+.goaccess-period { margin: 8px 0 0; font-size: 0.8rem; }
 .widget-github .item-title a { color: inherit; text-decoration: none; }
 .widget-github .item-title a:hover { text-decoration: underline; }
 .widget-github .badge { color: var(--muted); background: var(--veil); padding: 0 6px; margin-right: 6px; font-size: 0.68rem; }
