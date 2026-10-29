@@ -67,6 +67,8 @@ const WIDGETS = [
   { id: 'alwaysdata', type: 'alwaysdata', url: 'http://localhost:17443/v1', username: 'thomas', apiKey: 'alwaysdata-token' },
   { id: 'alwaysdata-bad', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'mauvais-jeton-ad' },
   { id: 'alwaysdata-ip', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'alwaysdata-ip-token' },
+  { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
+  { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
   { id: 'goaccess-bad', type: 'goaccess', url: 'http://localhost:17890/pas-un-rapport' },
   { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
@@ -196,6 +198,26 @@ test('Alwaysdata : sites testés un par un, ceux en panne d’abord', async () =
   assert.equal(d.sites[2].note, 'Blog');
   assert.equal(d.sites[2].scheme, 'http', 'HTTP quand HTTPS échoue');
   assert.ok(!d.sites.some((s) => s.address.startsWith('*')), 'adresse joker ignorée');
+});
+
+test('Flux RSS / Atom : articles mélangés par date, texte brut, liens sûrs', async () => {
+  const d = await widget('rss');
+  assert.equal(d.failed, 1, 'flux injoignable compté');
+  assert.deepEqual(d.items.map((i) => i.title), [
+    'Proxmox 9 : migration & retour d’expérience'.replace('’', '\''), 'v2.0 — nouveautés', 'Sauvegardes 3-2-1 avec restic', 'v1.9', 'Un vieil article',
+  ]);
+  assert.deepEqual(d.items.map((i) => i.source), ['Blog du homelab', 'Notes de version', 'Blog du homelab', 'Notes de version', 'Blog du homelab']);
+  assert.equal(d.items[1].link, 'https://releases.example.com/v2.0', 'lien rel="alternate"');
+  assert.equal(d.items[2].link, '', 'lien javascript: écarté');
+  assert.ok(d.items.every((i) => !/[<>]/.test(i.title)), 'aucune balise');
+});
+
+test('Flux RSS : adresses invalides refusées à l’enregistrement', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  for (const [feeds, code] of [[[], 'feeds_missing'], [['ftp://x/flux'], 'invalid_url']]) {
+    const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { id: 'rss-x', type: 'rss', feeds }] });
+    assert.deepEqual([r.status, r.json.code], [400, code]);
+  }
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
@@ -328,6 +350,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
+    'rss-bad': 'rss_invalid',
     'alwaysdata-bad': 'auth_refused',
     'alwaysdata-ip': 'alwaysdata_ip',
     'pihole-bad': 'pihole_password',

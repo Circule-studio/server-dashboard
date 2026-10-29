@@ -30,6 +30,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas. Si un compteur de téléchargements `dl-stats` est placé devant Immich, ses totaux (téléchargements, photos téléchargées, visiteurs) s’affichent aussi.
   - **GoAccess** : visiteurs uniques d’un site (total, aujourd’hui, 7 derniers jours), requêtes et trafic, lus dans un rapport JSON de GoAccess.
   - **Alwaysdata** : les sites d’un compte d’hébergement, chacun testé par le dashboard (en ligne, en panne, temps de réponse), ceux en panne en premier.
+  - **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
   - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
   - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.

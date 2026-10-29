@@ -170,6 +170,16 @@ function sanitizeEntities(list) {
   return entities;
 }
 
+// Adresses de flux (RSS / Atom) : une par ligne, http(s), sans doublon.
+const MAX_FEEDS = 10;
+function sanitizeFeeds(list) {
+  const raw = Array.isArray(list) ? list : String(list || '').split(/\s+/);
+  const feeds = [...new Set(raw.map((u) => str(u, 2000)).filter(Boolean))].map(checkUrl);
+  if (!feeds.length) throw fail('feeds_missing', 'Aucun flux');
+  if (feeds.length > MAX_FEEDS) throw fail('feeds_too_many', `${MAX_FEEDS} flux au plus`, { max: MAX_FEEDS });
+  return feeds;
+}
+
 // Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
 // (avant, l'erreur JavaScript brute était renvoyée au navigateur).
 function item(v) {
@@ -213,6 +223,7 @@ function sanitizeWidgets(list, previous = []) {
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
+    if (INTEGRATIONS[type].fields.includes('feeds')) out.feeds = sanitizeFeeds(w.feeds);
     if (INTEGRATIONS[type].fields.includes('slug')) Object.assign(out, statusPage(out.url, str(w.slug, 100)));
     if (INTEGRATIONS[type].fields.includes('repo')) {
       out.repo = githubRepo(str(w.repo, 300));

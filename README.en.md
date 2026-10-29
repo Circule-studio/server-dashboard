@@ -28,6 +28,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
   - **Immich**: photo and video counts, storage used, per-user breakdown with quotas, plus `dl-stats` download totals when present.
   - **Alwaysdata**: the sites of a hosting account, each checked by the dashboard (up, down, response time), down ones first.
+  - **RSS / Atom feeds**: the 10 latest articles of one or more feeds, mixed by date.
   - **GoAccess**: a website’s unique visitors (total, today, last 7 days), requests and traffic, from a GoAccess JSON report.
   - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
   - **Frigate**: cameras online and frames per second, detection speed, latest events (person, car…) with their thumbnail, served by the dashboard.
