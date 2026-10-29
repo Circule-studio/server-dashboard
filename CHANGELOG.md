@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.14.0] - 2026-10-29
+
+### Ajouté
+- **Alertes du widget Proxmox** : case « M’alerter » (décochée par défaut). Les notifications préviennent quand le nœud, une VM ou un conteneur LXC s’arrête, puis quand il redémarre, comme pour les tuiles. Avant, seules les tuiles étaient surveillées : arrêter un conteneur sans interface web (ex. un connecteur Twingate) ne prévenait personne. Première étape de #71.
+
 ## [0.13.2] - 2026-10-29
 
 ### Corrigé
@@ -186,7 +191,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.2...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.12.0...v0.13.0

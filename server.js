@@ -208,6 +208,8 @@ function sanitizeWidgets(list, previous = []) {
       out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
       if (INTEGRATIONS[type].userRequired && !out.username) throw fail('username_required', `Utilisateur obligatoire (${type})`, { type });
     }
+    // Case « M'alerter » : notifications sur l'état signalé par le widget (ex. VM Proxmox arrêtée).
+    if (INTEGRATIONS[type].alerts) out.alert = w.alert === true;
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
@@ -847,20 +849,37 @@ app.use((err, req, res, next) => {
 // Le résultat sert aussi aux visiteurs (statusCache), pour ne pas pinguer deux fois.
 const NOTIFY_INTERVAL_MS = Number(process.env.NOTIFY_INTERVAL_MS) || 60_000;
 const monitor = createMonitor();
+const widgetMonitor = createMonitor(); // éléments signalés par les widgets « M'alerter »
 let monitoring = false;
+
+// Éléments surveillés par les widgets dont « M'alerter » est coché. Un widget en erreur (service
+// injoignable, mauvaise clé) ne donne rien : ce n'est pas l'arrêt d'une machine.
+async function widgetAlertItems(cfg) {
+  const lists = await Promise.all(cfg.widgets.filter((w) => w.alert && INTEGRATIONS[w.type]?.alerts).map(async (w) => {
+    try {
+      return INTEGRATIONS[w.type].alerts(await fetchWidget(w), w);
+    } catch {
+      return [];
+    }
+  }));
+  return lists.flat();
+}
 
 async function checkForNotifications() {
   if (monitoring) return; // vérification précédente pas finie (services lents)
   monitoring = true;
   try {
     const cfg = await readConfig();
-    if (!cfg.notify?.type) { monitor.clear(); return; } // réactivées plus tard : pas d'alerte sur l'état ancien
+    if (!cfg.notify?.type) { monitor.clear(); widgetMonitor.clear(); return; } // réactivées plus tard : pas d'alerte sur l'état ancien
     // Statuts d'un visiteur réutilisés s'ils sont assez récents : pas de double ping.
-    const statuses = await getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2));
-    const events = monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), statuses);
+    const [statuses, items] = await Promise.all([getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2)), widgetAlertItems(cfg)]);
+    const events = [
+      ...monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), statuses).map((event) => [monitor, event]),
+      ...widgetMonitor.update(items, Object.fromEntries(items.map((i) => [i.id, i]))).map((event) => [widgetMonitor, event]),
+    ];
     // En parallèle : un service lent ne retarde pas les autres alertes ; un échec repart au tour suivant.
-    await Promise.all(events.map((event) => sendNotification(cfg.notify, { ...event, board: cfg.title }).catch((e) => {
-      monitor.failed(event);
+    await Promise.all(events.map(([source, event]) => sendNotification(cfg.notify, { ...event, board: cfg.title }).catch((e) => {
+      source.failed(event);
       console.error(`[notifications] envoi impossible (${event.kind} ${event.name}) : ${e.message}`);
     })));
   } catch (e) {

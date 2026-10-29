@@ -1,6 +1,6 @@
 {
   "name": "server-dashboard",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "description": "Dashboard web auto-hébergé pour les services d’un serveur",
   "main": "server.js",
   "scripts": {
