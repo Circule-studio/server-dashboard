@@ -224,7 +224,10 @@ function sanitizeWidgets(list, previous = []) {
       out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
     }
     // Jeton créé par le serveur (agent) : jamais saisi, gardé d'un enregistrement à l'autre.
-    if (INTEGRATIONS[type].generatedKey) out.apiKey = old.apiKey || crypto.randomBytes(24).toString('base64url');
+    // regenerateKey : nouveau jeton demandé (l'ancien cesse de marcher).
+    if (INTEGRATIONS[type].generatedKey) {
+      out.apiKey = (w.regenerateKey !== true && old.apiKey) || crypto.randomBytes(24).toString('base64url');
+    }
     for (const f of SECRET_FIELDS) {
       if (!INTEGRATIONS[type].fields.includes(f)) continue;
       // Vide = inchangé ; clearApiKey / clearPassword = effacer (ex. Pi-hole sans mot de passe).
@@ -610,7 +613,10 @@ const app = express();
 app.disable('x-powered-by');
 // Derrière un reverse proxy, indiquer TRUST_PROXY (ex. 1) pour obtenir la vraie IP des visiteurs.
 if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
-app.use(express.json({ limit: '1mb' }));
+// Relevés des agents : petits, et reçus de machines hors de la session admin (64 Ko au plus).
+const jsonBody = express.json({ limit: '1mb' });
+const agentBody = express.json({ limit: '64kb' });
+app.use((req, res, next) => (req.path.startsWith('/api/agent/') ? agentBody : jsonBody)(req, res, next));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Express 4 ne capture pas les erreurs des handlers async : on les renvoie à next().
@@ -755,17 +761,17 @@ app.post('/api/agent/:id', route(async (req, res) => {
   if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!w.apiKey || !safeEqual(token, w.apiKey)) return res.status(401).json({ error: 'Jeton refusé', code: 'auth_refused' });
-  INTEGRATIONS[w.type].receive(w, req.body);
+  if (!INTEGRATIONS[w.type].receive(w, req.body)) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
   res.json({ ok: true });
 }));
 
-// Commande d'installation de l'agent, avec son jeton : admin seulement.
+// Identifiant et jeton de l'agent, pour sa commande d'installation : admin seulement. L'adresse du
+// dashboard est celle du navigateur de l'admin (juste même derrière un reverse proxy HTTPS).
 app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
   const w = agentWidget(await readConfig(), req.params.id);
   if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
-  // Adresse vue par le navigateur de l'admin : c'est en général celle que l'agent peut joindre.
-  const base = `${req.protocol}://${req.get('host')}`;
-  res.json({ id: w.id, token: w.apiKey, url: base, script: `${base}/agent/server-dashboard-agent.js` });
+  res.set('Cache-Control', 'no-store');
+  res.json({ id: w.id, token: w.apiKey });
 }));
 
 app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));

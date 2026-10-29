@@ -21,16 +21,20 @@ for (const file of fs.readdirSync(widgetsDir).filter((f) => f.endsWith('.js'))) 
   for (const m of fs.readFileSync(path.join(widgetsDir, file), 'utf8').matchAll(/\bicon: '([a-z0-9-]+)'/g)) use(m[1], `widget ${file}`);
 }
 
+// Seul un 404 veut dire « introuvable » : une limite (429) ou une panne (5xx) du CDN rend la
+// vérification impossible, sans accuser des noms justes.
 async function exists(url) {
   const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(15_000) });
-  return res.ok;
+  if (res.ok) return true;
+  if (res.status === 404) return false;
+  throw new Error(`HTTP ${res.status}`);
 }
 
 (async () => {
   const missing = [];
   const queue = [...names.keys()];
-  // 8 vérifications à la fois : assez rapide, sans abuser du CDN.
-  await Promise.all(Array.from({ length: 8 }, async () => {
+  // 4 vérifications à la fois : assez rapide, sans abuser du CDN.
+  await Promise.all(Array.from({ length: 4 }, async () => {
     while (queue.length) {
       const name = queue.shift();
       if (!(await exists(`${BASE}/svg/${name}.svg`)) && !(await exists(`${BASE}/png/${name}.png`))) missing.push(name);

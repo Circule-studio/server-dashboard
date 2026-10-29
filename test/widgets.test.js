@@ -424,15 +424,19 @@ test('Agent : jeton généré, envoi du vrai script, valeurs bornées, hors lign
   assert.equal((await api('GET', '/api/agent/agent/setup')).status, 401);
   cookie = saved;
   const setup = (await api('GET', '/api/agent/agent/setup')).json;
+  assert.deepEqual(Object.keys(setup).sort(), ['id', 'token']);
   assert.ok(setup.token.length >= 32);
-  for (const [token, status] of [['', 401], ['faux', 401], [setup.token, 200]]) {
+  // Le dernier envoi arrive moins de 2 s après le précédent : ignoré (429).
+  for (const [token, status] of [['', 401], ['faux', 401], [setup.token, 200], [setup.token, 429]]) {
     const r = await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}' });
     assert.equal(r.status, status);
   }
+  const gap = () => new Promise((r) => setTimeout(r, 2100));
+  await gap();
   assert.equal((await fetch(`${BASE}/api/agent/jellyfin`, { method: 'POST', headers: { Authorization: `Bearer ${setup.token}` } })).status, 404, 'pas un agent');
   // Le vrai script, téléchargé depuis le dashboard comme le fait la commande d'installation.
   const script = path.join(dataDir, 'agent.js');
-  fs.writeFileSync(script, await (await fetch(setup.script)).text());
+  fs.writeFileSync(script, await (await fetch(`${BASE}/agent/server-dashboard-agent.js`)).text());
   const run = spawn(process.execPath, [script, '--once'], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: setup.token } });
   let out = '';
   run.stderr.on('data', (d) => (out += d));
@@ -442,6 +446,7 @@ test('Agent : jeton généré, envoi du vrai script, valeurs bornées, hors lign
   assert.ok(d.mem.total > 0 && d.disks.length === 1 && d.cpu >= 0 && d.cpu <= 100);
   assert.equal(d.offline, false);
   // Valeurs absurdes ou hostiles : bornées, texte tronqué, champs inconnus ignorés.
+  await gap();
   const push = (body) => fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${setup.token}` }, body: JSON.stringify(body) });
   await push({ hostname: 'x'.repeat(500), cpu: 999, mem: { total: 100, used: 500 }, disks: Array(20).fill({ mount: '/', size: 10, used: -5 }), evil: '<script>', interval: 5 });
   await new Promise((r) => setTimeout(r, 1100)); // cache du widget : 1 s
@@ -458,6 +463,16 @@ test('Agent : jeton généré, envoi du vrai script, valeurs bornées, hors lign
     assert.deepEqual([late.hostname, late.offline], ['pi', true]);
   } finally {
     Date.now = now;
+  }
+  // Nouveau jeton : l'ancien cesse de marcher.
+  const cfg2 = (await api('GET', '/api/config')).json;
+  const widgets = cfg2.widgets.map((w) => (w.id === 'agent' ? { ...w, regenerateKey: true } : w));
+  assert.equal((await api('PUT', '/api/config', { ...cfg2, widgets })).status, 200);
+  const fresh = (await api('GET', '/api/agent/agent/setup')).json.token;
+  assert.notEqual(fresh, setup.token);
+  await gap();
+  for (const [token, status] of [[setup.token, 401], [fresh, 200]]) {
+    assert.equal((await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}' })).status, status);
   }
 });
 

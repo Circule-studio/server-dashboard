@@ -375,7 +375,7 @@ const pct = (p) => `${Math.round(Math.min(1, Math.max(0, p || 0)) * 100)} %`;
 // Durée écoulée depuis une date : « < 1 min », « 5 min », « 3 h », « 2 j ».
 const fmtAgo = (iso) => {
   const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
-  if (s < 60) return '< 1 min';
+  if (s < 60) return t('unit.lessThanMinute');
   return s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} ${t('unit.day')}`;
 };
 
@@ -546,6 +546,15 @@ function updateWidgetFields() {
       t(`${typeId}.sec.${s}`))));
 }
 
+function regenerateAgentToken(id) {
+  if (!confirm(t('agent.regenerateConfirm'))) return;
+  const w = state.draft.widgets.find((x) => x.id === id);
+  if (w) w.regenerateKey = true;
+  $('#widgetDialog').close();
+  render();
+  toast(t('agent.regenerateSave'));
+}
+
 // Copie dans le presse-papiers. En http:// sur le réseau local (contexte non sécurisé),
 // navigator.clipboard n'existe pas : le texte est alors sélectionné pour un Ctrl + C.
 function copyText(code, el) {
@@ -582,6 +591,8 @@ async function agentSetup(type, w) {
   }
   if (run !== agentSetupRun) return;
   text.textContent = t('agent.setupHelp');
+  const base = location.origin; // l'adresse utilisée par l'admin, celle que l'agent pourra joindre en général
+  const script = `${base}/agent/server-dashboard-agent.js`;
   const block = (label, code) => {
     const el = h('code', {}, code);
     return h('div', { class: 'agent-command' },
@@ -590,10 +601,10 @@ async function agentSetup(type, w) {
       h('pre', {}, el));
   };
   commands.replaceChildren(
-    block('Linux / macOS', `curl -fsSLO ${s.script}
-DASHBOARD_URL=${s.url} AGENT_ID=${s.id} AGENT_TOKEN=${s.token} node server-dashboard-agent.js`),
-    block('Windows (PowerShell)', `Invoke-WebRequest ${s.script} -OutFile server-dashboard-agent.js
-$env:DASHBOARD_URL="${s.url}"; $env:AGENT_ID="${s.id}"; $env:AGENT_TOKEN="${s.token}"; node server-dashboard-agent.js`));
+    block('Linux / macOS', `curl -fsSLO ${script}\nDASHBOARD_URL=${base} AGENT_ID=${s.id} AGENT_TOKEN=${s.token} node server-dashboard-agent.js`),
+    block('Windows (PowerShell)', `Invoke-WebRequest ${script} -OutFile server-dashboard-agent.js\n$env:DASHBOARD_URL="${base}"; $env:AGENT_ID="${s.id}"; $env:AGENT_TOKEN="${s.token}"; node server-dashboard-agent.js`),
+    // Jeton à changer (commande partagée par erreur, historique du terminal…) : effectif à l'enregistrement.
+    h('button', { type: 'button', class: 'btn btn-sm', onclick: () => regenerateAgentToken(w.id) }, t('agent.regenerate')));
 }
 
 // Case « Effacer » cochée : le champ du secret est vidé et désactivé.

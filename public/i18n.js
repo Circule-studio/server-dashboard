@@ -23,6 +23,7 @@ const I18N = {
     'common.title': 'Titre',
     'common.loading': 'Chargement…',
     'common.ago': 'il y a {duration}',
+    'unit.lessThanMinute': '< 1 min',
     'common.error': 'Erreur {status}',
 
     'banner.defaultPassword': '⚠ Tu utilises le mot de passe par défaut <b>admin</b>. Change-le : variable <code>ADMIN_PASSWORD</code> dans <code>.env</code> (Docker ou en local) ou dans <code>/etc/server-dashboard/server-dashboard.env</code> (installation sans Docker), puis redémarre le dashboard.',
@@ -324,8 +325,11 @@ const I18N = {
 
     'agent.offline': 'Plus de nouvelles depuis {duration} : machine éteinte ou agent arrêté',
     'agent.saveFirst': 'Enregistre d’abord le widget, puis rouvre-le : la commande à lancer sur la machine s’affichera ici, avec son jeton.',
-    'agent.setupHelp': 'Sur la machine à surveiller (Node.js 18 ou plus récent), lance cette commande. Elle contient le jeton de ce widget : ne la partage pas. Pour un lancement automatique, voir agent/README.md.',
+    'agent.setupHelp': 'Sur la machine à surveiller (Node.js 18.15 ou plus récent), lance cette commande. Elle contient le jeton de ce widget, qui permet seulement d’envoyer ses relevés : ne la partage pas, et change de jeton si c’est arrivé. Pour un lancement automatique, voir agent/README.md.',
     'agent.copy': 'Copier',
+    'agent.regenerate': 'Nouveau jeton',
+    'agent.regenerateConfirm': 'Créer un nouveau jeton ? Après l’enregistrement, l’ancien ne marchera plus : il faudra relancer l’agent avec la nouvelle commande.',
+    'agent.regenerateSave': 'Nouveau jeton à l’enregistrement : clique sur Enregistrer, puis rouvre le widget pour la nouvelle commande',
     'agent.copied': 'Commande copiée',
     'agent.selectToCopy': 'Commande sélectionnée : Ctrl + C pour la copier',
 
@@ -507,7 +511,7 @@ const I18N = {
     'err.notify_failed': 'Le service de notification a répondu HTTP {status}',
     'err.kuma_not_found': 'Page de statut Uptime Kuma introuvable : « {slug} ». Vérifie son nom dans Uptime Kuma > Pages de statut.',
     'err.kuma_slug_invalid': 'Page de statut invalide : « {slug} » (lettres, chiffres et tirets)',
-    'err.agent_waiting': 'En attente du premier envoi de l’agent : lance la commande donnée dans le formulaire du widget (mode édition)',
+    'err.agent_waiting': 'En attente d’un envoi de l’agent. S’il n’est pas encore installé, lance la commande donnée dans le formulaire du widget (mode édition) ; s’il tourne déjà, il se manifestera au prochain envoi (le dashboard vient peut-être de redémarrer).',
     'err.glances_credentials': 'Mot de passe Glances refusé',
     'err.glances_offline': 'Machine injoignable : éteinte, hors du réseau, ou Glances n’est pas lancé en mode web (glances -w)',
     'err.frigate_credentials': 'Identifiants Frigate refusés',
@@ -545,6 +549,7 @@ const I18N = {
     'common.title': 'Title',
     'common.loading': 'Loading…',
     'common.ago': '{duration} ago',
+    'unit.lessThanMinute': '< 1 min',
     'common.error': 'Error {status}',
 
     'banner.defaultPassword': '⚠ You are using the default password <b>admin</b>. Change it: set <code>ADMIN_PASSWORD</code> in <code>.env</code> (Docker or local) or in <code>/etc/server-dashboard/server-dashboard.env</code> (install without Docker), then restart the dashboard.',
@@ -846,8 +851,11 @@ const I18N = {
 
     'agent.offline': 'No news for {duration}: machine off or agent stopped',
     'agent.saveFirst': 'Save the widget first, then open it again: the command to run on the machine will show up here, with its token.',
-    'agent.setupHelp': 'On the machine to monitor (Node.js 18 or later), run this command. It contains this widget’s token: don’t share it. To start it automatically, see agent/README.md.',
+    'agent.setupHelp': 'On the machine to monitor (Node.js 18.15 or later), run this command. It contains this widget’s token, which only allows sending its reports: don’t share it, and get a new token if that happened. To start it automatically, see agent/README.md.',
     'agent.copy': 'Copy',
+    'agent.regenerate': 'New token',
+    'agent.regenerateConfirm': 'Create a new token? Once saved, the old one stops working: you will need to restart the agent with the new command.',
+    'agent.regenerateSave': 'New token on save: click Save, then open the widget again for the new command',
     'agent.copied': 'Command copied',
     'agent.selectToCopy': 'Command selected: Ctrl + C to copy it',
 
@@ -1029,7 +1037,7 @@ const I18N = {
     'err.notify_failed': 'The notification service answered HTTP {status}',
     'err.kuma_not_found': 'Uptime Kuma status page not found: "{slug}". Check its name in Uptime Kuma > Status Pages.',
     'err.kuma_slug_invalid': 'Invalid status page: "{slug}" (letters, digits and hyphens)',
-    'err.agent_waiting': 'Waiting for the agent’s first report: run the command shown in the widget form (edit mode)',
+    'err.agent_waiting': 'Waiting for a report from the agent. If it is not installed yet, run the command shown in the widget form (edit mode); if it is already running, it will show up at its next report (the dashboard may have just restarted).',
     'err.glances_credentials': 'Glances password refused',
     'err.glances_offline': 'Machine unreachable: turned off, off the network, or Glances is not running in web mode (glances -w)',
     'err.frigate_credentials': 'Frigate credentials refused',

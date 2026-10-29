@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Agent Server Dashboard : envoie les ressources de cette machine (CPU, mémoire, disques, température,
 // uptime) au dashboard, toutes les AGENT_INTERVAL secondes. C'est la machine qui contacte le dashboard :
-// rien à ouvrir sur son pare-feu, ça marche derrière un NAT. Node.js 18 ou plus récent, sans dépendance.
+// rien à ouvrir sur son pare-feu, ça marche derrière un NAT. Node.js 18.15 ou plus récent, sans dépendance.
 //
 //   DASHBOARD_URL=http://192.168.1.10:7575 AGENT_ID=wid-… AGENT_TOKEN=… node server-dashboard-agent.js
 //
@@ -17,12 +17,17 @@ const os = require('os');
 const URL_BASE = (process.env.DASHBOARD_URL || '').replace(/\/+$/, '');
 const ID = process.env.AGENT_ID || '';
 const TOKEN = process.env.AGENT_TOKEN || '';
-const INTERVAL = Math.max(5, Number(process.env.AGENT_INTERVAL) || 30);
+const INTERVAL = Math.min(86400, Math.max(5, Number(process.env.AGENT_INTERVAL) || 30));
 const DISKS = (process.env.AGENT_DISKS || (process.platform === 'win32' ? 'C:\\' : '/')).split(',').map((d) => d.trim()).filter(Boolean);
 const ONCE = process.argv.includes('--once');
 
 if (!URL_BASE || !ID || !TOKEN) {
   console.error('DASHBOARD_URL, AGENT_ID et AGENT_TOKEN sont obligatoires (commande donnée par le dashboard).');
+  process.exit(1);
+}
+// fetch (Node 18) et fs.statfsSync (Node 18.15, pour les disques).
+if (typeof fetch !== 'function' || typeof fs.statfsSync !== 'function') {
+  console.error(`Node.js 18.15 ou plus récent est nécessaire (version actuelle : ${process.version}).`);
   process.exit(1);
 }
 
@@ -62,15 +67,23 @@ function disks() {
   });
 }
 
-// Température la plus haute des zones thermiques (Linux, Raspberry Pi…).
+// Température la plus haute des zones thermiques (Linux, Raspberry Pi…). Une zone illisible (capteur
+// désactivé : EINVAL, ENODATA) est ignorée sans faire perdre les autres.
 function temperature() {
+  let zones;
   try {
-    const zones = fs.readdirSync('/sys/class/thermal').filter((z) => z.startsWith('thermal_zone'));
-    const values = zones.map((z) => Number(fs.readFileSync(`/sys/class/thermal/${z}/temp`, 'utf8')) / 1000).filter((v) => v > 0 && v < 150);
-    return values.length ? { value: Math.round(Math.max(...values)), label: 'CPU' } : null;
+    zones = fs.readdirSync('/sys/class/thermal').filter((z) => z.startsWith('thermal_zone'));
   } catch {
-    return null;
+    return null; // pas Linux
   }
+  const values = zones.flatMap((z) => {
+    try {
+      return [Number(fs.readFileSync(`/sys/class/thermal/${z}/temp`, 'utf8')) / 1000];
+    } catch {
+      return [];
+    }
+  }).filter((v) => v > 0 && v < 150);
+  return values.length ? { value: Math.round(Math.max(...values)), label: 'CPU' } : null;
 }
 
 function osName() {
@@ -104,7 +117,12 @@ async function send() {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
     body: JSON.stringify(report()),
     signal: AbortSignal.timeout(15_000),
+    // Une redirection (http -> https derrière un reverse proxy) changerait le POST en GET sans corps.
+    redirect: 'manual',
   });
+  if (res.status >= 300 && res.status < 400) {
+    throw new Error(`le dashboard redirige vers ${res.headers.get('location')} : mets cette adresse dans DASHBOARD_URL`);
+  }
   if (res.status === 401 || res.status === 404) throw new Error('jeton ou identifiant refusé : recopie la commande donnée par le dashboard');
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

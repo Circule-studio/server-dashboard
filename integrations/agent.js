@@ -5,15 +5,20 @@
 
 const { fail } = require('./lib');
 
-const reports = new Map(); // id du widget -> { t, data }
+const reports = new Map(); // id du widget -> { t, data } ; perdu au redémarrage du dashboard
 // Hors ligne après 3 envois manqués (l'agent indique son intervalle, 30 s par défaut).
 const MISSED = 3;
+const MIN_GAP_MS = 2000; // un agent qui envoie plus souvent est ignoré (429)
+const FORGET_MS = 7 * 86400_000; // widget supprimé ou agent arrêté depuis une semaine : relevé oublié
 
 const num = (v, min = 0, max = Infinity) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : null);
 const text = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 
 // Le relevé vient d'une autre machine : chaque champ est vérifié et borné, rien n'est repris tel quel.
 function receive(w, body) {
+  const prev = reports.get(w.id);
+  if (prev && Date.now() - prev.t < MIN_GAP_MS) return false;
+  for (const [id, r] of reports) if (Date.now() - r.t > FORGET_MS) reports.delete(id);
   const b = body && typeof body === 'object' ? body : {};
   const mem = b.mem && num(b.mem.total, 1) ? { total: num(b.mem.total, 1), used: num(b.mem.used, 0, b.mem.total) ?? 0 } : null;
   const load = b.load && num(b.load.min1) !== null ? { min1: num(b.load.min1), cores: num(b.load.cores, 1, 4096) } : null;
@@ -30,9 +35,10 @@ function receive(w, body) {
       .filter((d) => d && num(d.size, 1))
       .map((d) => ({ mount: text(d.mount, 200), size: num(d.size, 1), used: num(d.used, 0, d.size) ?? 0 })),
     temp,
-    interval: num(b.interval, 5, 3600) ?? 30,
+    interval: num(b.interval, 5, 86400) ?? 30,
   };
   reports.set(w.id, { t: Date.now(), data });
+  return true;
 }
 
 async function agent(w) {

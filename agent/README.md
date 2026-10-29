@@ -10,7 +10,7 @@ Pour une machine du réseau local où tu peux installer [Glances](https://github
 
 1. Dans le dashboard : **Éditer > + Widget > Agent**, puis enregistre.
 2. Rouvre le widget. Le formulaire affiche la commande à lancer sur la machine, avec son identifiant et son jeton. Elle télécharge le script depuis ton dashboard.
-3. Lance la commande sur la machine (Node.js 18 ou plus récent). Le widget se remplit au premier envoi.
+3. Lance la commande sur la machine (Node.js 18.15 ou plus récent). Le widget se remplit au premier envoi.
 
 Variables facultatives :
 
@@ -55,5 +55,6 @@ Crée une tâche dans le Planificateur de tâches, déclenchée « Au démarrage
 ## Sécurité
 
 - Le jeton n'autorise qu'une chose : envoyer les relevés de **ce** widget. Il ne donne aucun accès au dashboard.
-- Il est créé par le dashboard, et seul un admin connecté peut le voir. Pour le changer, supprime le widget et crée-en un autre.
+- Il est créé par le dashboard, et seul un admin connecté peut le voir. Il apparaît dans la commande à lancer, et peut donc rester dans l'historique du terminal. En cas de doute, le bouton **Nouveau jeton** du formulaire en crée un autre (l'ancien cesse de marcher à l'enregistrement).
+- Derrière un reverse proxy HTTPS, utilise l'adresse `https://` dans `DASHBOARD_URL`. La commande proposée reprend l'adresse de ton navigateur, et l'agent refuse de suivre une redirection.
 - Les relevés reçus sont vérifiés et bornés par le dashboard avant d'être affichés.
