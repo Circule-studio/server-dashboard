@@ -170,6 +170,9 @@ test('Météo : conditions actuelles et 5 jours', async () => {
 test('Immich : photos, vidéos et utilisateurs', async () => {
   const d = await widget('immich');
   assert.ok(d.photos > 0 && d.users.length > 1);
+  // Module dl-stats : totaux seulement, jamais les noms ou e-mails des visiteurs.
+  assert.deepEqual(d.downloads, { total: 37, images: 35, visitors: 2 });
+  assert.ok(!JSON.stringify(d).includes('alice'));
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
