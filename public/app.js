@@ -1066,6 +1066,83 @@ function submitDisks(e) {
   toast(disks.length ? t('disks.selected', { count: disks.length }) : t('disks.defaultRestored'));
 }
 
+// ---------- Notifications (mode édition) ----------
+// Le serveur vérifie les apps toutes les minutes et prévient quand l'une tombe ou revient. L'URL et
+// le jeton ne sont jamais renvoyés au navigateur : vides = inchangés.
+const NOTIFY_TYPES = {
+  ntfy: { placeholder: 'https://ntfy.sh/mon-sujet', token: 'optional' },
+  gotify: { placeholder: 'https://gotify.exemple.fr', token: 'required' },
+  discord: { placeholder: 'https://discord.com/api/webhooks/…', token: null },
+  webhook: { placeholder: 'https://exemple.fr/hook', token: 'optional' },
+};
+
+function openNotifyDialog() {
+  const f = $('#notifyForm').elements;
+  const n = state.draft.notify || { type: '' };
+  f.type.replaceChildren(...['', ...Object.keys(NOTIFY_TYPES)].map((k) =>
+    h('option', { value: k, selected: k === (n.type || '') }, t(`notify.type.${k || 'none'}`))));
+  f.url.value = '';
+  f.token.value = '';
+  f.clearToken.checked = false;
+  updateNotifyFields();
+  $('#notifyDialog').showModal();
+}
+
+function updateNotifyFields() {
+  const form = $('#notifyForm');
+  const f = form.elements;
+  const type = f.type.value;
+  const spec = NOTIFY_TYPES[type];
+  const saved = state.draft.notify?.type === type ? state.draft.notify : {};
+  form.querySelector('[data-notify-field="url"]').hidden = !spec;
+  form.querySelector('[data-notify-field="token"]').hidden = !spec?.token;
+  form.querySelector('[data-notify-test]').hidden = !spec;
+  if (!spec) return;
+  f.url.placeholder = saved.hasUrl ? t('notify.urlUnchanged') : spec.placeholder;
+  f.url.required = !saved.hasUrl;
+  form.querySelector('[data-notify-url-help]').textContent = t(`notify.urlHelp.${type}`);
+  form.querySelector('[data-notify-token-label]').textContent = t(spec.token === 'required' ? 'notify.token' : 'notify.tokenOptional');
+  form.querySelector('[data-notify-token-help]').textContent = spec.token ? t(`notify.tokenHelp.${type}`) : '';
+  f.token.placeholder = saved.hasToken ? t('widget.keyUnchanged') : '';
+  f.token.required = spec.token === 'required' && !saved.hasToken;
+  form.querySelector('[data-notify-clear]').hidden = !(spec.token === 'optional' && saved.hasToken);
+}
+
+// Réglages du formulaire, au format attendu par le serveur.
+function notifyFromForm() {
+  const f = $('#notifyForm').elements;
+  const type = f.type.value;
+  if (!type) return { type: '' };
+  const out = { type, lang: LANG };
+  if (f.url.value.trim()) out.url = f.url.value.trim();
+  if (f.token.value.trim()) out.token = f.token.value.trim();
+  if (!f.clearToken.closest('[hidden]') && f.clearToken.checked) out.clearToken = true;
+  return out;
+}
+
+function submitNotify(e) {
+  e.preventDefault();
+  const n = notifyFromForm();
+  const saved = state.draft.notify?.type === n.type ? state.draft.notify : {};
+  state.draft.notify = n.type
+    ? { ...n, hasUrl: !!n.url || !!saved.hasUrl, hasToken: !n.clearToken && (!!n.token || !!saved.hasToken) }
+    : { type: '' };
+  $('#notifyDialog').close();
+  render();
+}
+
+async function testNotify(btn) {
+  btn.disabled = true;
+  try {
+    await api('/api/notify/test', { method: 'POST', body: notifyFromForm() });
+    toast(t('notify.testOk'));
+  } catch (e) {
+    toast(errMsg(e), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---------- Sauvegarde : export et import de la config (mode édition) ----------
 // L'export télécharge la config enregistrée (route serveur, admin seulement). L'import remplace le
 // brouillon : rien n'est écrit avant « Enregistrer », qui passe par les vérifications habituelles.
@@ -1297,6 +1374,10 @@ async function init() {
   $('#disksForm').addEventListener('submit', submitDisks);
   $('#displayBtn').addEventListener('click', openDisplayDialog);
   $('#backupBtn').addEventListener('click', openBackupDialog);
+  $('#notifyBtn').addEventListener('click', openNotifyDialog);
+  $('#notifyForm').elements.type.addEventListener('change', updateNotifyFields);
+  $('#notifyForm').addEventListener('submit', submitNotify);
+  $('#notifyForm').querySelector('[data-notify-test]').addEventListener('click', (e) => testNotify(e.target));
   const backup = $('#backupForm');
   backup.elements.secrets.addEventListener('change', (e) => { backup.querySelector('[data-backup-warning]').hidden = !e.target.checked; });
   backup.querySelector('[data-backup-export]').addEventListener('click', exportConfig);

@@ -34,6 +34,7 @@
       <button id="addWidgetBtn" class="btn btn-ghost" data-i18n="edit.addWidget"></button>
       <button id="disksBtn" class="btn btn-ghost" data-i18n="edit.disks"></button>
       <button id="displayBtn" class="btn btn-ghost" data-i18n="edit.display"></button>
+      <button id="notifyBtn" class="btn btn-ghost" data-i18n="edit.notify"></button>
       <button id="backupBtn" class="btn btn-ghost" data-i18n="edit.backup"></button>
       <button id="addCatBtn" class="btn btn-ghost" data-i18n="edit.addCategory"></button>
       <button id="cancelBtn" class="btn btn-ghost" data-i18n="edit.done"></button>
@@ -150,6 +151,28 @@
         <small class="muted" data-i18n="disks.extraHelp"></small>
       </label>
       <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
+        <button class="btn btn-primary" data-i18n="common.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="notifyDialog">
+    <form method="dialog" id="notifyForm">
+      <h3 data-i18n="notify.title"></h3>
+      <p class="muted dialog-help" data-i18n="notify.help"></p>
+      <label><span data-i18n="notify.type"></span><select name="type"></select></label>
+      <label data-notify-field="url"><span data-i18n="notify.url"></span>
+        <input name="url" type="url" autocomplete="off">
+        <small class="muted" data-notify-url-help></small>
+      </label>
+      <label data-notify-field="token"><span data-notify-token-label></span>
+        <input name="token" type="password" autocomplete="off">
+        <small class="muted" data-notify-token-help></small>
+      </label>
+      <label class="check-inline" data-notify-clear hidden><input type="checkbox" name="clearToken"><span data-i18n="widget.clearKey"></span></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost notify-test" data-notify-test data-i18n="notify.test"></button>
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
       </div>

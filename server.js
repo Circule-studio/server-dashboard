@@ -9,6 +9,7 @@ const os = require('os');
 const http = require('http');
 const crypto = require('crypto');
 const { INTEGRATIONS, fetchWidget, resetIntegrations, request } = require('./integrations');
+const { NOTIFY_TYPES, sendNotification, createMonitor } = require('./notify');
 
 // En local (npm start), lit le fichier .env s'il existe. Les variables déjà définies
 // (Docker, systemd) restent prioritaires.
@@ -233,8 +234,11 @@ function sanitizeWidgets(list, previous = []) {
 // Version envoyée au navigateur : jamais de clés API ni de mots de passe,
 // et les noms d'utilisateur seulement pour un admin connecté.
 function publicConfig(cfg, authed) {
+  const { notify, ...rest } = cfg;
   return {
-    ...cfg,
+    ...rest,
+    // Notifications : réglage visible des admins seulement, sans l'URL ni le jeton.
+    ...(authed && notify ? { notify: { type: notify.type, lang: notify.lang, hasUrl: !!notify.url, hasToken: !!notify.token } } : {}),
     widgets: cfg.widgets.map((w) => {
       const pub = { ...w };
       for (const f of SECRET_FIELDS) {
@@ -248,6 +252,27 @@ function publicConfig(cfg, authed) {
 
 // Éléments de la barre du haut que l'admin peut masquer (tous visibles par défaut).
 const DISPLAY_OPTIONS = ['search', 'theme', 'lang'];
+
+// Notifications. `url` et `token` sont des secrets : vides = inchangés (si le type ne change pas),
+// clearToken = effacer le jeton. Sans type : désactivées.
+function sanitizeNotify(input, previous) {
+  if (input === undefined) return previous || { type: '' }; // ancienne interface : inchangées
+  const src = input && typeof input === 'object' ? input : {};
+  const type = NOTIFY_TYPES.includes(src.type) ? src.type : '';
+  if (!type) return { type: '' };
+  const same = previous?.type === type ? previous : {};
+  const out = {
+    type,
+    lang: src.lang === 'en' ? 'en' : 'fr',
+    url: checkUrl(str(src.url, 2000)) || same.url || '',
+    token: src.clearToken === true ? '' : str(src.token, 500) || same.token || '',
+  };
+  if (!out.url) throw fail('notify_url_missing', 'URL de notification manquante');
+  // ntfy : l'adresse du sujet (https://ntfy.sh/mon-sujet), pas seulement celle du serveur.
+  if (type === 'ntfy' && new URL(out.url).pathname.replace(/\/+$/, '') === '') throw fail('notify_topic_missing', 'Sujet ntfy manquant');
+  if (type === 'gotify' && !out.token) throw fail('notify_token_missing', 'Jeton Gotify manquant');
+  return out;
+}
 
 // Taille des tuiles d'apps (réglage global).
 const TILE_SIZES = ['compact', 'normal', 'large'];
@@ -294,6 +319,7 @@ function sanitizeConfig(input, previous) {
     // Absente ou invalide (ancienne interface, script) : inchangée.
     tileSize: [input.tileSize, previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
+    notify: sanitizeNotify(input.notify, previous?.notify),
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
       .filter((d) => d.path),
@@ -638,6 +664,7 @@ app.get('/api/config/export', requireAuth, route(async (req, res) => {
   const secrets = req.query.secrets === '1';
   const config = secrets ? cfg : {
     ...cfg,
+    notify: cfg.notify && { type: cfg.notify.type, lang: cfg.notify.lang },
     widgets: cfg.widgets.map((w) => Object.fromEntries(Object.entries(w).filter(([k]) => !SECRET_FIELDS.includes(k)))),
   };
   const date = new Date().toISOString().slice(0, 10);
@@ -764,5 +791,50 @@ app.use((err, req, res, next) => {
     ? { error: err.message || 'Erreur serveur', code: err.key || 'server', params: err.params }
     : { error: 'Requête invalide', code: 'bad_request' });
 });
+
+// ---------- Notifications : vérification des apps en tâche de fond ----------
+// Toutes les NOTIFY_INTERVAL_MS, même sans visiteur, quand des notifications sont configurées.
+// Le résultat sert aussi aux visiteurs (statusCache), pour ne pas pinguer deux fois.
+const NOTIFY_INTERVAL_MS = Number(process.env.NOTIFY_INTERVAL_MS) || 60_000;
+const monitor = createMonitor();
+let monitoring = false;
+
+async function checkForNotifications() {
+  if (monitoring) return; // vérification précédente pas finie (services lents)
+  monitoring = true;
+  try {
+    const cfg = await readConfig();
+    if (!cfg.notify?.type) { monitor.clear(); return; } // réactivées plus tard : pas d'alerte sur l'état ancien
+    const entry = { t: Date.now(), promise: computeStatuses() };
+    entry.promise.catch(() => { if (statusCache === entry) statusCache = null; });
+    statusCache = entry;
+    const { promise } = entry;
+    const events = monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), await promise);
+    for (const event of events) {
+      await sendNotification(cfg.notify, { ...event, board: cfg.title })
+        .catch((e) => console.error(`[notifications] envoi impossible (${event.kind} ${event.name}) : ${e.message}`));
+    }
+  } catch (e) {
+    console.error('[notifications]', e.message);
+  } finally {
+    monitoring = false;
+  }
+}
+setInterval(checkForNotifications, NOTIFY_INTERVAL_MS).unref();
+
+// Bouton « Envoyer un test » : réglages du formulaire, même pas encore enregistrés (URL et jeton
+// vides = ceux enregistrés).
+app.post('/api/notify/test', requireAuth, route(async (req, res) => {
+  const cfg = await readConfig();
+  let notify;
+  try {
+    notify = sanitizeNotify(req.body || {}, cfg.notify);
+    if (!notify.type) throw fail('notify_missing', 'Notifications non configurées');
+    await sendNotification(notify, { kind: 'test', board: cfg.title });
+  } catch (e) {
+    return res.status(e.key ? 502 : 500).json({ error: e.message, code: e.key, params: e.params });
+  }
+  res.json({ ok: true });
+}));
 
 app.listen(PORT, () => console.log(`Server Dashboard sur http://localhost:${PORT}`));

@@ -484,6 +484,9 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 .dns-status { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 0.88rem; flex-wrap: wrap; }
 .dns-extra { margin: 0; font-size: 0.8rem; }
 
+/* Fenêtre Notifications : le bouton de test à gauche, Annuler et OK à droite. */
+#notifyDialog .notify-test { margin-right: auto; }
+
 /* Fenêtre Sauvegarde */
 #backupDialog fieldset .btn { margin-top: 10px; }
 #backupDialog fieldset small { display: block; }

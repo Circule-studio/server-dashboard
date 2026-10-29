@@ -3,7 +3,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
-COPY server.js ./
+COPY server.js notify.js ./
 COPY integrations ./integrations
 COPY public ./public
 VOLUME /app/data

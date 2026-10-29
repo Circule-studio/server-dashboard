@@ -40,7 +40,7 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Syntaxe JavaScript
-        run: for f in server.js integrations/*.js dev/*.js dev/mocks/*.js public/*.js public/widgets/*.js test/*.js; do node --check "$f"; done
+        run: for f in server.js notify.js integrations/*.js dev/*.js dev/mocks/*.js public/*.js public/widgets/*.js test/*.js; do node --check "$f"; done
       - name: Traductions complètes (fr / en)
         run: node dev/check-i18n.js
       # Faux services + dashboard : un widget de chaque type, erreurs traduites, aucun secret envoyé.

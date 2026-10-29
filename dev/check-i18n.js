@@ -38,6 +38,9 @@ const dynamic = {
   'weather.code.': [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 97, 99],
   'github.sec.': ['version', 'issues', 'pulls', 'version.short', 'issues.short', 'pulls.short'],
   'kuma.state.': ['down', 'pending', 'maintenance'],
+  'notify.type.': ['none', 'ntfy', 'gotify', 'discord', 'webhook'],
+  'notify.urlHelp.': ['ntfy', 'gotify', 'discord', 'webhook'],
+  'notify.tokenHelp.': ['ntfy', 'gotify', 'webhook'],
   'ha.': ['power.on', 'power.off', 'opening.on', 'opening.off', 'motion.on', 'motion.off', 'alarm.on', 'alarm.off'],
 };
 for (const [prefix, names] of Object.entries(dynamic)) for (const n of names) used.add(prefix + n);
@@ -56,7 +59,7 @@ for (const lang of langs) {
   }
 }
 // Les codes d'erreur renvoyés par le serveur doivent être traduits.
-const serverCodes = new Set([...`${read('server.js')}\n${readDir('integrations')}`.matchAll(/(?:fail\(|code: |forbidden: )'([a-z_]+)'/g)].map((m) => m[1]));
+const serverCodes = new Set([...`${read('server.js')}\n${read('notify.js')}\n${readDir('integrations')}`.matchAll(/(?:fail\(|code: |forbidden: )'([a-z_]+)'/g)].map((m) => m[1]));
 for (const code of serverCodes) {
   for (const lang of langs) {
     if (!(`err.${code}` in ctx.I18N[lang])) { errors++; console.error(`[${lang}] code serveur non traduit : err.${code}`); }

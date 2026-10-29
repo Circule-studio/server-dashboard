@@ -96,7 +96,8 @@ const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', '
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
   await start('dev/mocks.js', {}, 'mocks prêts');
-  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET }, 'Server Dashboard sur');
+  // Vérification des apps pour les notifications : 200 ms au lieu d'une minute.
+  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200' }, 'Server Dashboard sur');
   const login = await fetch(`${BASE}/api/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: PASSWORD }),
   });
@@ -409,6 +410,82 @@ test('Export de la config : admin seulement, sans secrets par défaut, réimport
     assert.deepEqual(after, expected);
   }
   await widget('jellyfin'); // la clé est toujours là après l'import sans secrets
+});
+
+// ---------- Notifications ----------
+const listen = (server, port = 0) => new Promise((resolve) => server.listen(port, () => resolve(server.address().port)));
+async function until(check, ms = 5000) {
+  const end = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > end) return false;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return true;
+}
+
+test('Notifications : une app qui tombe puis revient, deux notifications', async () => {
+  const http = require('node:http');
+  const received = [];
+  const hook = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => (body += d));
+    req.on('end', () => { received.push({ path: req.url, headers: req.headers, body: JSON.parse(body) }); res.end('ok'); });
+  });
+  const hookPort = await listen(hook);
+  const app = () => http.createServer((req, res) => res.end('ok'));
+  let target = app();
+  const targetPort = await listen(target);
+  const cfg = (await api('GET', '/api/config')).json;
+  const notify = { type: 'webhook', url: `http://localhost:${hookPort}/hook`, token: 'hook-token', lang: 'fr' };
+  try {
+    let r = await api('PUT', '/api/config', {
+      ...cfg, notify,
+      categories: [...cfg.categories, { id: 'cat-notif', name: 'Surveillées', apps: [{ id: 'app-cible', name: 'Cible', url: `http://localhost:${targetPort}` }] }],
+    });
+    assert.equal(r.status, 200, r.text);
+    // Réglage visible de l'admin, sans l'URL ni le jeton ; rien dans l'export sans secrets.
+    assert.deepEqual(r.json.notify, { type: 'webhook', lang: 'fr', hasUrl: true, hasToken: true });
+    for (const res of [r, await api('GET', '/api/config/export')]) {
+      assert.ok(!res.text.includes('hook-token') && !res.text.includes(`:${hookPort}`), 'secret de notification envoyé au navigateur');
+    }
+    await new Promise((res) => setTimeout(res, 700)); // plusieurs vérifications : l'app est en ligne
+    assert.equal(received.length, 0, 'pas de notification au démarrage');
+
+    target.close();
+    target.closeAllConnections();
+    assert.ok(await until(() => received.length === 1), 'notification « hors ligne »');
+    assert.deepEqual([received[0].body.event, received[0].body.title, received[0].body.app.name], ['down', '🔴 Cible est hors ligne', 'Cible']);
+    assert.equal(received[0].headers.authorization, 'Bearer hook-token');
+
+    target = app();
+    await listen(target, targetPort);
+    assert.ok(await until(() => received.length === 2), 'notification « de nouveau en ligne »');
+    assert.equal(received[1].body.event, 'up');
+    await new Promise((res) => setTimeout(res, 700));
+    assert.equal(received.length, 2, 'une seule notification par changement');
+
+    // Bouton de test : réglages enregistrés, puis chaque format, sans les enregistrer.
+    r = await api('POST', '/api/notify/test', { type: 'webhook', lang: 'en' });
+    assert.equal(r.status, 200, r.text);
+    assert.deepEqual([received[2].body.event, received[2].body.title], ['test', '✅ Test notification']);
+    await api('POST', '/api/notify/test', { type: 'ntfy', url: `http://localhost:${hookPort}/mon-sujet`, token: 'tk_x' });
+    assert.deepEqual([received[3].path, received[3].body.topic, received[3].headers.authorization], ['/', 'mon-sujet', 'Bearer tk_x']);
+    await api('POST', '/api/notify/test', { type: 'gotify', url: `http://localhost:${hookPort}/`, token: 'gotify-app' });
+    assert.deepEqual([received[4].path, received[4].headers['x-gotify-key']], ['/message', 'gotify-app']);
+    await api('POST', '/api/notify/test', { type: 'discord', url: `http://localhost:${hookPort}/api/webhooks/1/abc` });
+    assert.match(received[5].body.content, /^\*\*✅ Notification de test\*\*/);
+    // Erreurs traduites
+    for (const [body, code] of [[{ type: 'ntfy', url: 'https://ntfy.sh' }, 'notify_topic_missing'],
+      [{ type: 'gotify', url: `http://localhost:${hookPort}` }, 'notify_token_missing'], [{}, 'notify_missing']]) {
+      assert.equal((await api('POST', '/api/notify/test', body)).json.code, code);
+    }
+  } finally {
+    const now = (await api('GET', '/api/config')).json;
+    await api('PUT', '/api/config', { ...now, notify: { type: '' }, categories: now.categories.filter((c) => c.id !== 'cat-notif') });
+    target.close();
+    target.closeAllConnections();
+    hook.close();
+  }
 });
 
 // ---------- Docker ----------

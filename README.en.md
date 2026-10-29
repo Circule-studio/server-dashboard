@@ -29,6 +29,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **qBittorrent**: speeds, active torrents.
   - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
 - **Edit mode** (password protected) with drag & drop, and a welcome screen on first launch.
+- **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed.
 - **Backup**: export the configuration to a file (with or without API keys), and import it to restore it or copy it to another machine.
 - API keys and passwords **never leave the server**.
 
