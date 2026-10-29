@@ -64,6 +64,8 @@ const WIDGETS = [
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
   { id: 'agent', type: 'agent', name: 'PC de bureau' },
+  { id: 'alwaysdata', type: 'alwaysdata', url: 'http://localhost:17443/v1', username: 'thomas', apiKey: 'alwaysdata-token' },
+  { id: 'alwaysdata-bad', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'mauvais-jeton-ad' },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
   { id: 'goaccess-bad', type: 'goaccess', url: 'http://localhost:17890/pas-un-rapport' },
   { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
@@ -94,7 +96,7 @@ const WIDGETS = [
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['alwaysdata-token', 'mauvais-jeton-ad', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -183,6 +185,16 @@ test('GoAccess : visiteurs uniques et 7 derniers jours, du plus récent au plus 
   assert.equal(d.days.length, 7);
   assert.ok(d.days.every((x, i) => i === 0 || d.days[i - 1].date > x.date));
   assert.equal(d.days[0].visitors, 40, 'aujourd’hui en premier');
+});
+
+test('Alwaysdata : sites testés un par un, ceux en panne d’abord', async () => {
+  const d = await widget('alwaysdata');
+  assert.equal(d.total, 3, 'site sans adresse écarté');
+  assert.deepEqual(d.sites.map((s) => [s.online, s.code ?? null]), [[false, 502], [false, null], [true, 200]]);
+  assert.equal(d.up, 1);
+  assert.equal(d.sites[2].note, 'Blog');
+  assert.equal(d.sites[2].scheme, 'http', 'HTTP quand HTTPS échoue');
+  assert.ok(!d.sites.some((s) => s.address.startsWith('*')), 'adresse joker ignorée');
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
@@ -315,6 +327,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
+    'alwaysdata-bad': 'auth_refused',
     'pihole-bad': 'pihole_password',
     'adguard-bad': 'adguard_credentials',
     'weather-unknown': 'location_not_found',
