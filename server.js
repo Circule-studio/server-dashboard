@@ -245,7 +245,7 @@ function sanitizeWidgets(list, previous = []) {
       if (!INTEGRATIONS[type].fields.includes(f)) continue;
       // Vide = inchangé ; clearApiKey / clearPassword = effacer (ex. Pi-hole sans mot de passe).
       const clear = w[`clear${f[0].toUpperCase()}${f.slice(1)}`] === true;
-      out[f] = clear ? '' : str(w[f], 500) || old[f] || '';
+      out[f] = clear ? '' : str(w[f], 2000) || old[f] || ''; // 2000 : plusieurs adresses iCal secrètes
     }
     return out;
   });
