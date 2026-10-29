@@ -29,6 +29,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
   - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas. Si un compteur de téléchargements `dl-stats` est placé devant Immich, ses totaux (téléchargements, photos téléchargées, visiteurs) s’affichent aussi.
   - **GoAccess** : visiteurs uniques d’un site (total, aujourd’hui, 7 derniers jours), requêtes et trafic, lus dans un rapport JSON de GoAccess.
+  - **Alwaysdata** : les sites d’un compte d’hébergement, chacun testé par le dashboard (en ligne, en panne, temps de réponse), ceux en panne en premier.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
   - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
   - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
@@ -135,6 +136,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
 | GoAccess | URL du rapport JSON (`goaccess … -o rapport.json`) | Aucune clé. Pour ne rien exposer de sensible, génère un rapport limité au panneau des visiteurs (`--ignore-panel` pour tous les autres, dont `HOSTS`) : il ne contient aucune adresse IP |
+| Alwaysdata | Jeton d’API + nom du compte (facultatif) | Alwaysdata > Profil > Gestion des jetons. Le compte n’est utile que si le jeton en gère plusieurs. Le widget lit seulement la liste des sites, puis teste lui-même leur première adresse (HTTPS, sinon HTTP) |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
 | Uptime Kuma | URL (`http://IP:3001`) + nom de la page de statut, ou l’adresse complète de la page | Aucune clé : les pages de statut sont publiques (Uptime Kuma > Pages de statut) |
 | Glances | URL (`http://IP:61208`) + mot de passe facultatif | Lance `glances -w` sur la machine (avec `--password` pour en exiger un ; utilisateur `glances` par défaut) |

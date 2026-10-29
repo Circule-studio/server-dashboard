@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.13.0] - 2026-10-29
+
+### Ajouté
+- Widget **Alwaysdata** : les sites d’un compte d’hébergement Alwaysdata, avec leur état. L’API ne donnant que la liste des sites et leurs adresses, le dashboard teste lui-même la première adresse de chacun (HTTPS, sinon HTTP) : en ligne avec le temps de réponse, ou en panne avec le code HTTP. Jeton d’API, compte facultatif. Faux Alwaysdata dans `npm run mocks` (#80).
+
 ## [0.12.0] - 2026-10-29
 
 ### Ajouté
@@ -171,7 +176,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.12.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.9.1...v0.10.0
