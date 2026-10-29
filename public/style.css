@@ -241,6 +241,7 @@ a { color: var(--accent); }
   background: var(--veil-soft); min-width: 0;
 }
 .widget-stats b { font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widget-stats > .stat-warn b { color: var(--warn); } /* ex. caméra hors ligne, certificat à renouveler */
 .widget-stats span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
 .widget-subhead { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 6px; }
@@ -486,6 +487,19 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 dialog label.check-inline { flex-direction: row; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--text); font-size: 0.85rem; }
 dialog label.check-inline input { width: 16px; height: 16px; accent-color: var(--accent); }
 
+/* ---------- Widget Frigate ---------- */
+.frigate-cams { margin-bottom: 4px; }
+.frigate-cams .dot, .widget-frigate .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
+.frigate-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.frigate-events figure { margin: 0; min-width: 0; }
+.frigate-events img, .frigate-noimg {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--veil);
+}
+.frigate-noimg { display: grid; place-items: center; font-size: 1.4rem; opacity: 0.5; }
+.frigate-events figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 4px; font-size: 0.78rem; }
+.frigate-events figcaption .muted { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.widget-frigate .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); padding: 0 6px; font-size: 0.68rem; }
+
 /* ---------- Widget Home Assistant ---------- */
 .ha-list .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 .ha-value { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -499,7 +513,6 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 .widget-npm .dot { display: inline-block; vertical-align: middle; width: 8px; height: 8px; }
 .widget-npm .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); }
 .widget-npm .badge.bad { color: var(--bad); background: rgba(248, 113, 113, 0.12); }
-.widget-stats > .npm-alert b { color: var(--warn); }
 
 /* ---------- Widget GitHub ---------- */
 .gh-meta { margin: -4px 0 10px; font-size: 0.82rem; }

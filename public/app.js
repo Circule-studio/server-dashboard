@@ -384,6 +384,10 @@ const WIDGET_TYPES = {
     label: 'Pi-hole', icon: 'pi-hole', kind: 'dns', refresh: 30_000, fields: ['url', 'password'],
     placeholder: 'http://192.168.1.10', passwordLabel: 'key.piholePassword', passwordHelp: 'key.piholePasswordHelp',
   },
+  frigate: {
+    label: 'Frigate', icon: 'frigate', kind: 'frigate', refresh: 10_000, fields: ['url', 'username', 'password'],
+    port: 5000, passwordHelp: 'key.frigateHelp',
+  },
   homeassistant: {
     label: 'Home Assistant', icon: 'home-assistant', kind: 'ha', refresh: 15_000, fields: ['url', 'apiKey', 'entities'],
     port: 8123, keyLabel: 'key.ha', keyHelp: 'key.haHelp',
@@ -675,6 +679,36 @@ const RENDERERS = {
     ];
   },
 
+  // Les miniatures passent par le dashboard (/api/widgets/:id/thumbnail/:événement).
+  frigate: (d, w) => {
+    const label = (l) => (I18N[LANG][`frigate.label.${l}`] ? t(`frigate.label.${l}`) : l);
+    const online = d.cameras.filter((c) => c.online).length;
+    const fps = (v) => v.toLocaleString(LOCALE, { maximumFractionDigits: 1 });
+    return [
+      h('div', { class: 'widget-stats' },
+        h('div', { class: online < d.cameras.length ? 'stat-warn' : '' },
+          h('b', {}, `${online} / ${d.cameras.length}`), h('span', {}, t('frigate.online'))),
+        d.inference != null
+          ? h('div', {}, h('b', {}, `${fps(d.inference)} ms`), h('span', {}, t('frigate.inference'))) : null),
+      h('ul', { class: 'widget-list frigate-cams' }, d.cameras.map((c) => h('li', {},
+        h('div', { class: 'row' },
+          h('span', { class: 'item-title' }, h('span', { class: `dot ${c.online ? 'ok' : 'bad'}` }), ` ${c.name}`),
+          h('span', { class: 'muted' }, c.online
+            ? t('frigate.fps', { fps: fps(c.fps), detect: fps(c.detectionFps) }) : t('frigate.offline')))))),
+      h('div', { class: 'widget-subhead' }, t('frigate.events')),
+      d.events.length
+        ? h('div', { class: 'frigate-events' }, d.events.map((e) => h('figure', { title: e.score != null ? `${Math.round(e.score * 100)} %` : null },
+          h('img', {
+            src: `/api/widgets/${encodeURIComponent(w.id)}/thumbnail/${encodeURIComponent(e.id)}`, alt: label(e.label), loading: 'lazy',
+            onerror: (ev) => ev.target.replaceWith(h('div', { class: 'frigate-noimg', 'aria-hidden': 'true' }, '📷')),
+          }),
+          h('figcaption', {},
+            h('b', {}, label(e.label)), e.ongoing ? h('span', { class: 'badge warn' }, t('frigate.ongoing')) : null,
+            h('span', { class: 'muted' }, [e.camera, e.start ? fmtAgo(e.start) : null].filter(Boolean).join(' · '))))))
+        : h('p', { class: 'muted' }, t('frigate.noEvents')),
+    ];
+  },
+
   ha: (d) => {
     // États on / off selon le type de capteur (device_class) : porte ouverte, mouvement détecté…
     const ON_OFF = {
@@ -720,7 +754,7 @@ const RENDERERS = {
       h('div', { class: 'widget-stats' },
         h('div', {}, h('b', {}, String(d.hosts.enabled)), h('span', {}, t('npm.enabled'))),
         h('div', {}, h('b', {}, String(d.hosts.disabled)), h('span', {}, t('npm.disabled'))),
-        h('div', { class: d.expiring ? 'npm-alert' : '' }, h('b', {}, String(d.expiring)), h('span', {}, t('npm.expiring')))),
+        h('div', { class: d.expiring ? 'stat-warn' : '' }, h('b', {}, String(d.expiring)), h('span', {}, t('npm.expiring')))),
       h('div', { class: 'widget-subhead' }, t('npm.certificates', { count: d.certificateCount })),
       d.certificates.length
         ? h('ul', { class: 'widget-list' }, d.certificates.map((c) => h('li', {},
@@ -837,7 +871,7 @@ function widgetBody(w) {
   if (!saved) content = h('p', { class: 'muted' }, t('widget.saveToLoad'));
   else if (!entry) content = h('p', { class: 'muted' }, t('common.loading'));
   else if (entry.error) content = h('p', { class: 'error' }, `⚠ ${entry.error}`);
-  else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data);
+  else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w);
   return h('div', { class: 'widget-body' }, content);
 }
 

@@ -32,13 +32,14 @@ function networkError(e) {
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 
 // `discardBody` : on ne lit que le code HTTP (utile pour un simple ping).
+// `raw` : corps renvoyé tel quel dans `body` (Buffer), pour une image.
 // `verifyTls` : vérifier le certificat. Désactivé par défaut : les services du réseau local ont
 // souvent un certificat auto-signé. À activer pour un service public qui reçoit un secret.
 // `timeout` : inactivité maximale ; `deadline` : durée totale maximale. Le `timeout` de Node
 // ne mesure que l'inactivité : un service qui envoie un octet de temps en temps le contournait.
 function request(url, {
   method = 'GET', headers = {}, body, timeout = 8000, deadline = 20_000, maxBytes = MAX_RESPONSE_BYTES, discardBody = false,
-  verifyTls = false,
+  verifyTls = false, raw = false,
 } = {}) {
   return new Promise((resolve, reject) => {
     let u;
@@ -72,6 +73,7 @@ function request(url, {
       });
       res.on('end', () => {
         if (done) return;
+        if (raw) return finish(resolve, { status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) });
         // Décodage en une fois : un caractère accentué coupé entre deux morceaux reste correct.
         const text = Buffer.concat(chunks).toString('utf8');
         let json = null;
@@ -531,6 +533,86 @@ async function adguard(w) {
   };
 }
 
+// ---------- Frigate (caméras et détection d'objets) ----------
+// Port 5000 : API sans authentification (réseau interne). Port 8971 (Frigate 0.14+) : connexion
+// avec utilisateur et mot de passe, dont le jeton (cookie frigate_token) est gardé et réutilisé.
+const frigateTokens = new Map(); // id du widget -> Promise<cookie> ('' sans authentification)
+
+async function frigateLogin(w) {
+  if (!w.username) return '';
+  const body = JSON.stringify({ user: w.username, password: w.password || '' });
+  const r = await request(join(w.url, '/api/login'), {
+    method: 'POST', body,
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  });
+  const cookie = (r.headers['set-cookie'] || []).map((c) => c.split(';')[0]).find((c) => c.startsWith('frigate_token='));
+  if (r.status === 200 && cookie) return cookie;
+  if (r.status === 401 || r.status === 400) throw fail('frigate_credentials', 'Identifiants Frigate refusés');
+  if (r.status === 429) throw fail('frigate_rate_limit', 'Frigate refuse les connexions (trop de tentatives)');
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)'); // ex. port 5000, sans page de connexion
+}
+
+// `raw` : réponse binaire (miniature), sinon JSON.
+async function frigateGet(w, path, { raw = false, retry = true } = {}) {
+  if (!frigateTokens.has(w.id)) {
+    const login = frigateLogin(w);
+    login.catch(() => { if (frigateTokens.get(w.id) === login) frigateTokens.delete(w.id); });
+    frigateTokens.set(w.id, login);
+  }
+  const cookie = await frigateTokens.get(w.id);
+  const r = await request(join(w.url, path), {
+    raw, maxBytes: raw ? 2 * 1024 * 1024 : undefined, headers: { Accept: raw ? 'image/*' : 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+  });
+  if (r.status === 401 && retry && cookie) { // jeton expiré (24 h par défaut)
+    frigateTokens.delete(w.id);
+    return frigateGet(w, path, { raw, retry: false });
+  }
+  if (r.status === 401 || r.status === 403) {
+    if (w.username) throw fail('frigate_credentials', 'Identifiants Frigate refusés');
+    throw fail('frigate_auth_required', 'Frigate demande une connexion');
+  }
+  if (r.status === 404 && raw) return null;
+  if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  if (raw) return r;
+  if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
+  return r.json;
+}
+
+async function frigate(w) {
+  // Séquentiel : la première requête obtient le jeton, la seconde le réutilise.
+  const stats = await frigateGet(w, '/api/stats');
+  const events = await frigateGet(w, '/api/events?limit=6&include_thumbnails=0');
+  // Frigate 0.14+ range les caméras dans stats.cameras ; avant, elles étaient à la racine.
+  const cams = stats.cameras || Object.fromEntries(Object.entries(stats).filter(([, v]) => v && typeof v === 'object' && 'camera_fps' in v));
+  const inference = Object.values(stats.detectors || {}).map((d) => d.inference_speed).filter((v) => typeof v === 'number');
+  return {
+    version: stats.service?.version || null,
+    inference: inference.length ? Math.min(...inference) : null,
+    cameras: Object.entries(cams).map(([name, c]) => ({
+      name, online: (c.camera_fps || 0) > 0, fps: c.camera_fps ?? 0, detectionFps: c.detection_fps ?? 0,
+    })).sort((a, b) => a.name.localeCompare(b.name)),
+    events: (Array.isArray(events) ? events : []).map((e) => ({
+      id: String(e.id),
+      camera: e.camera,
+      // sub_label : nom reconnu (visage, plaque), texte ou [nom, score] selon la version.
+      label: (Array.isArray(e.sub_label) ? e.sub_label[0] : e.sub_label) || e.label,
+      object: e.label,
+      score: e.data?.top_score ?? e.top_score ?? null,
+      start: e.start_time ? new Date(e.start_time * 1000).toISOString() : null,
+      ongoing: !e.end_time,
+    })),
+  };
+}
+
+// Miniature d'un événement, servie par le dashboard (jamais d'accès direct du navigateur à Frigate).
+async function frigateThumbnail(w, eventId) {
+  if (!/^[\w.-]{1,100}$/.test(eventId)) return null;
+  const r = await frigateGet(w, `/api/events/${eventId}/thumbnail.jpg`, { raw: true });
+  const type = r?.headers['content-type'] || '';
+  return r && /^image\/(jpeg|png|webp)$/.test(type.split(';')[0]) ? { type: type.split(';')[0], body: r.body } : null;
+}
+
 // ---------- Home Assistant ----------
 // Jeton d'accès longue durée (Profil > Sécurité). Une requête par entité choisie, en parallèle :
 // bien plus léger que /api/states, qui renvoie toutes les entités de la maison (souvent des milliers).
@@ -864,6 +946,8 @@ const INTEGRATIONS = {
   immich: { fields: ['url', 'apiKey'], cacheMs: 60_000, fetch: immich },
   npm: { fields: ['url', 'username', 'password'], cacheMs: 60_000, fetch: nginxProxyManager },
   homeassistant: { fields: ['url', 'apiKey', 'entities'], fetch: homeassistant },
+  // `thumbnail` : images servies par /api/widgets/:id/thumbnail/:eventId (voir server.js).
+  frigate: { fields: ['url', 'username', 'password'], cacheMs: 10_000, fetch: frigate, thumbnail: frigateThumbnail },
   pihole: { fields: ['url', 'password'], fetch: pihole },
   adguard: { fields: ['url', 'username', 'password'], fetch: adguard },
   proxmox: { fields: ['url', 'username', 'apiKey'], fetch: proxmox },
@@ -896,6 +980,7 @@ function resetIntegrations() {
   cache.clear();
   qbitSids.clear();
   npmTokens.clear();
+  frigateTokens.clear();
   places.clear();
   // Ferme les sessions Pi-hole devenues inutiles pour libérer leurs places (sans attendre la réponse).
   for (const { url, sid } of piholeSids.values()) {

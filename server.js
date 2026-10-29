@@ -645,6 +645,25 @@ app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   }
 }));
 
+// Images d'un widget (miniatures des événements Frigate) : passent par le dashboard, avec les
+// mêmes droits que ses données (REQUIRE_LOGIN), pour ne jamais exposer le service lui-même.
+app.get('/api/widgets/:id/thumbnail/:key', readAuth, route(async (req, res) => {
+  const cfg = await readConfig();
+  const widget = cfg.widgets.find((w) => w.id === req.params.id);
+  const thumbnail = widget && INTEGRATIONS[widget.type].thumbnail;
+  if (!thumbnail) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  let image;
+  try {
+    image = await thumbnail(widget, req.params.key);
+  } catch (e) {
+    return res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+  }
+  if (!image) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  // La miniature d'un événement ne change pas : gardée par le navigateur, jamais par un proxy partagé.
+  res.set({ 'Content-Type': image.type, 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+  res.send(image.body);
+}));
+
 app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses())));
 
 app.get('/api/system', readAuth, route(async (req, res) => {

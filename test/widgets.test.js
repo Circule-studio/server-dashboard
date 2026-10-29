@@ -62,6 +62,8 @@ const WIDGETS = [
   { id: 'immich', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-key' },
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
+  { id: 'frigate', type: 'frigate', url: 'http://localhost:15000' },
+  { id: 'frigate-auth', type: 'frigate', url: 'http://localhost:18971', username: 'viewer', password: 'frigate-pass' },
   { id: 'ha', type: 'homeassistant', url: 'http://localhost:18123', apiKey: 'ha-token', entities: 'sensor.salon_temperature, binary_sensor.porte_entree\nbinary_sensor.mouvement_couloir light.salon person.thomas sensor.cave_humidite sensor.supprime sensor.salon_temperature' },
   { id: 'npm', type: 'npm', url: 'http://localhost:10081', username: 'admin@example.com', password: 'npm-pass' },
   { id: 'github', type: 'github', url: 'http://localhost:14000', repo: 'https://github.com/circule-studio/server-dashboard' },
@@ -72,13 +74,15 @@ const WIDGETS = [
   { id: 'pihole-bad', type: 'pihole', url: 'http://localhost:10080', password: 'faux' },
   { id: 'adguard-bad', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'faux' },
   { id: 'weather-unknown', type: 'weather', url: 'http://localhost:18765', location: 'Ville qui n’existe pas' },
+  { id: 'frigate-noauth', type: 'frigate', url: 'http://localhost:18971' },
+  { id: 'frigate-bad', type: 'frigate', url: 'http://localhost:18971', username: 'viewer', password: 'faux' },
   { id: 'ha-bad', type: 'homeassistant', url: 'http://localhost:18123', apiKey: 'mauvais-jeton', entities: ['light.salon'] },
   { id: 'npm-bad', type: 'npm', url: 'http://localhost:10081', username: 'admin@example.com', password: 'faux' },
   { id: 'github-private', type: 'github', url: 'http://localhost:14000', repo: 'demo/private' },
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
 ];
-const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton'];
+const SECRETS = ['jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -157,6 +161,26 @@ test('Pi-hole et AdGuard Home : format commun', async () => {
   }
 });
 
+test('Frigate : caméras, événements et miniatures via le dashboard', async () => {
+  for (const id of ['frigate', 'frigate-auth']) {
+    const d = await widget(id);
+    assert.deepEqual(d.cameras.map((c) => [c.name, c.online]), [['entree', true], ['garage', false], ['jardin', true]], id);
+    assert.equal(d.inference, 8.47);
+    assert.deepEqual(d.events.map((e) => e.label), ['Thomas', 'cat', 'package', 'AB-123-CD', 'dog'], 'sub_label (tableau ou texte) prioritaire');
+    assert.equal(d.events[0].ongoing, true);
+    const img = await fetch(`${BASE}/api/widgets/${id}/thumbnail/${encodeURIComponent(d.events[0].id)}`);
+    assert.equal(img.status, 200, id);
+    assert.equal(img.headers.get('content-type'), 'image/png');
+    assert.match(img.headers.get('cache-control'), /private/);
+    assert.equal((await img.arrayBuffer()).byteLength > 100, true);
+  }
+  // Pas de miniature, identifiant suspect, widget sans miniatures : 404.
+  for (const url of ['/api/widgets/frigate/thumbnail/sans-miniature', '/api/widgets/frigate/thumbnail/..%2F..%2Fapi%2Fconfig',
+    '/api/widgets/jellyfin/thumbnail/x', '/api/widgets/inconnu/thumbnail/x']) {
+    assert.equal((await fetch(BASE + url)).status, 404, url);
+  }
+});
+
 test('Home Assistant : entités choisies, introuvable signalée sans erreur', async () => {
   const d = await widget('ha');
   assert.deepEqual(d.entities.map((e) => e.id), ['sensor.salon_temperature', 'binary_sensor.porte_entree', 'binary_sensor.mouvement_couloir', 'light.salon', 'person.thomas', 'sensor.cave_humidite', 'sensor.supprime'], 'ordre gardé, doublon retiré');
@@ -209,6 +233,8 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'weather-unknown': 'location_not_found',
     'npm-bad': 'npm_credentials',
     'ha-bad': 'auth_refused',
+    'frigate-noauth': 'frigate_auth_required',
+    'frigate-bad': 'frigate_credentials',
     'github-private': 'github_not_found',
     'github-limit': 'github_rate_limit',
     unreachable: 'unreachable',
