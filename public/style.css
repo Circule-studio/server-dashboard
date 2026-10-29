@@ -237,13 +237,29 @@ a { color: var(--accent); }
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-bottom: 12px;
 }
 .widget-stats > div {
-  display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px;
+  display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: 10px;
   background: var(--veil-soft); min-width: 0;
+}
+/* Widget étroit (largeur par défaut, tablette) : deux chiffres par ligne plutôt que coupés,
+   dès 4 chiffres sous 320 px et dès 3 sous 250 px ; un dernier chiffre seul prend toute la ligne. */
+.widget-body { container-type: inline-size; }
+@container (max-width: 320px) {
+  .widget-stats:has(> :nth-child(4)) { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  .widget-stats:has(> :nth-child(4)) > :last-child:nth-child(odd) { grid-column: span 2; }
+}
+@container (max-width: 250px) {
+  .widget-stats:has(> :nth-child(3)) { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  .widget-stats:has(> :nth-child(3)) > :last-child:nth-child(odd) { grid-column: span 2; }
+  /* VM et conteneurs (Proxmox, Pulse) : « 4 % CPU · 30 % RAM » passe sous le nom plutôt que
+     de le réduire à « LXC… ». Les autres listes ont une valeur courte qui tient à côté. */
+  :is(.widget-proxmox, .widget-pulse) .widget-list .row { flex-wrap: wrap; row-gap: 0; }
+  :is(.widget-proxmox, .widget-pulse) .widget-list .row > .item-title { flex: 1 0 auto; max-width: 100%; }
 }
 .widget-stats b { font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .widget-stats > .stat-warn b { color: var(--warn); } /* ex. caméra hors ligne, certificat à renouveler */
 .widget-stats > .stat-bad b { color: var(--bad); }
-.widget-stats span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+/* Libellé sur deux lignes plutôt que coupé (« CAMÉRAS EN LIGNE » dans un widget étroit). */
+.widget-stats span { font-size: 0.7rem; line-height: 1.25; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; hyphens: auto; overflow-wrap: break-word; }
 
 .widget-subhead { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 6px; }
 .widget-subhead:first-child { margin-top: 0; }

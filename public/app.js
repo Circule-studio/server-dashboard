@@ -418,6 +418,8 @@ function widgetBody(w) {
   let content;
   if (!saved) content = h('p', { class: 'muted' }, t('widget.saveToLoad'));
   else if (!entry) content = h('p', { class: 'muted' }, t('common.loading'));
+  // Une attente normale (agent pas encore lancé) n'est pas présentée comme une panne.
+  else if (entry.error && entry.code === WIDGET_TYPES[w.type].waitingCode) content = h('p', { class: 'muted' }, `⏳ ${entry.error}`);
   else if (entry.error) content = h('p', { class: 'error' }, `⚠ ${entry.error}`);
   else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w);
   return h('div', { class: 'widget-body' }, content);
@@ -440,7 +442,7 @@ async function refreshWidget(id) {
     state.widgetData[id] = { data: await api(`/api/widgets/${encodeURIComponent(id)}`) };
     delete retries[id];
   } catch (e) {
-    state.widgetData[id] = { error: errMsg(e) };
+    state.widgetData[id] = { error: errMsg(e), code: e.code };
     const w = state.config.widgets.find((x) => x.id === id);
     const every = w && WIDGET_TYPES[w.type]?.refresh;
     if (every > RETRY_MS) {

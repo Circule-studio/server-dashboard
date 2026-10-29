@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Corrigé
+- Site du projet : un visiteur francophone était toujours redirigé vers la version anglaise, à cause d’un caractère de contrôle invisible dans le test de la langue (depuis la 0.6.1). La CI refuse maintenant tout caractère de ce genre dans le dépôt.
+- Widgets étroits (largeur par défaut, tablette) : les chiffres et leurs libellés n’étaient plus coupés (« 63 … », « CRITI… ») : deux chiffres par ligne quand la place manque, libellés sur deux lignes. Dans Proxmox et Pulse, la charge d’une VM passe sous son nom au lieu de le masquer.
+- Widget Agent : l’attente du premier envoi n’est plus affichée en rouge comme une panne.
+
 ## [0.9.0] - 2026-10-29
 
 ### Ajouté

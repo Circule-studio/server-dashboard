@@ -15,7 +15,7 @@
     // Visiteur non francophone sans choix enregistré : version anglaise.
     try {
       const choix = localStorage.getItem('sd-site-lang');
-      if (choix === 'en' || (!choix && !/^fr/i.test(navigator.language || ''))) location.replace('en/' + location.hash);
+      if (choix === 'en' || (!choix && !/^fr\b/i.test(navigator.language || ''))) location.replace('en/' + location.hash);
     } catch {}
   </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='35' height='35' rx='8' fill='%237c9cff'/><rect x='55' y='10' width='35' height='35' rx='8' fill='%2334d399'/><rect x='10' y='55' width='35' height='35' rx='8' fill='%2334d399'/><rect x='55' y='55' width='35' height='35' rx='8' fill='%237c9cff'/></svg>">
