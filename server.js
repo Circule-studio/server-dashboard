@@ -146,6 +146,15 @@ function githubRepo(value) {
   return repo;
 }
 
+// Page de statut Uptime Kuma : son nom (slug), ou l'adresse de la page collée dans l'URL
+// (http://IP:3001/status/maison, aussi derrière un chemin de reverse proxy) dont on tire l'URL et le nom.
+function statusPage(url, slug) {
+  const pasted = url.match(/^(https?:\/\/.+?)\/status\/([^/?#]+)\/?(?:[?#].*)?$/i);
+  const out = { url: pasted ? pasted[1] : url, slug: slug || (pasted ? pasted[2] : '') };
+  if (!/^[a-z0-9-]{1,100}$/i.test(out.slug)) throw fail('kuma_slug_invalid', `Page de statut invalide : ${out.slug}`, { slug: out.slug });
+  return out;
+}
+
 // Entités Home Assistant : « domaine.nom » (sensor.salon_temperature), une par ligne ou séparées
 // par des virgules dans le formulaire. Sans doublon, 30 au plus.
 const MAX_ENTITIES = 30;
@@ -199,6 +208,7 @@ function sanitizeWidgets(list, previous = []) {
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
+    if (INTEGRATIONS[type].fields.includes('slug')) Object.assign(out, statusPage(out.url, str(w.slug, 100)));
     if (INTEGRATIONS[type].fields.includes('repo')) {
       out.repo = githubRepo(str(w.repo, 300));
       // Nom par défaut : le dépôt normalisé (le navigateur affiche le type en attendant l'enregistrement).

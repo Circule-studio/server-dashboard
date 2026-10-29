@@ -104,6 +104,10 @@
         <input name="repo" maxlength="300" autocomplete="off" data-i18n-placeholder="widget.repoPlaceholder">
         <small class="muted" data-i18n="widget.repoHelp"></small>
       </label>
+      <label data-field="slug"><span data-i18n="widget.slug"></span>
+        <input name="slug" maxlength="100" autocomplete="off" data-i18n-placeholder="widget.slugPlaceholder">
+        <small class="muted" data-i18n="widget.slugHelp"></small>
+      </label>
       <label data-field="url"><span data-url-label></span>
         <input name="url" type="url" required placeholder="http://192.168.1.10:8096">
         <small class="muted" data-url-help></small>
@@ -201,6 +205,7 @@
   <script src="widgets/pulse.js"></script>
   <script src="widgets/proxmox.js"></script>
   <script src="widgets/glances.js"></script>
+  <script src="widgets/uptimekuma.js"></script>
   <script src="widgets/media.js"></script>
   <script src="widgets/qbittorrent.js"></script>
   <script src="widgets/arr.js"></script>

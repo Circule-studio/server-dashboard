@@ -63,6 +63,8 @@ const WIDGETS = [
   { id: 'immich', type: 'immich', url: 'http://localhost:12283', apiKey: 'immich-key' },
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
+  { id: 'kuma', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'maison' },
+  { id: 'kuma-pasted', type: 'uptimekuma', url: 'http://localhost:13001/status/maison' },
   { id: 'glances-pc', type: 'glances', url: 'http://localhost:61208' },
   { id: 'glances-pi', type: 'glances', url: 'http://localhost:61209', password: 'glances-pass' },
   { id: 'frigate', type: 'frigate', url: 'http://localhost:15000' },
@@ -78,6 +80,7 @@ const WIDGETS = [
   { id: 'pihole-bad', type: 'pihole', url: 'http://localhost:10080', password: 'faux' },
   { id: 'adguard-bad', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'faux' },
   { id: 'weather-unknown', type: 'weather', url: 'http://localhost:18765', location: 'Ville qui n’existe pas' },
+  { id: 'kuma-missing', type: 'uptimekuma', url: 'http://localhost:13001', slug: 'inconnue' },
   { id: 'glances-bad', type: 'glances', url: 'http://localhost:61209', password: 'faux' },
   { id: 'glances-off', type: 'glances', url: 'http://localhost:61299' },
   { id: 'frigate-noauth', type: 'frigate', url: 'http://localhost:18971' },
@@ -173,6 +176,18 @@ test('Pi-hole et AdGuard Home : format commun', async () => {
     assert.ok(['enabled', 'disabled', 'failed', 'unknown'].includes(d.protection), id);
     assert.ok(d.queries >= d.blocked, id);
   }
+});
+
+test('Uptime Kuma : sondes de la page de statut, en panne d’abord', async () => {
+  const d = await widget('kuma');
+  assert.deepEqual([d.title, d.up, d.down, d.total], ['Maison', 2, 1, 5], 'sonde présente dans deux groupes comptée une fois');
+  assert.deepEqual(d.monitors.map((m) => m.status), ['down', 'pending', 'maintenance', 'up', 'up']);
+  assert.match(d.monitors[0].message, /ECONNREFUSED/);
+  assert.equal(d.monitors.find((m) => m.name === 'Jellyfin').ping, 42);
+  // Adresse de la page collée dans l'URL : URL et nom en sont tirés.
+  const saved = (await api('GET', '/api/config')).json.widgets.find((w) => w.id === 'kuma-pasted');
+  assert.deepEqual([saved.url, saved.slug], ['http://localhost:13001', 'maison']);
+  assert.equal((await widget('kuma-pasted')).total, 5);
 });
 
 test('Glances : une autre machine, API v4 ou v3', async () => {
@@ -289,6 +304,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'weather-unknown': 'location_not_found',
     'npm-bad': 'npm_credentials',
     'ha-bad': 'auth_refused',
+    'kuma-missing': 'kuma_not_found',
     'glances-bad': 'glances_credentials',
     'glances-off': 'glances_offline',
     'frigate-noauth': 'frigate_auth_required',
@@ -324,7 +340,9 @@ test('Widget inconnu : 404', async () => {
 test('Config invalide refusée avec un code', async () => {
   for (const [w, code] of [[{ type: 'github', repo: '../x' }, 'github_repo_invalid'],
     [{ type: 'npm', url: 'http://localhost:10081', username: '' }, 'username_required'],
-    [{ type: 'proxmox', url: 'http://localhost:18006' }, 'username_required']]) {
+    [{ type: 'proxmox', url: 'http://localhost:18006' }, 'username_required'],
+    [{ type: 'uptimekuma', url: 'http://localhost:13001' }, 'kuma_slug_invalid'],
+    [{ type: 'uptimekuma', url: 'http://localhost:13001', slug: '../x' }, 'kuma_slug_invalid']]) {
     const r = await api('PUT', '/api/config', { title: 'x', categories: [], widgets: [w] });
     assert.equal(r.status, 400, r.text);
     assert.equal(r.json.code, code);

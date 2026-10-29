@@ -483,6 +483,7 @@ function openWidgetDialog(i) {
   f.name.value = w.name || '';
   f.location.value = w.location || '';
   f.repo.value = w.repo || '';
+  f.slug.value = w.slug || '';
   f.entities.value = (w.entities || []).join('\n');
   f.url.value = w.url || '';
   f.username.value = w.username || '';
@@ -575,6 +576,7 @@ function submitWidget(e) {
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('repo')) w.repo = f.repo.value.trim(); // normalisé par le serveur
+  if (fields.includes('slug')) w.slug = f.slug.value.trim(); // ou tiré de l'adresse de la page par le serveur
   if (fields.includes('entities')) w.entities = f.entities.value.split(/[\s,;]+/).filter(Boolean); // vérifiées par le serveur
   if (fields.includes('apiKey')) {
     if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });

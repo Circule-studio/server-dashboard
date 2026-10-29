@@ -242,6 +242,7 @@ a { color: var(--accent); }
 }
 .widget-stats b { font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .widget-stats > .stat-warn b { color: var(--warn); } /* ex. caméra hors ligne, certificat à renouveler */
+.widget-stats > .stat-bad b { color: var(--bad); }
 .widget-stats span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
 .widget-subhead { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 6px; }
@@ -486,6 +487,11 @@ dialog fieldset.sections .check input { width: 16px; height: 16px; accent-color:
 /* Case « Effacer » sous un secret déjà enregistré */
 dialog label.check-inline { flex-direction: row; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--text); font-size: 0.85rem; }
 dialog label.check-inline input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ---------- Widget Uptime Kuma ---------- */
+.widget-kuma .badge.bad { color: var(--bad); background: rgba(248, 113, 113, 0.12); }
+.widget-kuma .badge.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); }
+.kuma-more { margin: 8px 0 0; font-size: 0.8rem; }
 
 /* ---------- Widget Glances ---------- */
 .glances-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.88rem; margin-bottom: 8px; }

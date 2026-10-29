@@ -1,7 +1,7 @@
 // Intégrations : récupère et normalise les données des services. Un fichier par service (ou par
 // famille : arr.js pour Sonarr et Radarr, dns.js pour Pi-hole et AdGuard Home), qui exporte
 // { type: définition }. Une définition contient :
-//   fields        champs du widget : url, apiKey, username, password, location, repo, entities
+//   fields        champs du widget : url, apiKey, username, password, location, repo, entities, slug
 //   fetch(w)      récupère les données du widget w (une promesse)
 //   cacheMs       durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS) ;
 //                 une fonction du widget permet de l'adapter (GitHub : plus long sans jeton)
@@ -14,7 +14,7 @@ const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
 const FILES = ['weather', 'github', 'immich', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pulse',
-  'glances', 'jellyfin', 'plex', 'qbittorrent', 'arr'];
+  'glances', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
 // Petit cache pour ne pas solliciter les services à chaque visiteur.
