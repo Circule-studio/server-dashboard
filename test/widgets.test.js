@@ -57,6 +57,8 @@ const WIDGETS = [
   { id: 'qbittorrent', type: 'qbittorrent', url: 'http://localhost:18080', username: 'admin', password: 'secret' },
   { id: 'sonarr', type: 'sonarr', url: 'http://localhost:18989', apiKey: 'sonarr-key' },
   { id: 'radarr', type: 'radarr', url: 'http://localhost:17878', apiKey: 'radarr-key' },
+  { id: 'pbs', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'pbs-secret' },
+  { id: 'pbs-bad', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'faux' },
   { id: 'lidarr', type: 'lidarr', url: 'http://localhost:18686', apiKey: 'lidarr-key' },
   { id: 'readarr', type: 'readarr', url: 'http://localhost:18787', apiKey: 'readarr-key' },
   { id: 'prowlarr', type: 'prowlarr', url: 'http://localhost:19696', apiKey: 'prowlarr-key' },
@@ -116,7 +118,7 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -186,6 +188,20 @@ test('Prowlarr : indexeurs actifs, en pause, statistiques', async () => {
   const d = await widget('prowlarr');
   assert.deepEqual([d.enabled, d.queries, d.grabs], [3, 1925, 99]);
   assert.deepEqual(d.failing.map((f) => f.name), ['1337x'], 'une pause terminée ne compte plus');
+});
+
+test('Proxmox Backup Server : datastores, tâches en échec, alertes', async () => {
+  const d = await widget('pbs');
+  assert.deepEqual(d.datastores.map((s) => s.name), ['sauvegardes', 'externe'], 'datastore en erreur écarté');
+  assert.deepEqual(d.backups, { ok: 2, failed: 1 }, 'avertissements comptés comme réussis, tâche en cours ignorée');
+  assert.equal(d.tasks, 5);
+  assert.deepEqual(d.failed.map((f) => [f.type, f.id, f.error]), [['backup', 'externe:ct/101', 'backup failed: no space left on device']]);
+  assert.deepEqual([d.cpu, d.mem.total > 0, d.uptime], [0.12, true, 864000]);
+  const { INTEGRATIONS } = require('../integrations');
+  const alerts = INTEGRATIONS.pbs.alerts(d, { id: 'pbs', name: 'PBS', url: 'http://pbs' });
+  assert.deepEqual(alerts.map((a) => [a.id, a.problem, a.online, a.value]), [
+    ['pbs:tasks', 'backup', false, 1], ['pbs:disk:sauvegardes', 'disk', true, 62], ['pbs:disk:externe', 'disk', false, 94],
+  ]);
 });
 
 test('Bazarr : sous-titres manquants', async () => {
@@ -442,6 +458,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'jellyfin-bad': 'auth_refused',
     'customapi-bad': 'auth_refused',
     'bazarr-bad': 'auth_refused',
+    'pbs-bad': 'auth_refused',
     'customapi-text': 'unexpected_response',
     'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',

@@ -38,6 +38,7 @@ const dynamic = {
   'weather.code.': [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 97, 99],
   'github.sec.': ['version', 'issues', 'pulls', 'version.short', 'issues.short', 'pulls.short'],
   'kuma.state.': ['down', 'pending', 'maintenance'],
+  'pbs.task.': ['backup', 'verify', 'garbage_collection', 'prune', 'syncjob'],
   'notify.type.': ['none', 'ntfy', 'gotify', 'discord', 'webhook'],
   'notify.urlHelp.': ['ntfy', 'gotify', 'discord', 'webhook'],
   'notify.tokenHelp.': ['ntfy', 'gotify', 'webhook'],
