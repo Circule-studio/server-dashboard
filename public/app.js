@@ -6,6 +6,7 @@ const state = {
   config: null,     // config enregistrée
   draft: null,      // copie modifiée en mode édition
   status: {},       // { appId: { online, code, ms } }
+  links: {},        // { appId: { name, running, cpu, mem } } : VM / conteneur lié (#89)
   authed: false,
   loginRequired: false, // REQUIRE_LOGIN côté serveur
   editing: false,
@@ -365,10 +366,23 @@ function statusDot(app) {
   return h('span', { class: `dot ${slow ? 'warn' : 'ok'}`, title: `${t('status.online')} · HTTP ${s.code} · ${s.ms} ms` });
 }
 
+// VM / LXC Proxmox ou conteneur Docker lié à la tuile (#89) : sa charge sous le nom.
+function linkLine(app) {
+  const l = app.link && state.links[app.id];
+  if (!l) return null;
+  if (l.error || l.missing) {
+    return h('div', { class: 'tile-link', title: l.error ? errMsg({ code: l.error }) : '' }, t(l.missing ? 'link.missing' : 'link.unavailable'));
+  }
+  if (!l.running) return h('div', { class: 'tile-link', title: l.name }, t('link.stopped'));
+  return h('div', { class: 'tile-link', title: l.name },
+    'CPU ', h('b', { class: levelOf(l.cpu) }, pct(l.cpu)), ' · RAM ', h('b', { class: levelOf(l.mem) }, pct(l.mem)));
+}
+
 function tileEl(app, ci, ai) {
   const text = h('div', { class: 'tile-text' },
     h('div', { class: 'tile-name' }, app.name),
-    app.description ? h('div', { class: 'tile-desc' }, app.description) : null);
+    app.description ? h('div', { class: 'tile-desc' }, app.description) : null,
+    state.editing ? null : linkLine(app));
 
   if (!state.editing) {
     return h('a', { class: 'tile', href: app.url, target: '_blank', rel: 'noopener', title: app.url },
@@ -948,6 +962,7 @@ async function save() {
     toast(t('save.done'));
     refreshSystem();
     refreshStatus();
+    refreshLinks();
     scheduleWidgets();
   } catch (e) {
     if (e.code === 'conflict') {
@@ -1001,10 +1016,41 @@ function openAppDialog(ci, ai) {
   form.elements.description.value = app.description || '';
   form.elements.category.replaceChildren(...state.draft.categories.map((c, i) =>
     h('option', { value: i, selected: i === ci }, c.name)));
+  fillLinkSelect(form.elements.link, app.link);
   // Le catalogue ne sert qu'à créer une application.
   form.querySelector('[data-catalog]').hidden = ai != null;
   form.elements.catalog.value = '';
   $('#appDialog').showModal();
+}
+
+// « Lier à » : VM / LXC des widgets Proxmox VE (données déjà chargées) et conteneurs Docker.
+const linkKey = (l) => (l?.type === 'proxmox' ? `proxmox:${l.widget}:${l.vmid}` : l?.type === 'docker' ? `docker:${l.container}` : '');
+
+function fillLinkSelect(select, link) {
+  const groups = [];
+  for (const w of state.draft.widgets.filter((x) => x.type === 'proxmox')) {
+    const guests = state.widgetData[w.id]?.data?.guests || [];
+    if (guests.length) groups.push(h('optgroup', { label: w.name || WIDGET_TYPES.proxmox.label }, guests.map((g) =>
+      h('option', { value: linkKey({ type: 'proxmox', widget: w.id, vmid: g.id }) }, `${g.type} ${g.id} · ${g.name}`))));
+  }
+  const containers = state.docker?.available ? state.docker.containers : [];
+  if (containers.length) {
+    groups.push(h('optgroup', { label: 'Docker' }, containers.map((c) => h('option', { value: linkKey({ type: 'docker', container: c.name }) }, c.name))));
+  }
+  select.replaceChildren(h('option', { value: '' }, t('app.linkNone')), ...groups);
+  // Lien enregistré absent des listes (widget en cours de chargement, conteneur supprimé) : gardé.
+  const key = linkKey(link);
+  if (key && ![...select.options].some((o) => o.value === key)) {
+    select.append(h('option', { value: key }, link.type === 'docker' ? `Docker · ${link.container}` : `VM / LXC ${link.vmid}`));
+  }
+  select.value = key;
+}
+
+function linkFromKey(key) {
+  const [type, a, b] = key.split(':');
+  if (type === 'proxmox') return { type, widget: a, vmid: Number(b) };
+  if (type === 'docker') return { type, container: a };
+  return undefined;
 }
 
 // ---------- Catalogue d'applications connues (catalog.js) ----------
@@ -1044,6 +1090,7 @@ function submitApp(e) {
     url: form.elements.url.value.trim(),
     icon: form.elements.icon.value.trim(),
     description: form.elements.description.value.trim(),
+    link: linkFromKey(form.elements.link.value),
   };
   const targetCat = Number(form.elements.category.value);
   if (ai != null) {
@@ -1334,6 +1381,15 @@ function submitDisplay(e) {
 }
 
 // ---------- Statut des services ----------
+// Charge des VM / conteneurs liés aux tuiles : seulement s'il y en a.
+async function refreshLinks() {
+  if (!state.config.categories.some((c) => c.apps.some((a) => a.link))) return;
+  try {
+    state.links = await api('/api/links');
+    if (!state.editing) render();
+  } catch { /* ignoré */ }
+}
+
 async function refreshStatus() {
   try {
     state.status = await api('/api/status');
@@ -1537,10 +1593,12 @@ async function init() {
 
   refreshSystem();
   refreshStatus();
+  refreshLinks();
   refreshDocker();
   scheduleWidgets();
   setInterval(refreshSystem, 5_000);
   setInterval(refreshStatus, 30_000);
+  setInterval(refreshLinks, 30_000);
   setInterval(refreshDocker, 10_000);
 }
 

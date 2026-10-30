@@ -319,6 +319,11 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 .tile-text { min-width: 0; flex: 1; }
 .tile-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-desc { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Charge de la VM / du conteneur lié (#89). */
+.tile-link { margin-top: 2px; font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.tile-link b { font-weight: 600; color: var(--text); }
+.tile-link b.warn { color: var(--warn); }
+.tile-link b.bad { color: var(--bad); }
 
 /* Taille des tuiles (mode édition > Affichage) : compacte sans description, grande sur deux lignes. */
 [data-tiles="compact"] .grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }
@@ -327,6 +332,7 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 [data-tiles="compact"] .tile-icon img { width: 24px; height: 24px; }
 [data-tiles="compact"] .tile-name { font-size: 0.9rem; }
 [data-tiles="compact"] .tile-desc { display: none; }
+[data-tiles="compact"] .tile-link { display: none; }
 [data-tiles="large"] .grid { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 [data-tiles="large"] .tile { gap: 16px; padding: 18px; }
 [data-tiles="large"] .tile-icon { width: 58px; height: 58px; border-radius: 12px; font-size: 1.5rem; }

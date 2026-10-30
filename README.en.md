@@ -17,7 +17,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 
 ## Features
 
-- **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator checked **server-side** (works for LAN-only services).
+- **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator checked **server-side** (works for LAN-only services). A tile can be **linked to its Proxmox VM / LXC or Docker container** to show their CPU and RAM.
 - **Server stats**: CPU, memory, uptime and **as many disks as you want** (auto-detected, custom names).
 - **Docker panel**: list containers, start / stop / restart them.
 - **Widgets**:

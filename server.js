@@ -90,6 +90,7 @@ async function readConfig() {
   if (configCache) {
     resetIntegrations();
     statusCache = null;
+    linksCache = null;
   }
   configCache = { stamp: stampOf(stat), cfg };
   return cfg;
@@ -326,6 +327,21 @@ function sanitizeLayout(layout, cfg) {
   });
 }
 
+// Tuile liée à une VM / un LXC d'un widget Proxmox VE, ou à un conteneur Docker (#89) :
+// sa charge s'affiche sur la tuile. Le lien réutilise la connexion existante, sans secret.
+function sanitizeLink(l) {
+  if (l?.type === 'proxmox') {
+    const widget = str(l.widget, 64);
+    const vmid = Number(l.vmid);
+    return widget && Number.isInteger(vmid) && vmid > 0 && vmid < 1e9 ? { type: 'proxmox', widget, vmid } : undefined;
+  }
+  if (l?.type === 'docker') {
+    const container = str(l.container, 128);
+    return /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(container) ? { type: 'docker', container } : undefined;
+  }
+  return undefined;
+}
+
 // Ordre des cartes de stats : cpu, mem, up et disk:<chemin>.
 function sanitizeStatsOrder(order) {
   const keys = (Array.isArray(order) ? order : []).map((k) => str(k, 520))
@@ -359,10 +375,16 @@ function sanitizeConfig(input, previous) {
           url: checkUrl(str(a.url, 2000)),
           icon: str(a.icon, 2000),
           description: str(a.description, 200),
+          link: sanitizeLink(a.link),
         };
       }),
     })),
   };
+  // Un lien vers un widget Proxmox supprimé (ou d'un autre type) disparaît avec lui.
+  const pveWidgets = new Set(cfg.widgets.filter((w) => w.type === 'proxmox').map((w) => w.id));
+  for (const a of cfg.categories.flatMap((c) => c.apps)) {
+    if (a.link?.type === 'proxmox' && !pveWidgets.has(a.link.widget)) delete a.link;
+  }
   // Absentes de la requête (ancienne interface) = inchangées.
   cfg.layout = sanitizeLayout(input.layout ?? previous?.layout, cfg);
   cfg.statsOrder = sanitizeStatsOrder(input.statsOrder ?? previous?.statsOrder);
@@ -482,6 +504,7 @@ async function ping(url, timeout = 5000) {
 
 // Statuts partagés entre tous les visiteurs pendant STATUS_CACHE_MS.
 let statusCache = null; // { t, promise }
+let linksCache = null; // tuiles liées : { t, promise } (voir getLinks)
 
 async function computeStatuses() {
   const cfg = await readConfig();
@@ -733,6 +756,7 @@ app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(asy
   await writeConfig(cfg);
   resetIntegrations();
   statusCache = null;
+  linksCache = null;
   res.json(publicConfig(cfg, true));
 })));
 
@@ -813,6 +837,72 @@ app.get('/api/system', readAuth, route(async (req, res) => {
 }));
 
 app.get('/api/disks', requireAuth, route(async (req, res) => res.json(await detectDisks())));
+
+// ---------- Tuiles liées à une VM / un LXC ou à un conteneur (#89) ----------
+const LINKS_CACHE_MS = 10_000;
+
+// CPU et mémoire de conteneurs Docker, par nom. CPU : part de la machine entière (comme pour
+// une VM Proxmox, part de ses cœurs). stream=false : Docker attend une seconde mesure (~1 s).
+async function dockerUsage(names) {
+  const list = await docker('GET', '/containers/json?all=1');
+  const out = {};
+  await Promise.all([...new Set(names)].map(async (name) => {
+    const c = list.find((x) => (x.Names || []).some((n) => n.replace(/^\//, '') === name));
+    if (!c) return;
+    const base = { name: `Docker · ${name}`, running: c.State === 'running' };
+    out[name] = base;
+    if (!base.running) return;
+    try {
+      const s = await docker('GET', `/containers/${c.Id}/stats?stream=false`);
+      const cpu = (s.cpu_stats?.cpu_usage?.total_usage ?? 0) - (s.precpu_stats?.cpu_usage?.total_usage ?? 0);
+      const system = (s.cpu_stats?.system_cpu_usage ?? 0) - (s.precpu_stats?.system_cpu_usage ?? 0);
+      const m = s.memory_stats || {};
+      // Comme `docker stats` : le cache de fichiers inactif ne compte pas.
+      const used = (m.usage || 0) - (m.stats?.inactive_file ?? m.stats?.total_inactive_file ?? 0);
+      out[name] = { ...base, cpu: system > 0 && cpu > 0 ? Math.min(1, cpu / system) : 0, mem: m.limit ? Math.max(0, used) / m.limit : 0 };
+    } catch { /* conteneur arrêté entre-temps : état seul */ }
+  }));
+  return out;
+}
+
+// { id d'app: { name, running, cpu, mem } | { missing: true } | { error: code } }
+async function computeLinks() {
+  const cfg = await readConfig();
+  const apps = cfg.categories.flatMap((c) => c.apps).filter((a) => a.link);
+  // Une seule lecture par widget Proxmox (même cache que le widget) et une pour Docker.
+  const pve = {};
+  for (const a of apps.filter((x) => x.link.type === 'proxmox')) {
+    const w = cfg.widgets.find((x) => x.id === a.link.widget);
+    pve[a.link.widget] ??= fetchWidget(w).catch((e) => ({ error: e.key || 'unreachable' }));
+  }
+  const names = apps.filter((a) => a.link.type === 'docker').map((a) => a.link.container);
+  const containers = names.length ? dockerUsage(names).catch(() => null) : null;
+  const out = {};
+  for (const a of apps) {
+    if (a.link.type === 'proxmox') {
+      const d = await pve[a.link.widget];
+      const g = d.guests?.find((x) => x.id === a.link.vmid);
+      out[a.id] = d.error ? { error: d.error } : g
+        ? { name: `${g.type} ${g.id} · ${g.name}`, running: g.running, cpu: g.cpu, mem: g.mem }
+        : { missing: true };
+    } else {
+      const list = await containers;
+      out[a.id] = !list ? { error: 'docker_unavailable' } : list[a.link.container] || { missing: true };
+    }
+  }
+  return out;
+}
+
+function getLinks() {
+  if (!linksCache || Date.now() - linksCache.t > LINKS_CACHE_MS) {
+    const entry = { t: Date.now(), promise: computeLinks() };
+    entry.promise.catch(() => { if (linksCache === entry) linksCache = null; });
+    linksCache = entry;
+  }
+  return linksCache.promise;
+}
+
+app.get('/api/links', readAuth, route(async (req, res) => res.json(await getLinks())));
 
 app.get('/api/docker/containers', readAuth, route(async (req, res) => {
   try {

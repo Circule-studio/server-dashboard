@@ -15,7 +15,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
 
 *Captures réalisées avec les faux services de `npm run mocks`.*
 
-- **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local.
+- **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local. Une tuile peut être **liée à sa VM, son LXC Proxmox ou son conteneur Docker** pour afficher leur CPU et leur RAM.
 - **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
 - **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
 - **Widgets d'intégration** :

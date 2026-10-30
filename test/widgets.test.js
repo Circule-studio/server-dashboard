@@ -770,3 +770,49 @@ test('Docker : conteneurs du faux socket', { skip: process.platform === 'win32' 
   assert.equal(r.json.available, true, r.text);
   assert.ok(r.json.containers.some((c) => c.name === 'jellyfin'));
 });
+
+test('Tuiles liées à une VM / un LXC Proxmox ou à un conteneur Docker (#89)', { skip: process.platform === 'win32' && 'socket unix' }, async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const app = (id, link) => ({ id, name: id, url: 'http://localhost:9', link });
+  const apps = [
+    app('l-lxc', { type: 'proxmox', widget: 'proxmox', vmid: 100 }),
+    app('l-vm-off', { type: 'proxmox', widget: 'proxmox', vmid: 120 }),
+    app('l-gone', { type: 'proxmox', widget: 'proxmox', vmid: 4242 }),
+    app('l-docker', { type: 'docker', container: 'jellyfin' }),
+    app('l-docker-off', { type: 'docker', container: 'immich-server' }),
+    app('l-docker-gone', { type: 'docker', container: 'supprime' }),
+    // Refusés : widget qui n'est pas un Proxmox VE, nom de conteneur invalide, type inconnu.
+    app('l-not-pve', { type: 'proxmox', widget: 'jellyfin', vmid: 100 }),
+    app('l-bad-name', { type: 'docker', container: '../../etc' }),
+    app('l-bad-type', { type: 'ssh', host: 'pve' }),
+  ];
+  try {
+    const r = await api('PUT', '/api/config', { ...cfg, categories: [...cfg.categories, { id: 'cat-links', name: 'Liées', apps }] });
+    assert.equal(r.status, 200, r.text);
+    const saved = Object.fromEntries(r.json.categories.find((c) => c.id === 'cat-links').apps.map((a) => [a.id, a.link]));
+    assert.deepEqual(saved['l-lxc'], { type: 'proxmox', widget: 'proxmox', vmid: 100 });
+    assert.deepEqual([saved['l-not-pve'], saved['l-bad-name'], saved['l-bad-type']], [undefined, undefined, undefined]);
+
+    const links = (await api('GET', '/api/links')).json;
+    assert.equal(links['l-lxc'].name, 'LXC 100 · photo-server');
+    assert.ok(links['l-lxc'].running && Math.abs(links['l-lxc'].mem - 0.3) < 1e-9 && links['l-lxc'].cpu === 0.04);
+    assert.deepEqual([links['l-vm-off'].name, links['l-vm-off'].running], ['VM 120 · windows-11', false]);
+    assert.deepEqual(links['l-gone'], { missing: true });
+    // Docker : part de la machine entière (3 % de CPU), mémoire sans le cache (300 Mo / 16 Go).
+    assert.equal(links['l-docker'].name, 'Docker · jellyfin');
+    assert.ok(links['l-docker'].running && Math.abs(links['l-docker'].cpu - 0.03) < 1e-9 && Math.abs(links['l-docker'].mem - 300e6 / 16e9) < 1e-9);
+    assert.deepEqual(links['l-docker-off'], { name: 'Docker · immich-server', running: false });
+    assert.deepEqual(links['l-docker-gone'], { missing: true });
+    assert.ok(!('l-not-pve' in links), 'pas de lien, pas de mesure');
+
+    // Widget Proxmox supprimé : le lien disparaît avec lui.
+    const now = (await api('GET', '/api/config')).json;
+    const r2 = await api('PUT', '/api/config', { ...now, widgets: now.widgets.filter((w) => w.id !== 'proxmox') });
+    assert.equal(r2.json.categories.find((c) => c.id === 'cat-links').apps.find((a) => a.id === 'l-lxc').link, undefined);
+  } finally {
+    const now = (await api('GET', '/api/config')).json;
+    // Le widget Proxmox revient avec sa clé (supprimé, il l'a perdue).
+    const widgets = now.widgets.some((w) => w.id === 'proxmox') ? now.widgets : [...now.widgets, WIDGETS.find((w) => w.id === 'proxmox')];
+    await api('PUT', '/api/config', { ...now, widgets, categories: now.categories.filter((c) => c.id !== 'cat-links') });
+  }
+});

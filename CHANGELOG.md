@@ -4,6 +4,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Tuile liée à une VM, un LXC ou un conteneur** : dans le formulaire d’une application, « Lier à » propose les VM et LXC des widgets Proxmox VE enregistrés et les conteneurs du panneau Docker. La tuile affiche alors leur CPU et leur RAM (en orange ou rouge au-delà de 70 % et 90 %), « à l’arrêt » ou « introuvable ». Le lien réutilise la connexion du widget Proxmox ou le socket Docker : aucun nouveau secret. Idée reprise de Homepage (#89).
+
 ## [0.16.1] - 2026-10-29
 
 ### Sécurité
