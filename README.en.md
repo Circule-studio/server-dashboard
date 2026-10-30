@@ -25,6 +25,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
   - **Proxmox Backup Server**: successful and failed backups over the last 24 h, datastore usage.
   - **Scrutiny**: SMART disk health, failing disks first, with their temperature.
+  - **Speedtest Tracker**: latest speed test, 7-day average and recent tests.
   - **Uptime Kuma**: monitors from a status page, those down first, with response time and 24 h uptime.
   - **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
   - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
@@ -93,6 +94,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Proxmox VE | URL (`https://IP:8006`) + API token ID and secret | `pveum user token add root@pam dashboard --privsep 1` then `pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor` (read-only) |
 | Proxmox Backup Server | URL (`https://IP:8007`) + API token ID and secret | Configuration > Access Control > API Token, with the **Audit** role on `/` for the token (read-only) |
 | Scrutiny | Web interface URL (`http://IP:8080`) | No key |
+| Speedtest Tracker | URL + optional API token | v1: Settings > API Tokens (read). Without a token: legacy public API (v0) |
 | Pulse | URL (`http://IP:7655`) + API token | Pulse > Settings > API Access, `monitoring:read` scope only |
 | Pi-hole (v6) | URL (`http://IP`) + password | The web interface password. With 2FA: an app password (Settings > Web interface / API, Expert mode, "Configure app password"). Empty if Pi-hole has no password |
 | AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |

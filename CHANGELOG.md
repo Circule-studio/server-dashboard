@@ -5,6 +5,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 ## [Non publié]
 
 ### Ajouté
+- Widget **Speedtest Tracker** : dernier test (débit descendant, montant, ping), moyenne des 7 derniers jours et barres des 12 derniers tests. API v1 avec un jeton, ou ancienne API publique sans jeton (#100).
 - Widget **Scrutiny** : santé SMART des disques (sains, en échec en premier) avec modèle, capacité, température et heures de fonctionnement. « M’alerter » : notification quand un disque passe en mauvaise santé, puis quand il redevient sain. Scrutiny et Proxmox Backup Server ajoutés au catalogue d’applications (#99).
 - Widget **Proxmox Backup Server** : sauvegardes réussies et en échec des dernières 24 h (avec le message d’erreur), occupation des datastores, CPU et RAM. Jeton d’API en lecture seule (rôle Audit). « M’alerter » : notification quand une tâche échoue ou qu’un datastore dépasse 90 %, puis au retour à la normale (#97).
 - Widgets **Lidarr** et **Readarr** (albums et livres à venir, file d’attente, comme Sonarr / Radarr), **Prowlarr** (indexeurs actifs, en pause après des échecs, requêtes et téléchargements récupérés) et **Bazarr** (épisodes et films sans sous-titres, fournisseurs en pause). Faux services et tests (#98).

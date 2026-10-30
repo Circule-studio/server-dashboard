@@ -617,3 +617,8 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 
 /* Scrutiny : disque à 55 °C ou plus. */
 .widget-scrutiny .scrutiny-hot { color: var(--warn); flex: none; }
+
+/* Speedtest Tracker : débit descendant des derniers tests, en barres. */
+.widget-speedtest .speedtest-when { margin: 0 0 4px; font-size: 0.8rem; }
+.speedtest-bars { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 8px; }
+.speedtest-bars i { flex: 1; min-width: 4px; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.75; }

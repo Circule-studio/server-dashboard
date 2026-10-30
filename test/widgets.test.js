@@ -59,6 +59,9 @@ const WIDGETS = [
   { id: 'radarr', type: 'radarr', url: 'http://localhost:17878', apiKey: 'radarr-key' },
   { id: 'pbs', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'pbs-secret' },
   { id: 'pbs-bad', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'faux' },
+  { id: 'speedtest', type: 'speedtest', url: 'http://localhost:18766', apiKey: 'speedtest-token' },
+  { id: 'speedtest-v0', type: 'speedtest', url: 'http://localhost:18766' },
+  { id: 'speedtest-bad', type: 'speedtest', url: 'http://localhost:18766', apiKey: 'faux' },
   { id: 'scrutiny', type: 'scrutiny', url: 'http://localhost:18580' },
   { id: 'lidarr', type: 'lidarr', url: 'http://localhost:18686', apiKey: 'lidarr-key' },
   { id: 'readarr', type: 'readarr', url: 'http://localhost:18787', apiKey: 'readarr-key' },
@@ -119,7 +122,7 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -213,6 +216,16 @@ test('Scrutiny : disques, échec SMART en premier, alertes', async () => {
   const a = INTEGRATIONS.scrutiny.alerts(d, { id: 's', name: 'NAS', url: 'http://nas' });
   assert.deepEqual(a.map((x) => [x.id, x.problem, x.online]), [['s:smart:0x5000cca2b3c4d5e6', 'smart', false], ['s:smart:0x5000c500a1b2c3d4', 'smart', true], ['s:smart:0x50014ee2c3d4e5f6', 'smart', true]]);
   assert.equal(a[0].name, 'NAS · sdb (WDC WD40EFRX-68N32N0)');
+});
+
+test('Speedtest Tracker : dernier test, moyenne sur 7 jours, ancienne API', async () => {
+  const d = await widget('speedtest');
+  assert.deepEqual([d.latest.down, d.latest.up, d.latest.ping], [850, 210, 12], 'bit/s convertis en Mbit/s');
+  // 7 jours = 14 tests toutes les 12 h, moins celui en échec.
+  assert.equal(d.average.count, 13);
+  assert.ok(d.history.length === 12 && d.history.every((r, i) => i === 0 || r.date >= d.history[i - 1].date), '12 derniers, dans l’ordre');
+  const v0 = await widget('speedtest-v0');
+  assert.deepEqual([v0.latest.down, v0.latest.up, v0.average], [912.5, 230.1, null]);
 });
 
 test('Bazarr : sous-titres manquants', async () => {
@@ -470,6 +483,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'customapi-bad': 'auth_refused',
     'bazarr-bad': 'auth_refused',
     'pbs-bad': 'auth_refused',
+    'speedtest-bad': 'auth_refused',
     'customapi-text': 'unexpected_response',
     'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',

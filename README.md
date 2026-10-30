@@ -27,6 +27,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
   - **Proxmox Backup Server** : sauvegardes réussies et en échec des dernières 24 h, occupation des datastores.
   - **Scrutiny** : santé SMART des disques, ceux en échec en premier, avec leur température.
+  - **Speedtest Tracker** : dernier test de débit, moyenne sur 7 jours et derniers tests.
   - **Uptime Kuma** : sondes d’une page de statut, celles en panne en premier, avec le temps de réponse et la disponibilité sur 24 h.
   - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
   - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
@@ -142,6 +143,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
 | Proxmox Backup Server | URL (`https://IP:8007`) + identifiant et secret d’un jeton d’API | Configuration > Access Control > API Token, avec le rôle **Audit** sur `/` pour le jeton (lecture seule) |
 | Scrutiny | URL de l’interface (`http://IP:8080`) | Aucune clé |
+| Speedtest Tracker | URL + jeton d’API facultatif | v1 : Settings > API Tokens (lecture). Sans jeton : ancienne API publique (v0) |
 | Pi-hole (v6) | URL (`http://IP`) + mot de passe | Celui de l’interface web. Avec la 2FA : mot de passe d’application (Paramètres > Web interface / API, mode Expert, « Configure app password »). Vide si Pi-hole n’a pas de mot de passe |
 | AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
