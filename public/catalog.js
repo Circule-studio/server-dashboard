@@ -53,6 +53,7 @@ const APP_CATALOG = [
   { name: 'Vaultwarden', icon: 'vaultwarden', port: 443, scheme: 'https', fr: 'Mots de passe', en: 'Passwords' },
   // Serveur et supervision
   { name: 'Proxmox VE', icon: 'proxmox', port: 8006, scheme: 'https', fr: 'Virtualisation', en: 'Virtualization' },
+  { name: 'Proxmox Backup Server', icon: 'proxmox', port: 8007, scheme: 'https', fr: 'Sauvegardes Proxmox', en: 'Proxmox backups' },
   { name: 'Pulse', icon: 'pulse', port: 7655, fr: 'Supervision Proxmox et Docker', en: 'Proxmox and Docker monitoring' },
   { name: 'Portainer', icon: 'portainer', port: 9443, scheme: 'https', fr: 'Conteneurs Docker', en: 'Docker containers' },
   { name: 'Dockge', icon: 'dockge', port: 5001, fr: 'Piles Docker Compose', en: 'Docker Compose stacks' },
@@ -61,6 +62,7 @@ const APP_CATALOG = [
   { name: 'Glances', icon: 'glances', port: 61208, fr: 'Ressources du système', en: 'System resources' },
   { name: 'Netdata', icon: 'netdata', port: 19999, fr: 'Supervision en temps réel', en: 'Real-time monitoring' },
   { name: 'Duplicati', icon: 'duplicati', port: 8200, fr: 'Sauvegardes', en: 'Backups' },
+  { name: 'Scrutiny', icon: 'scrutiny', port: 8080, fr: 'Santé des disques (SMART)', en: 'Disk health (SMART)' },
   // Développement
   { name: 'Gitea', icon: 'gitea', port: 3000, fr: 'Dépôts Git', en: 'Git repositories' },
   { name: 'code-server', icon: 'code-server', port: 8443, fr: 'VS Code dans le navigateur', en: 'VS Code in the browser' },

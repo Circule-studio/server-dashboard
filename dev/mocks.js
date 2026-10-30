@@ -9,6 +9,7 @@
 //   Prowlarr     http://localhost:19696  clé API  prowlarr-key ; Bazarr http://localhost:16767  bazarr-key
 //   Proxmox VE   http://localhost:18006  jeton    root@pam!dashboard / pve-secret
 //   PBS          http://localhost:18007  jeton    root@pam!dashboard / pbs-secret (Proxmox Backup Server)
+//   Scrutiny     http://localhost:18580  sans clé (santé SMART des disques)
 //   Pulse        http://localhost:17655  jeton    pulse-token
 //   Calendrier   adresse  http://localhost:18091/agenda.ics ; /prive.ics avec agenda / agenda-pass
 //   Flux RSS     http://localhost:18090/rss.xml et /atom.xml (/pas-un-flux : erreur)
@@ -31,7 +32,7 @@
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
-  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs'];
+  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs', 'scrutiny'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 

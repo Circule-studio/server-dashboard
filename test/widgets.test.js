@@ -59,6 +59,7 @@ const WIDGETS = [
   { id: 'radarr', type: 'radarr', url: 'http://localhost:17878', apiKey: 'radarr-key' },
   { id: 'pbs', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'pbs-secret' },
   { id: 'pbs-bad', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'faux' },
+  { id: 'scrutiny', type: 'scrutiny', url: 'http://localhost:18580' },
   { id: 'lidarr', type: 'lidarr', url: 'http://localhost:18686', apiKey: 'lidarr-key' },
   { id: 'readarr', type: 'readarr', url: 'http://localhost:18787', apiKey: 'readarr-key' },
   { id: 'prowlarr', type: 'prowlarr', url: 'http://localhost:19696', apiKey: 'prowlarr-key' },
@@ -202,6 +203,16 @@ test('Proxmox Backup Server : datastores, tâches en échec, alertes', async () 
   assert.deepEqual(alerts.map((a) => [a.id, a.problem, a.online, a.value]), [
     ['pbs:tasks', 'backup', false, 1], ['pbs:disk:sauvegardes', 'disk', true, 62], ['pbs:disk:externe', 'disk', false, 94],
   ]);
+});
+
+test('Scrutiny : disques, échec SMART en premier, alertes', async () => {
+  const d = await widget('scrutiny');
+  assert.deepEqual(d.disks.map((x) => [x.name, x.failed, x.temp]), [['sdb', true, 57], ['sda', false, 34], ['sdc', false, 38]], 'disque archivé ignoré');
+  assert.equal(d.failed, 1);
+  const { INTEGRATIONS } = require('../integrations');
+  const a = INTEGRATIONS.scrutiny.alerts(d, { id: 's', name: 'NAS', url: 'http://nas' });
+  assert.deepEqual(a.map((x) => [x.id, x.problem, x.online]), [['s:smart:0x5000cca2b3c4d5e6', 'smart', false], ['s:smart:0x5000c500a1b2c3d4', 'smart', true], ['s:smart:0x50014ee2c3d4e5f6', 'smart', true]]);
+  assert.equal(a[0].name, 'NAS · sdb (WDC WD40EFRX-68N32N0)');
 });
 
 test('Bazarr : sous-titres manquants', async () => {

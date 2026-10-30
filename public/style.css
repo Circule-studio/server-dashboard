@@ -614,3 +614,6 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 .gh-sha { font-size: 0.75rem; color: var(--muted); }
 .gh-label { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
 .gh-label i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+
+/* Scrutiny : disque à 55 °C ou plus. */
+.widget-scrutiny .scrutiny-hot { color: var(--warn); flex: none; }
