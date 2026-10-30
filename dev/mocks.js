@@ -5,6 +5,8 @@
 //   qBittorrent  http://localhost:18080  admin / secret
 //   Sonarr       http://localhost:18989  clé API  sonarr-key
 //   Radarr       http://localhost:17878  clé API  radarr-key
+//   Lidarr       http://localhost:18686  clé API  lidarr-key ; Readarr http://localhost:18787  readarr-key
+//   Prowlarr     http://localhost:19696  clé API  prowlarr-key ; Bazarr http://localhost:16767  bazarr-key
 //   Proxmox VE   http://localhost:18006  jeton    root@pam!dashboard / pve-secret
 //   Pulse        http://localhost:17655  jeton    pulse-token
 //   Calendrier   adresse  http://localhost:18091/agenda.ics ; /prive.ics avec agenda / agenda-pass

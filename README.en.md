@@ -40,7 +40,8 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Custom API**: any JSON API (a service without a widget, your own script): pick the values to show by their path in the response, with a format (number, percent, bytes, rate, date).
   - **Jellyfin / Plex**: now playing, library size.
   - **qBittorrent**: speeds, active torrents.
-  - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
+  - **Sonarr / Radarr / Lidarr / Readarr**: upcoming episodes, movies, albums and books, download queue.
+  - **Prowlarr**: active and paused indexers, queries and grabs. **Bazarr**: episodes and movies missing subtitles.
 - **Edit mode** (password protected) with drag & drop, and a welcome screen on first launch.
 - **Agent** for machines behind NAT or without an open port: a small script (Node.js, no dependency) pushes CPU, memory, disks and temperature to the dashboard itself; see [agent/README.md](agent/README.md) (in French).
 - **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With a widget’s “Alert me” box, also for what it monitors: stopped Proxmox VM, container or node, disk over 90% (Proxmox, Glances, Agent), Glances or Agent machine offline, Nginx Proxy Manager certificate expiring within 7 days, Uptime Kuma monitor down, Frigate camera off.
@@ -106,7 +107,8 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Jellyfin | URL + API key | Dashboard > API Keys |
 | Plex | URL + token | Your `X-Plex-Token` |
 | qBittorrent | URL + Web UI username / password | Options > Web UI |
-| Sonarr / Radarr | URL + API key | Settings > General > API Key |
+| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + API key | Settings > General > API Key |
+| Bazarr | URL (`http://IP:6767`) + API key | Settings > General > Security > API Key |
 
 URLs must be reachable **from the dashboard server**.
 

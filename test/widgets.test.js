@@ -57,6 +57,11 @@ const WIDGETS = [
   { id: 'qbittorrent', type: 'qbittorrent', url: 'http://localhost:18080', username: 'admin', password: 'secret' },
   { id: 'sonarr', type: 'sonarr', url: 'http://localhost:18989', apiKey: 'sonarr-key' },
   { id: 'radarr', type: 'radarr', url: 'http://localhost:17878', apiKey: 'radarr-key' },
+  { id: 'lidarr', type: 'lidarr', url: 'http://localhost:18686', apiKey: 'lidarr-key' },
+  { id: 'readarr', type: 'readarr', url: 'http://localhost:18787', apiKey: 'readarr-key' },
+  { id: 'prowlarr', type: 'prowlarr', url: 'http://localhost:19696', apiKey: 'prowlarr-key' },
+  { id: 'bazarr', type: 'bazarr', url: 'http://localhost:16767', apiKey: 'bazarr-key' },
+  { id: 'bazarr-bad', type: 'bazarr', url: 'http://localhost:16767', apiKey: 'faux' },
   { id: 'proxmox', type: 'proxmox', url: 'http://localhost:18006', username: 'root@pam!dashboard', apiKey: 'pve-secret' },
   { id: 'pulse', type: 'pulse', url: 'http://localhost:17655', apiKey: 'pulse-token' },
   { id: 'weather', type: 'weather', url: 'http://localhost:18765', location: 'Nantes' },
@@ -111,7 +116,7 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -165,6 +170,26 @@ test('Sonarr et Radarr : à venir et file d’attente', async () => {
     assert.ok(Array.isArray(d.upcoming) && d.upcoming.length > 0, id);
     assert.equal(typeof d.queue.total, 'number', id);
   }
+});
+
+test('Lidarr et Readarr : à venir (artiste, auteur, déjà disponible) et file d’attente', async () => {
+  const l = await widget('lidarr');
+  assert.deepEqual(l.upcoming.map((e) => [e.title, e.subtitle, e.hasFile]), [
+    ['Moon Music', 'Coldplay', true], ['Hit Me Hard and Soft (Deluxe)', 'Billie Eilish', false],
+  ], 'triés par date');
+  assert.equal(l.queue.total, 2);
+  const r = await widget('readarr');
+  assert.deepEqual(r.upcoming.map((e) => e.subtitle), ['Giuliano da Empoli']);
+});
+
+test('Prowlarr : indexeurs actifs, en pause, statistiques', async () => {
+  const d = await widget('prowlarr');
+  assert.deepEqual([d.enabled, d.queries, d.grabs], [3, 1925, 99]);
+  assert.deepEqual(d.failing.map((f) => f.name), ['1337x'], 'une pause terminée ne compte plus');
+});
+
+test('Bazarr : sous-titres manquants', async () => {
+  assert.deepEqual(await widget('bazarr'), { episodes: 37, movies: 4, providers: 1 });
 });
 
 test('Proxmox VE : nœuds, VM et stockages', async () => {
@@ -416,6 +441,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
   const expected = {
     'jellyfin-bad': 'auth_refused',
     'customapi-bad': 'auth_refused',
+    'bazarr-bad': 'auth_refused',
     'customapi-text': 'unexpected_response',
     'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',

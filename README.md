@@ -22,7 +22,8 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
 - **Widgets d'intégration** :
   - **Jellyfin / Plex** : lectures en cours (utilisateur, progression, pause) et taille de la bibliothèque.
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.
-  - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
+  - **Sonarr / Radarr / Lidarr / Readarr** : épisodes, films, albums et livres à venir, file de téléchargement.
+  - **Prowlarr** : indexeurs actifs et en pause, requêtes et téléchargements récupérés. **Bazarr** : épisodes et films sans sous-titres.
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
   - **Uptime Kuma** : sondes d’une page de statut, celles en panne en premier, avec le temps de réponse et la disponibilité sur 24 h.
   - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
@@ -133,7 +134,8 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Jellyfin | URL + clé API | Tableau de bord > Clés API > « + » |
 | Plex | URL + token | Valeur `X-Plex-Token` ([doc Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) |
 | qBittorrent | URL + utilisateur / mot de passe de la WebUI | Options > Interface web |
-| Sonarr / Radarr | URL + clé API | Settings > General > API Key |
+| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + clé API | Settings > General > API Key |
+| Bazarr | URL (`http://IP:6767`) + clé API | Settings > General > Security > API Key |
 | Pulse | URL (`http://IP:7655`) + jeton d’API | Pulse > Paramètres > API Access, scope `monitoring:read` |
 | Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
 | Pi-hole (v6) | URL (`http://IP`) + mot de passe | Celui de l’interface web. Avec la 2FA : mot de passe d’application (Paramètres > Web interface / API, mode Expert, « Configure app password »). Vide si Pi-hole n’a pas de mot de passe |
