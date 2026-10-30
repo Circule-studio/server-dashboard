@@ -854,3 +854,21 @@ test('Tuiles liées à une VM / un LXC Proxmox ou à un conteneur Docker (#89)',
     await api('PUT', '/api/config', { ...now, widgets, categories: now.categories.filter((c) => c.id !== 'cat-links') });
   }
 });
+
+test('Recherche rapide : moteur de recherche web enregistré et vérifié (#91)', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  assert.equal(cfg.searchEngine, 'duckduckgo', 'DuckDuckGo par défaut');
+  try {
+    for (const engine of ['qwant', 'none', 'https://search.example.com/?q=%s']) {
+      const r = await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: engine });
+      assert.equal(r.json.searchEngine, engine);
+    }
+    // Absent de la requête (ancienne interface) : inchangé.
+    const { searchEngine, ...rest } = (await api('GET', '/api/config')).json;
+    assert.equal((await api('PUT', '/api/config', rest)).json.searchEngine, searchEngine);
+    const bad = await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: 'javascript:alert(1)' });
+    assert.deepEqual([bad.status, bad.json.code], [400, 'invalid_url']);
+  } finally {
+    await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: 'duckduckgo' });
+  }
+});

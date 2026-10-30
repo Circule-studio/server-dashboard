@@ -20,6 +20,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 - **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator checked **server-side** (works for LAN-only services). A tile can be **linked to its Proxmox VM / LXC or Docker container** to show their CPU and RAM.
 - **Server stats**: CPU, memory, uptime and **as many disks as you want** (auto-detected, custom names).
 - **Docker panel**: list containers, start / stop / restart them.
+- **Quick search**: just start typing anywhere. It filters the tiles and offers, from the keyboard, the tile to open, the typed address (`nas.home:8080`) or a web search (DuckDuckGo, Google, Qwant…, or a custom address, set in Display).
 - **Widgets**:
   - **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
   - **Uptime Kuma**: monitors from a status page, those down first, with response time and 24 h uptime.

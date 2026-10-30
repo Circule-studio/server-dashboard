@@ -16,7 +16,12 @@
       <span id="host" class="muted"></span>
     </div>
     <div class="topbar-right">
-      <input id="search" class="search" type="search" autocomplete="off" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria" hidden>
+      <div class="search-wrap">
+        <input id="search" class="search" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="searchMenu" aria-expanded="false"
+          data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria" hidden>
+        <!-- Suggestions : tuiles, adresse à ouvrir, recherche web (#91). -->
+        <ul id="searchMenu" class="search-menu" role="listbox" hidden></ul>
+      </div>
       <span id="clock" class="clock"></span>
       <button id="themeBtn" class="btn btn-ghost btn-icon"></button>
       <button id="langBtn" class="btn btn-ghost btn-lang" data-i18n="lang.switch" data-i18n-title="lang.switchTitle"></button>
@@ -229,6 +234,24 @@
         <label class="check"><input type="checkbox" name="theme"><span data-i18n="display.theme"></span></label>
         <label class="check"><input type="checkbox" name="lang"><span data-i18n="display.lang"></span></label>
         <small class="muted" data-i18n="display.help"></small>
+      </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="display.engine"></legend>
+        <select name="searchEngine">
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="google">Google</option>
+          <option value="bing">Bing</option>
+          <option value="brave">Brave</option>
+          <option value="qwant">Qwant</option>
+          <option value="ecosia">Ecosia</option>
+          <option value="custom" data-i18n="display.engineCustom"></option>
+          <option value="none" data-i18n="display.engineNone"></option>
+        </select>
+        <label data-engine-url hidden><span data-i18n="display.engineUrl"></span>
+          <input name="searchUrl" type="url" autocomplete="off" placeholder="https://search.example.com/?q=%s">
+          <small class="muted" data-i18n="display.engineUrlHelp"></small>
+        </label>
+        <small class="muted" data-i18n="display.engineHelp"></small>
       </fieldset>
       <fieldset class="sections">
         <legend data-i18n="display.tiles"></legend>

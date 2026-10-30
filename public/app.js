@@ -13,6 +13,8 @@ const state = {
   docker: null,
   search: '',       // texte de la recherche rapide (ignoré en mode édition)
   searchOpen: false, // champ ouvert avec « / » alors que la barre est masquée
+  searchItems: [],   // suggestions de la recherche rapide, et celle choisie au clavier
+  searchIndex: 0,
 };
 
 // ---------- Utilitaires ----------
@@ -114,7 +116,8 @@ function render() {
   $('#themeBtn').hidden = !display.theme;
   $('#langBtn').hidden = !display.lang;
   const hasApps = cfg.categories.some((cat) => cat.apps.length);
-  state.searchEnabled = !state.editing && hasApps;
+  // Sans application, la recherche sert encore à chercher sur le web ou ouvrir une adresse.
+  state.searchEnabled = !state.editing && (hasApps || !!webSearch('x'));
   $('#search').hidden = !state.searchEnabled || !(display.search || state.searchOpen);
   const q = state.searchEnabled ? fold(state.search.trim()) : '';
 
@@ -158,6 +161,7 @@ function render() {
   }
   renderStatsOrder();
   updateSaveBar();
+  renderSearchMenu();
 }
 
 // Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
@@ -1371,7 +1375,21 @@ function openDisplayDialog() {
   const display = displayOptions(state.draft);
   for (const key of Object.keys(display)) form.elements[key].checked = display[key];
   form.elements.tileSize.value = state.draft.tileSize || 'normal';
+  // Moteur de recherche : un des moteurs proposés, aucun, ou une adresse personnalisée.
+  const engine = state.draft.searchEngine || 'duckduckgo';
+  const preset = engine in SEARCH_ENGINES || engine === 'none';
+  form.elements.searchEngine.value = preset ? engine : 'custom';
+  form.elements.searchUrl.value = preset ? '' : engine;
+  syncEngineUrl();
   $('#displayDialog').showModal();
+}
+
+function syncEngineUrl() {
+  const f = $('#displayForm').elements;
+  const custom = f.searchEngine.value === 'custom';
+  $('#displayForm [data-engine-url]').hidden = !custom;
+  f.searchUrl.disabled = !custom;
+  f.searchUrl.required = custom;
 }
 
 function submitDisplay(e) {
@@ -1379,6 +1397,8 @@ function submitDisplay(e) {
   const form = e.target;
   state.draft.display = Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked]));
   state.draft.tileSize = form.elements.tileSize.value;
+  const engine = form.elements.searchEngine.value;
+  state.draft.searchEngine = engine === 'custom' ? form.elements.searchUrl.value.trim() : engine;
   $('#displayDialog').close();
   render();
 }
@@ -1487,13 +1507,78 @@ function renderThemeBtn() {
 const displayOptions = (cfg) => ({ search: true, theme: true, lang: true, ...cfg.display });
 
 // ---------- Recherche rapide ----------
-// « / » place le curseur dans le champ (et l'ouvre si la barre est masquée),
-// Échap le vide, Entrée ouvre la première tuile.
+// Commencer à taper n'importe où (ou « / ») ouvre le champ. Il filtre les tuiles et propose, sous
+// le champ, les tuiles trouvées, l'adresse tapée à ouvrir et une recherche web (#91). Flèches pour
+// choisir, Entrée pour ouvrir, Échap pour vider.
+const SEARCH_ENGINES = {
+  duckduckgo: ['DuckDuckGo', 'https://duckduckgo.com/?q=%s'],
+  google: ['Google', 'https://www.google.com/search?q=%s'],
+  bing: ['Bing', 'https://www.bing.com/search?q=%s'],
+  brave: ['Brave', 'https://search.brave.com/search?q=%s'],
+  qwant: ['Qwant', 'https://www.qwant.com/?q=%s'],
+  ecosia: ['Ecosia', 'https://www.ecosia.org/search?q=%s'],
+};
+
+// Recherche web de `q` avec le moteur choisi (une adresse personnalisée : %s, ou les mots à la fin).
+function webSearch(q) {
+  const engine = current()?.searchEngine || 'duckduckgo';
+  const [name, tpl] = SEARCH_ENGINES[engine] || [null, engine];
+  if (!/^https?:\/\//i.test(tpl)) return null; // « none »
+  const words = encodeURIComponent(q);
+  return { name, url: tpl.includes('%s') ? tpl.replaceAll('%s', words) : tpl + words };
+}
+
+// Le texte ressemble-t-il à une adresse ? (https://…, nas.maison, 192.168.1.10:8096, localhost:3000)
+function typedUrl(q) {
+  if (/^https?:\/\/\S+$/i.test(q)) return q;
+  const host = /^(localhost|\d{1,3}(\.\d{1,3}){3}|[a-z0-9-]+(\.[a-z0-9-]+)+)(:\d{1,5})?(\/\S*)?$/i;
+  return host.test(q) && !/^\d+(\.\d+)?$/.test(q) ? `http://${q}` : null;
+}
+
+function searchItems() {
+  const q = state.search.trim();
+  if (!q) return [];
+  // Les tuiles affichées (déjà filtrées), dans l'ordre du tableau.
+  const items = [...document.querySelectorAll('#board a.tile')].slice(0, 6).map((a) => ({
+    href: a.href, icon: a.querySelector('.tile-icon')?.cloneNode(true),
+    label: a.querySelector('.tile-name').textContent, sub: a.querySelector('.tile-desc')?.textContent || a.host,
+  }));
+  const url = typedUrl(q);
+  if (url) items.push({ href: url, glyph: '↗', label: t('search.open', { url: url.replace(/^http:\/\//, '') }) });
+  const web = webSearch(q);
+  if (web) items.push({ href: web.url, glyph: '⌕', label: web.name ? t('search.web', { query: q, engine: web.name }) : t('search.webCustom', { query: q }) });
+  return items;
+}
+
+function renderSearchMenu() {
+  const input = $('#search');
+  const menu = $('#searchMenu');
+  state.searchItems = state.searchEnabled && document.activeElement === input ? searchItems() : [];
+  state.searchIndex = Math.max(0, Math.min(state.searchIndex, state.searchItems.length - 1));
+  menu.hidden = !state.searchItems.length;
+  input.setAttribute('aria-expanded', String(!menu.hidden));
+  menu.replaceChildren(...state.searchItems.map((it, i) => h('li', {
+    id: `search-item-${i}`, role: 'option', 'aria-selected': String(i === state.searchIndex),
+    // mousedown : avant que le champ perde le focus (ce qui fermerait la liste).
+    onmousedown: (e) => { e.preventDefault(); openSearchItem(it); },
+    onmousemove: () => { if (state.searchIndex !== i) { state.searchIndex = i; renderSearchMenu(); } },
+  }, it.icon || h('span', { class: 'search-glyph', 'aria-hidden': 'true' }, it.glyph),
+  h('span', { class: 'search-text' }, h('b', {}, it.label), it.sub ? h('small', {}, it.sub) : null))));
+  if (menu.hidden) input.removeAttribute('aria-activedescendant');
+  else input.setAttribute('aria-activedescendant', `search-item-${state.searchIndex}`);
+}
+
+// Dans un nouvel onglet, comme les tuiles.
+function openSearchItem(it) {
+  if (it) window.open(it.href, '_blank', 'noopener');
+}
+
 function bindSearch() {
   const input = $('#search');
   const close = () => { state.searchOpen = false; render(); };
-  input.addEventListener('input', () => { state.search = input.value; render(); });
-  input.addEventListener('blur', () => { if (!input.value) close(); });
+  input.addEventListener('input', () => { state.search = input.value; state.searchIndex = 0; render(); });
+  input.addEventListener('focus', renderSearchMenu);
+  input.addEventListener('blur', () => { if (!input.value) close(); else renderSearchMenu(); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       input.value = state.search = '';
@@ -1501,15 +1586,27 @@ function bindSearch() {
       close();
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      $('#board a.tile')?.click();
+      openSearchItem(state.searchItems[state.searchIndex]);
+    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && state.searchItems.length) {
+      e.preventDefault();
+      const n = state.searchItems.length;
+      state.searchIndex = (state.searchIndex + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+      renderSearchMenu();
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || !state.searchEnabled) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing || !state.searchEnabled) return;
     if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    // Une lettre, un chiffre… ouvre la recherche avec ce caractère ; pas Espace (défilement de la page).
+    const typed = e.key.length === 1 && e.key !== ' ' && e.key !== '/';
+    if (e.key !== '/' && !typed) return;
     e.preventDefault();
     if (input.hidden) { state.searchOpen = true; render(); }
     input.focus();
+    if (typed) {
+      input.value += e.key;
+      input.dispatchEvent(new Event('input'));
+    }
   });
 }
 
@@ -1572,6 +1669,7 @@ async function init() {
     if (file) importConfig(file);
   });
   $('#displayForm').addEventListener('submit', submitDisplay);
+  $('#displayForm').elements.searchEngine.addEventListener('change', syncEngineUrl);
   $('#widgetForm').addEventListener('submit', submitWidget);
   $('#widgetForm').elements.type.addEventListener('change', updateWidgetFields);
   $('#widgetForm').elements.clearApiKey.addEventListener('change', syncClearBoxes);

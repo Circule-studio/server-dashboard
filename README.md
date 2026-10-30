@@ -18,6 +18,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
 - **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local. Une tuile peut être **liée à sa VM, son LXC Proxmox ou son conteneur Docker** pour afficher leur CPU et leur RAM.
 - **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
 - **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
+- **Recherche rapide** : commence à taper n’importe où. Elle filtre les tuiles et propose, au clavier, la tuile à ouvrir, l’adresse tapée (`nas.maison:8080`) ou une recherche web (DuckDuckGo, Google, Qwant…, ou une adresse personnalisée, réglable dans Affichage).
 - **Widgets d'intégration** :
   - **Jellyfin / Plex** : lectures en cours (utilisateur, progression, pause) et taille de la bibliothèque.
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.

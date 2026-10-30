@@ -327,6 +327,13 @@ function sanitizeNotify(input, previous) {
 
 // Taille des tuiles d'apps (réglage global).
 const TILE_SIZES = ['compact', 'normal', 'large'];
+// Recherche web de la recherche rapide (#91) : un moteur proposé, « none », ou une adresse
+// personnalisée (avec %s à la place des mots cherchés, ou qui se termine par ?q=).
+const SEARCH_ENGINES = ['duckduckgo', 'google', 'bing', 'brave', 'qwant', 'ecosia', 'none'];
+const sanitizeSearchEngine = (v) => {
+  const s = str(v, 500);
+  return SEARCH_ENGINES.includes(s) ? s : s ? checkUrl(s) : 'duckduckgo';
+};
 
 function sanitizeDisplay(display) {
   const src = display && typeof display === 'object' ? display : {};
@@ -388,6 +395,7 @@ function sanitizeConfig(input, previous) {
     display: sanitizeDisplay(input.display ?? previous?.display),
     // Absente ou invalide (ancienne interface, script) : inchangée.
     tileSize: [input.tileSize, previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
+    searchEngine: sanitizeSearchEngine(input.searchEngine ?? previous?.searchEngine),
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
     notify: sanitizeNotify(input.notify, previous?.notify),
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
