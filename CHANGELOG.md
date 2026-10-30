@@ -5,6 +5,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 ## [Non publié]
 
 ### Ajouté
+- Widget **API personnalisée** : n’importe quelle API JSON. On choisit jusqu’à 12 valeurs par leur chemin dans la réponse (`data.users.count`, `items.0.name`, `liste.length`), avec un libellé et un format (texte, nombre, pourcentage, octets, débit, date) ; 4 valeurs ou moins en blocs de chiffres, au-delà en liste. Authentification facultative par en-tête ou en Basic, gardée sur le serveur. Idée reprise de Homepage (#90).
 - **Tuile liée à une VM, un LXC ou un conteneur** : dans le formulaire d’une application, « Lier à » propose les VM et LXC des widgets Proxmox VE enregistrés et les conteneurs du panneau Docker. La tuile affiche alors leur CPU et leur RAM (en orange ou rouge au-delà de 70 % et 90 %), « à l’arrêt » ou « introuvable ». Le lien réutilise la connexion du widget Proxmox ou le socket Docker : aucun nouveau secret. Idée reprise de Homepage (#89).
 
 ## [0.16.1] - 2026-10-29

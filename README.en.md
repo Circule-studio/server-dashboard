@@ -36,6 +36,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Home Assistant**: the sensors you choose (temperature, power, doors, motion, lights, presence…), with their translated state and since when.
   - **Nginx Proxy Manager**: active and disabled hosts, SSL certificates sorted by expiry date, those expiring within 14 days highlighted.
   - **GitHub**: follow a repository, with its latest release, unreleased commits since then, open issues and pull requests.
+  - **Custom API**: any JSON API (a service without a widget, your own script): pick the values to show by their path in the response, with a format (number, percent, bytes, rate, date).
   - **Jellyfin / Plex**: now playing, library size.
   - **qBittorrent**: speeds, active torrents.
   - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
@@ -100,6 +101,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Home Assistant | URL (`http://IP:8123`) + token + entities (one per line) | Your profile > Security > Long-lived access tokens. Entity IDs (`sensor.living_room_temperature`) are in Settings > Devices & services > Entities |
 | Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / password | The admin interface account. A dedicated account with read access to "Proxy Hosts" is enough |
 | GitHub | Repository (`owner/repo` or its address) + optional token | Token required for a private repository: Settings > Developer settings > *Fine-grained tokens*, read-only (Contents, Issues, Pull requests, Metadata). Without a token, GitHub allows 60 requests per hour: refreshed every 15 min (2 min with a token), enough for 4 or 5 widgets. If the limit is reached, the last data stays on screen. The API URL is only for GitHub Enterprise |
+| Custom API | URL returning JSON + values (one per line: `path \| label \| format`) + optional authentication | Dotted path: `data.users.count`, `items.0.name`, `list.length`. Formats: text, number, percent, bytes, rate, date. Authentication: a header (`X-Api-Key: …`, or a bare value sent as `Authorization: Bearer …`) or username / password (Basic) |
 | Jellyfin | URL + API key | Dashboard > API Keys |
 | Plex | URL + token | Your `X-Plex-Token` |
 | qBittorrent | URL + Web UI username / password | Options > Web UI |

@@ -540,6 +540,7 @@ function openWidgetDialog(i) {
   f.slug.value = w.slug || '';
   f.entities.value = (w.entities || []).join('\n');
   f.feeds.value = (w.feeds || []).join('\n');
+  f.mappings.value = (w.mappings || []).map((m) => [m.path, m.label, m.format].join(' | ')).join('\n');
   f.url.value = w.url || '';
   f.username.value = w.username || '';
   f.apiKey.value = '';
@@ -580,6 +581,7 @@ function updateWidgetFields() {
   form.elements.repo.required = fields.includes('repo');
   form.elements.entities.required = fields.includes('entities');
   form.elements.feeds.required = fields.includes('feeds');
+  form.elements.mappings.required = fields.includes('mappings');
   form.querySelector('[data-key-label]').textContent = t(type.keyLabel || 'key.apiKey');
   form.querySelector('[data-key-help]').textContent = type.keyHelp ? t(type.keyHelp) : '';
   form.elements.apiKey.required = fields.includes('apiKey') && !type.keyOptional && !w.hasApiKey;
@@ -702,6 +704,7 @@ function submitWidget(e) {
   if (fields.includes('slug')) w.slug = f.slug.value.trim(); // ou tiré de l'adresse de la page par le serveur
   if (fields.includes('entities')) w.entities = f.entities.value.split(/[\s,;]+/).filter(Boolean); // vérifiées par le serveur
   if (fields.includes('feeds')) w.feeds = f.feeds.value.split(/\s+/).filter(Boolean); // vérifiés par le serveur
+  if (fields.includes('mappings')) w.mappings = f.mappings.value; // lignes « chemin | libellé | format », lues par le serveur
   if (fields.includes('apiKey')) {
     if (f.clearApiKey.checked) Object.assign(w, { clearApiKey: true, hasApiKey: false });
     else w.apiKey = f.apiKey.value.trim();

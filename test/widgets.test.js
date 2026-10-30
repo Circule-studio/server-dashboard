@@ -101,8 +101,17 @@ const WIDGETS = [
   { id: 'github-private', type: 'github', url: 'http://localhost:14000', repo: 'demo/private' },
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
+  // API personnalisée : en-tête, Basic, mauvaise clé, réponse qui n'est pas du JSON.
+  {
+    id: 'customapi', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'X-Api-Key: custom-key',
+    mappings: 'data.users.count | Utilisateurs | nombre\ndata.storage.percent | Stockage | pourcentage\n\ndata.items.0.name | Dernière\n'
+      + 'data.items.length | Tâches | number\ndata.manquant | Absent\ndata.__proto__ | Piège\ndata.online | En ligne\ndata.updated | Mise à jour | date',
+  },
+  { id: 'customapi-basic', type: 'customapi', url: 'http://localhost:18092/prive', username: 'api', password: 'api-pass', mappings: [{ path: 'data.speed', label: 'Débit', format: 'rate' }] },
+  { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
+  { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -375,10 +384,39 @@ test('GitHub : version, issues, PR (dépôt donné par son adresse)', async () =
   assert.equal(saved.name, 'circule-studio/server-dashboard', 'nom par défaut');
 });
 
+test('API personnalisée : valeurs choisies, chemins, formats et authentification', async () => {
+  const d = await widget('customapi');
+  assert.deepEqual(d.values.slice(0, 7).map((v) => [v.label, v.format, v.value]), [
+    ['Utilisateurs', 'number', 42], ['Stockage', 'percent', 73.5], ['Dernière', 'text', 'sauvegarde-nuit'],
+    ['Tâches', 'number', 2], ['Absent', 'text', null], ['Piège', 'text', null], ['En ligne', 'text', true],
+  ]);
+  assert.equal(d.values[7].format, 'date');
+  assert.ok(Date.now() - Date.parse(d.values[7].value) > 60 * 60_000, 'date telle que renvoyée');
+  assert.deepEqual((await widget('customapi-basic')).values, [{ label: 'Débit', format: 'rate', value: 1_250_000 }]);
+  // Enregistré sous forme d'objets (ligne vide ignorée, libellé par défaut : vide).
+  const saved = (await api('GET', '/api/config')).json.widgets.find((w) => w.id === 'customapi');
+  assert.deepEqual(saved.mappings[2], { path: 'data.items.0.name', label: 'Dernière', format: 'text' });
+  assert.equal(saved.mappings.length, 8);
+});
+
+test('API personnalisée : valeurs invalides refusées à l’enregistrement', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const many = Array.from({ length: 13 }, (_, i) => `v${i}`).join('\n');
+  for (const [mappings, code, params] of [
+    ['', 'mappings_missing'], ['a b | x', 'mapping_invalid', { line: 1 }], ['ok\nx | y | inconnu', 'mapping_invalid', { line: 2 }],
+    ['a..b', 'mapping_invalid', { line: 1 }], [many, 'mappings_too_many', { max: 12 }],
+  ]) {
+    const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { id: 'api-x', type: 'customapi', url: 'http://localhost:18092/stats', mappings }] });
+    assert.deepEqual([r.status, r.json.code, r.json.params], [400, code, params], mappings);
+  }
+});
+
 // ---------- Erreurs ----------
 test('Erreurs : un code traduisible pour chaque cas', async () => {
   const expected = {
     'jellyfin-bad': 'auth_refused',
+    'customapi-bad': 'auth_refused',
+    'customapi-text': 'unexpected_response',
     'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',

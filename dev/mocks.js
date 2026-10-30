@@ -10,6 +10,7 @@
 //   Calendrier   adresse  http://localhost:18091/agenda.ics ; /prive.ics avec agenda / agenda-pass
 //   Flux RSS     http://localhost:18090/rss.xml et /atom.xml (/pas-un-flux : erreur)
 //   GoAccess     http://localhost:17890  rapport JSON, sans clé
+//   API perso    http://localhost:18092/stats (sans clé) ou /prive (en-tête « X-Api-Key: custom-key », ou api / api-pass)
 //   Alwaysdata   URL de l'API http://localhost:17443/v1  jeton  alwaysdata-token (compte facultatif)
 //   Uptime Kuma  http://localhost:13001  page de statut  maison (ou coller http://localhost:13001/status/maison)
 //   Glances      http://localhost:61208  sans mot de passe (PC, API v4)
@@ -27,7 +28,7 @@
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
-  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical'];
+  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 

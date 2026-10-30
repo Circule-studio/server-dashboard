@@ -181,6 +181,33 @@ function sanitizeFeeds(list) {
   return feeds;
 }
 
+// API personnalisée : valeurs à afficher, une par ligne « chemin | libellé | format » (texte saisi)
+// ou objets { path, label, format } (config enregistrée, import).
+const MAX_MAPPINGS = 12;
+const MAPPING_FORMATS = {
+  text: 'text', texte: 'text', number: 'number', nombre: 'number', percent: 'percent', pourcentage: 'percent',
+  bytes: 'bytes', octets: 'bytes', rate: 'rate', debit: 'rate', 'débit': 'rate', date: 'date',
+};
+
+function sanitizeMappings(input) {
+  const lines = Array.isArray(input) ? input : String(input || '').split('\n');
+  const out = [];
+  lines.forEach((line, i) => {
+    const [path, label, format] = typeof line === 'string'
+      ? line.split('|').map((x) => x.trim())
+      : [line?.path, line?.label, line?.format].map((x) => str(x, 100));
+    if (!path) return; // ligne vide
+    const fmt = format ? MAPPING_FORMATS[format.toLowerCase()] : 'text';
+    if (!/^[\w$-]+(\.[\w$-]+)*$/.test(path) || path.length > 200 || !fmt) {
+      throw fail('mapping_invalid', `Ligne ${i + 1} invalide`, { line: i + 1 });
+    }
+    out.push({ path, label: str(label, 60), format: fmt });
+  });
+  if (!out.length) throw fail('mappings_missing', 'Aucune valeur à afficher');
+  if (out.length > MAX_MAPPINGS) throw fail('mappings_too_many', `${MAX_MAPPINGS} valeurs au plus`, { max: MAX_MAPPINGS });
+  return out;
+}
+
 // Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
 // (avant, l'erreur JavaScript brute était renvoyée au navigateur).
 function item(v) {
@@ -225,6 +252,7 @@ function sanitizeWidgets(list, previous = []) {
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
     if (INTEGRATIONS[type].fields.includes('feeds')) out.feeds = sanitizeFeeds(w.feeds);
+    if (INTEGRATIONS[type].fields.includes('mappings')) out.mappings = sanitizeMappings(w.mappings);
     if (INTEGRATIONS[type].fields.includes('slug')) Object.assign(out, statusPage(out.url, str(w.slug, 100)));
     if (INTEGRATIONS[type].fields.includes('repo')) {
       out.repo = githubRepo(str(w.repo, 300));
