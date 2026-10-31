@@ -373,6 +373,8 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 }
 .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18); }
 .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.18); }
+.tile-status { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tile-status.bad { color: var(--bad); }
 .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18); }
 
 .tile-tools { display: flex; gap: 4px; }

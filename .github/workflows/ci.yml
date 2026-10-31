@@ -40,7 +40,7 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Syntaxe JavaScript
-        run: for f in server.js notify.js agent/*.js integrations/*.js dev/*.js dev/mocks/*.js public/*.js public/widgets/*.js test/*.js; do node --check "$f"; done
+        run: for f in server.js notify.js checks.js agent/*.js integrations/*.js dev/*.js dev/mocks/*.js public/*.js public/widgets/*.js test/*.js; do node --check "$f"; done
       # Un caractère de contrôle invisible (ex. \b devenu un vrai retour arrière) casse le code sans erreur.
       - name: Aucun caractère de contrôle caché
         run: "! git grep -nIP '[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]'"
@@ -76,7 +76,7 @@ jobs:
           curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @cfg.json http://127.0.0.1:7575/api/config
           sudo grep -q '"title": "CI"' /var/lib/server-dashboard/config.json
           # Options d'affichage : seule la barre de recherche est masquée.
-          curl -fsS http://127.0.0.1:7575/api/config | grep -q '"display":{"search":false,"theme":true,"lang":true}'
+          curl -fsS http://127.0.0.1:7575/api/config | grep -q '"display":{"search":false,"theme":true,"lang":true,"statusStyle":"dot"}'
           # Mise en page : largeur bornée à 12, hauteur à 60 px minimum, élément inexistant écarté (#61, #75).
           curl -fsS http://127.0.0.1:7575/api/config | grep -q '"layout":\[{"kind":"category","id":"cat-ci","w":12,"h":60}\]'
           # Ordre des cartes de stats : clés inconnues et doublons écartés (#60).

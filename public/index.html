@@ -90,6 +90,18 @@
         <small class="muted" data-i18n-html="app.iconHelp"></small>
       </label>
       <label><span data-i18n="app.description"></span><input name="description" maxlength="200"></label>
+      <label><span data-i18n="app.check"></span>
+        <select name="checkMode">
+          <option value="" data-i18n="app.checkSame"></option>
+          <option value="url" data-i18n="app.checkUrl"></option>
+          <option value="ping" data-i18n="app.checkPing"></option>
+          <option value="none" data-i18n="app.checkNone"></option>
+        </select>
+      </label>
+      <label data-check-target hidden><span data-check-target-label></span>
+        <input name="checkTarget" autocomplete="off" spellcheck="false">
+        <small class="muted" data-check-target-help></small>
+      </label>
       <label><span data-i18n="app.category"></span><select name="category"></select></label>
       <label><span data-i18n="app.link"></span><select name="link"></select>
         <small class="muted" data-i18n="app.linkHelp"></small>
@@ -252,6 +264,12 @@
           <small class="muted" data-i18n="display.engineUrlHelp"></small>
         </label>
         <small class="muted" data-i18n="display.engineHelp"></small>
+      </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="display.status"></legend>
+        <label class="check"><input type="radio" name="statusStyle" value="dot"><span data-i18n="display.statusDot"></span></label>
+        <label class="check"><input type="radio" name="statusStyle" value="ms"><span data-i18n="display.statusMs"></span></label>
+        <label class="check"><input type="radio" name="statusStyle" value="text"><span data-i18n="display.statusText"></span></label>
       </fieldset>
       <fieldset class="sections">
         <legend data-i18n="display.tiles"></legend>

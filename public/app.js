@@ -359,15 +359,22 @@ function welcomeCard() {
       h('a', { class: 'btn btn-ghost', href: 'https://github.com/Circule-studio/server-dashboard#readme', target: '_blank', rel: 'noopener' }, t('welcome.docs'))));
 }
 
+// Style choisi dans Affichage (#94) : pastille seule, pastille et temps de réponse, ou texte.
 function statusDot(app) {
+  if (app.check?.mode === 'none') return null; // simple lien : pas vérifié
+  const style = displayOptions(state.config).statusStyle;
   const s = state.status[app.id];
-  if (!s) return h('span', { class: 'dot', title: t('status.checking') });
+  const wrap = (cls, title, label) => (style === 'dot'
+    ? h('span', { class: `dot ${cls}`, title })
+    : h('span', { class: `tile-status ${cls}`, title }, h('span', { class: `dot ${cls}` }), label));
+  if (!s) return wrap('', t('status.checking'), style === 'text' ? t('status.checking') : '');
   if (!s.online) {
     const why = s.errorCode ? errMsg({ code: s.errorCode }) : s.error;
-    return h('span', { class: 'dot bad', title: `${t('status.offline')}${why ? ' : ' + why : ''}` });
+    return wrap('bad', `${t('status.offline')}${why ? ' : ' + why : ''}`, t('status.offline'));
   }
   const slow = s.ms > 1500;
-  return h('span', { class: `dot ${slow ? 'warn' : 'ok'}`, title: `${t('status.online')} · HTTP ${s.code} · ${s.ms} ms` });
+  const how = s.code ? `HTTP ${s.code}` : s.port ? `TCP ${s.port}` : 'ping';
+  return wrap(slow ? 'warn' : 'ok', `${t('status.online')} · ${how} · ${s.ms} ms`, style === 'text' ? t('status.online') : `${s.ms} ms`);
 }
 
 // VM / LXC Proxmox ou conteneur Docker lié à la tuile (#89) : sa charge sous le nom.
@@ -1024,6 +1031,9 @@ function openAppDialog(ci, ai) {
   form.elements.category.replaceChildren(...state.draft.categories.map((c, i) =>
     h('option', { value: i, selected: i === ci }, c.name)));
   fillLinkSelect(form.elements.link, app.link);
+  form.elements.checkMode.value = app.check?.mode || '';
+  form.elements.checkTarget.value = app.check?.target || '';
+  syncCheckTarget();
   // Le catalogue ne sert qu'à créer une application.
   form.querySelector('[data-catalog]').hidden = ai != null;
   form.elements.catalog.value = '';
@@ -1051,6 +1061,18 @@ function fillLinkSelect(select, link) {
     select.append(h('option', { value: key }, link.type === 'docker' ? `Docker · ${link.container}` : `VM / LXC ${link.vmid}`));
   }
   select.value = key;
+}
+
+// Vérification « autre adresse » ou « ping » : un champ de plus, avec son aide.
+function syncCheckTarget() {
+  const form = $('#appForm');
+  const mode = form.elements.checkMode.value;
+  const box = form.querySelector('[data-check-target]');
+  box.hidden = mode !== 'url' && mode !== 'ping';
+  form.elements.checkTarget.required = !box.hidden;
+  form.elements.checkTarget.placeholder = mode === 'ping' ? '192.168.1.10' : 'http://192.168.1.10:8080';
+  form.querySelector('[data-check-target-label]').textContent = t(mode === 'ping' ? 'app.checkHost' : 'app.checkAddress');
+  form.querySelector('[data-check-target-help]').textContent = t(mode === 'ping' ? 'app.checkHostHelp' : 'app.checkAddressHelp');
 }
 
 function linkFromKey(key) {
@@ -1098,6 +1120,9 @@ function submitApp(e) {
     icon: form.elements.icon.value.trim(),
     description: form.elements.description.value.trim(),
     link: linkFromKey(form.elements.link.value),
+    check: form.elements.checkMode.value
+      ? { mode: form.elements.checkMode.value, target: form.elements.checkTarget.value.trim() || undefined }
+      : undefined,
   };
   const targetCat = Number(form.elements.category.value);
   if (ai != null) {
@@ -1373,7 +1398,8 @@ async function importConfig(file) {
 function openDisplayDialog() {
   const form = $('#displayForm');
   const display = displayOptions(state.draft);
-  for (const key of Object.keys(display)) form.elements[key].checked = display[key];
+  for (const key of ['search', 'theme', 'lang']) form.elements[key].checked = display[key];
+  form.elements.statusStyle.value = display.statusStyle;
   form.elements.tileSize.value = state.draft.tileSize || 'normal';
   // Moteur de recherche : un des moteurs proposés, aucun, ou une adresse personnalisée.
   const engine = state.draft.searchEngine || 'duckduckgo';
@@ -1395,7 +1421,10 @@ function syncEngineUrl() {
 function submitDisplay(e) {
   e.preventDefault();
   const form = e.target;
-  state.draft.display = Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked]));
+  state.draft.display = {
+    ...Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked])),
+    statusStyle: form.elements.statusStyle.value || 'dot',
+  };
   state.draft.tileSize = form.elements.tileSize.value;
   const engine = form.elements.searchEngine.value;
   state.draft.searchEngine = engine === 'custom' ? form.elements.searchUrl.value.trim() : engine;
@@ -1504,7 +1533,7 @@ function renderThemeBtn() {
 }
 
 // Éléments de la barre du haut que l'admin a choisi d'afficher (tous par défaut).
-const displayOptions = (cfg) => ({ search: true, theme: true, lang: true, ...cfg.display });
+const displayOptions = (cfg) => ({ search: true, theme: true, lang: true, statusStyle: 'dot', ...cfg.display });
 
 // ---------- Recherche rapide ----------
 // Commencer à taper n'importe où (ou « / ») ouvre le champ. Il filtre les tuiles et propose, sous
@@ -1676,6 +1705,7 @@ async function init() {
   $('#widgetForm').elements.clearPassword.addEventListener('change', syncClearBoxes);
   $('#loginForm').addEventListener('submit', submitLogin);
   $('#appForm').addEventListener('submit', submitApp);
+  $('#appForm').elements.checkMode.addEventListener('change', syncCheckTarget);
   $('#textForm').addEventListener('submit', (e) => { e.preventDefault(); $('#textDialog').close('ok'); });
   document.querySelectorAll('dialog').forEach(bindCloseButtons);
 

@@ -847,6 +847,33 @@ test('Widget lent : la réponse précédente est servie pendant le rechargement 
   }
 });
 
+test('Statut des tuiles : autre adresse, port TCP, aucune vérification (module seul)', async () => {
+  const http = require('node:http');
+  const { sanitizeCheck, checkApp } = require('../checks');
+  assert.equal(sanitizeCheck(undefined), undefined, 'par défaut : l’adresse de la tuile');
+  assert.deepEqual(sanitizeCheck({ mode: 'none', target: 'x' }), { mode: 'none' });
+  for (const target of ['192.168.1.10', 'nas.lan:22', '[fe80::1]:8006', 'fe80::1']) {
+    assert.deepEqual(sanitizeCheck({ mode: 'ping', target }), { mode: 'ping', target }, target);
+  }
+  for (const [check, code] of [[{ mode: 'ping', target: 'a b' }, 'check_host_invalid'], [{ mode: 'ping', target: 'nas:99999' }, 'check_host_invalid'],
+    [{ mode: 'ping', target: '-c 1000 hote' }, 'check_host_invalid'], [{ mode: 'url', target: 'ftp://x' }, 'invalid_url']]) {
+    assert.throws(() => sanitizeCheck(check), (e) => e.key === code, JSON.stringify(check));
+  }
+  const srv = http.createServer((req, res) => res.end('ok'));
+  const port = await listen(srv);
+  try {
+    assert.equal(await checkApp({ url: 'http://localhost:9/', check: { mode: 'none' } }), null, 'simple lien : pas de statut');
+    const viaUrl = await checkApp({ url: 'http://localhost:9/', check: { mode: 'url', target: `http://localhost:${port}/` } });
+    assert.deepEqual([viaUrl.online, viaUrl.code], [true, 200], 'l’autre adresse est vérifiée, pas celle de la tuile');
+    const tcp = await checkApp({ url: 'http://x/', check: { mode: 'ping', target: `127.0.0.1:${port}` } });
+    assert.deepEqual([tcp.online, tcp.port], [true, port]);
+    const closed = await checkApp({ url: 'http://x/', check: { mode: 'ping', target: '127.0.0.1:9' } });
+    assert.equal(closed.online, false);
+  } finally {
+    srv.close();
+  }
+});
+
 test('Notifications : suivi des changements d’état (module seul)', () => {
   const { createMonitor } = require('../notify');
   const apps = [{ id: 'a', name: 'A', url: 'http://a' }];

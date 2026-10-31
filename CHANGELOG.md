@@ -4,6 +4,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Vérification du statut des tuiles** : pour chaque tuile, la même adresse (par défaut), une autre adresse (ex. l’adresse interne d’un service derrière une authentification), un ping (ICMP, ou connexion TCP avec `hôte:port`) ou aucune (simple lien, sans pastille ni notification). Dans **Affichage**, le statut s’affiche en pastille seule, avec le temps de réponse (« 42 ms ») ou en texte (« En ligne / Hors ligne »). Les notifications suivent la même vérification. Idée reprise de Homepage (#94).
+
 ## [0.18.1] - 2026-10-31
 
 ### Corrigé
