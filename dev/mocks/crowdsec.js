@@ -24,7 +24,9 @@ http.createServer((req, res) => {
   req.on('end', () => {
     if (req.method === 'POST' && req.url === '/v1/watchers/login') {
       const b = JSON.parse(body || '{}');
-      if (b.machine_id !== 'dashboard' || b.password !== 'crowdsec-pass') { res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"code":401,"message":"incorrect Username or Password"}'); }
+      // Comme la vraie LAPI : un User-Agent sans « nom/version » fait échouer la connexion.
+      const badAgent = !/^[^/\s]+\/\S+/.test(req.headers['user-agent'] || '');
+      if (badAgent || b.machine_id !== 'dashboard' || b.password !== 'crowdsec-pass') { res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"code":401,"message":"incorrect Username or Password"}'); }
       return json(res, { code: 200, expire: new Date(Date.now() + 3600e3).toISOString(), token: TOKEN });
     }
     if (req.url.startsWith('/v1/alerts')) {

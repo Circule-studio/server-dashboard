@@ -2,6 +2,11 @@
 
 const http = require('http');
 const https = require('https');
+const { version } = require('../package.json');
+
+// Envoyé à chaque service, sauf si l'intégration en donne un autre. Sans en-tête User-Agent, ou avec
+// une valeur sans « nom/version », certaines API refusent la requête (CrowdSec répond 401 à la connexion).
+const USER_AGENT = `server-dashboard/${version}`;
 
 // Les erreurs réseau de Node (ECONNREFUSED…) n'ont souvent pas de message lisible.
 const NETWORK_ERRORS = {
@@ -53,7 +58,7 @@ function request(url, {
       fn(value);
     };
     const lib = u.protocol === 'https:' ? https : http;
-    const req = lib.request(u, { method, headers, timeout, rejectUnauthorized: verifyTls }, (res) => {
+    const req = lib.request(u, { method, headers: { 'User-Agent': USER_AGENT, ...headers }, timeout, rejectUnauthorized: verifyTls }, (res) => {
       res.on('error', (e) => finish(reject, networkError(e)));
       if (discardBody) {
         res.destroy();
