@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.18.1] - 2026-10-31
+
+### Corrigé
+- Widget CrowdSec : la connexion du compte machine était refusée (« Identifiants refusés ») avec le bon mot de passe. CrowdSec refuse une connexion dont le User-Agent n’a pas la forme `nom/version` ; le dashboard n’en envoyait pas. Il s’annonce maintenant `server-dashboard/<version>` auprès de tous les services. Trouvé en installant CrowdSec devant Immich (#105).
+
 ## [0.18.0] - 2026-10-31
 
 ### Ajouté
@@ -233,7 +238,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.0...v0.16.1
