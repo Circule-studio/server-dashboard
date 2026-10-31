@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.22.0] - 2026-10-31
+
+### Ajouté
+- **Onglets** : plusieurs pages dans le même dashboard (ex. « Maison », « Serveur », « Médias »), sous la barre du haut. En mode édition, « + Onglet » en crée un ; chaque widget et chaque catégorie choisit son onglet, ou « Tous les onglets ». Renommer, réordonner et supprimer un onglet (son contenu s’affiche alors partout). Lien direct vers un onglet (`#medias`), dernier onglet ouvert mémorisé, flèches du clavier. La recherche parcourt tous les onglets. Sans onglet créé, rien ne change (#92).
+- **Catégories repliables** d’un clic sur leur titre, état mémorisé dans le navigateur ; option « Repliée par défaut » et icône facultative à côté du nom, dans la nouvelle fenêtre de réglages de la catégorie (#92).
+
 ## [0.21.0] - 2026-10-31
 
 ### Ajouté
@@ -262,7 +268,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.21.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.0...v0.19.1
