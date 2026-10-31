@@ -4,8 +4,13 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.21.0] - 2026-10-31
+
 ### Ajouté
 - **Version du dashboard** en haut de la page, à côté du nom du serveur, pour l’admin connecté. Quand une release plus récente existe, elle est signalée avec un lien vers ses nouveautés. GitHub est interrogé au plus toutes les 12 h ; `UPDATE_CHECK=false` désactive cette vérification (#112).
+
+### Corrigé
+- Widget Wazuh : avec l’adresse de l’interface web de Wazuh (port 443) au lieu de celle de l’API (port 55000), le widget affichait « Erreur HTTP 404 ». Il indique maintenant quelle adresse utiliser ; de même pour une mauvaise adresse d’indexer (#103).
 
 ## [0.20.0] - 2026-10-31
 
@@ -257,7 +262,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.20.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.1...v0.19.0
