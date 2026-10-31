@@ -65,6 +65,9 @@ EnvironmentFile=/etc/server-dashboard/server-dashboard.env
 ExecStart=$(command -v node) /opt/server-dashboard/server.js
 Restart=on-failure
 RestartSec=5
+# Ping ICMP des tuiles (#94) : seul droit accordé, la commande ping n'en a pas toujours dans un conteneur.
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true

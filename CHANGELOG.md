@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.19.1] - 2026-10-31
+
+### Corrigé
+- Ping ICMP des tuiles dans un conteneur LXC non privilégié : la commande `ping` y était refusée au compte du service. Le service systemd reçoit maintenant le seul droit `CAP_NET_RAW` (installation sans Docker et script Proxmox). Relancer l’installation pour l’appliquer (#94).
+
 ## [0.19.0] - 2026-10-31
 
 ### Ajouté
@@ -243,7 +248,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.17.0...v0.18.0
