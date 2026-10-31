@@ -4,6 +4,8 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.19.0] - 2026-10-31
+
 ### Ajouté
 - **Vérification du statut des tuiles** : pour chaque tuile, la même adresse (par défaut), une autre adresse (ex. l’adresse interne d’un service derrière une authentification), un ping (ICMP, ou connexion TCP avec `hôte:port`) ou aucune (simple lien, sans pastille ni notification). Dans **Affichage**, le statut s’affiche en pastille seule, avec le temps de réponse (« 42 ms ») ou en texte (« En ligne / Hors ligne »). Les notifications suivent la même vérification. Idée reprise de Homepage (#94).
 
@@ -241,7 +243,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.1...v0.17.0
