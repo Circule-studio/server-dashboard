@@ -14,13 +14,13 @@
 //   reset()       vide les sessions et caches propres au service quand la config change
 //   alerts(d, w)  éléments surveillés par les notifications quand « M'alerter » est coché :
 //                 [{ id stable, name, url, online, problem?, value? }] tirés des données d (ex. VM
-//                 Proxmox arrêtée). problem : 'disk', 'cert', 'backup' ou 'smart' pour un message adapté (notify.js)
+//                 Proxmox arrêtée). problem : 'disk', 'cert', 'backup', 'smart' ou 'attacks' pour un message adapté (notify.js)
 //   offlineCodes  codes d'erreur qui veulent dire « machine éteinte » : alerte sur `${id}:machine`
 
 const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
-const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pbs', 'scrutiny', 'speedtest', 'pulse',
+const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pbs', 'scrutiny', 'crowdsec', 'speedtest', 'pulse',
   'glances', 'agent', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr', 'customapi'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
