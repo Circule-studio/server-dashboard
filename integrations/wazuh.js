@@ -16,8 +16,10 @@ async function wazuhLogin(w) {
   });
   if (r.status === 200 && r.json?.data?.token) return { token: r.json.data.token, expires: Date.now() + 12 * 60_000 }; // jeton de 15 min
   if (r.status === 401 || r.status === 403) throw fail('wazuh_credentials', 'Identifiants de l\'API Wazuh refusés');
+  // 404 : souvent l'adresse de l'interface web de Wazuh (port 443) au lieu de celle de l'API.
+  if (r.status === 404 || r.status === 405) throw fail('wazuh_api', 'API Wazuh introuvable : utilise l\'adresse de l\'API du manager (https://IP:55000), pas celle de l\'interface web');
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
-  throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL : API du manager, port 55000)');
+  throw fail('wazuh_api', 'API Wazuh introuvable : utilise l\'adresse de l\'API du manager (https://IP:55000), pas celle de l\'interface web');
 }
 
 const sessions = sessionCache(wazuhLogin);
@@ -58,6 +60,7 @@ async function indexerAlerts(w) {
     method: 'POST', body, headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Content-Length': Buffer.byteLength(body), ...auth },
   });
   if (r.status === 401 || r.status === 403) throw fail('wazuh_indexer_credentials', 'Identifiants de l\'indexer Wazuh refusés');
+  if (r.status === 404 || r.status === 405) throw fail('wazuh_indexer_url', 'Indexer Wazuh introuvable : utilise l\'adresse de l\'indexer (https://IP:9200)');
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
   const aggs = r.json?.aggregations;
   if (!aggs) throw fail('unexpected_response', 'Réponse inattendue de l\'indexer (vérifie l\'URL : port 9200)');

@@ -90,6 +90,8 @@ const WIDGETS = [
   { id: 'traefik-bad', type: 'traefik', url: 'http://localhost:18098', username: 'traefik', password: 'faux' },
   { id: 'wazuh', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass', indexerUrl: 'http://localhost:18097', apiKey: 'admin:indexer-pass' },
   { id: 'wazuh-noindex', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass' },
+  { id: 'wazuh-web', type: 'wazuh', url: 'http://localhost:18094', username: 'wazuh-wui', password: 'wazuh-pass' },
+  { id: 'wazuh-badindex', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass', indexerUrl: 'http://localhost:18094', apiKey: 'admin:indexer-pass' },
   { id: 'wazuh-bad', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'faux' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
@@ -365,6 +367,7 @@ test('Wazuh : agents, alertes de l’indexer, sans indexer', async () => {
   assert.deepEqual([d.version, d.agents.active, d.agents.disconnected, d.agents.never], ['v4.12.0', 3, 1, 1]);
   assert.deepEqual(d.disconnected.map((a) => a.name), ['nas']);
   assert.deepEqual([d.alerts.high, d.alerts.medium, d.alerts.low, d.alerts.recent.length], [2, 30, 380, 3]);
+  assert.equal((await widget('wazuh-badindex')).alertsError, 'wazuh_indexer_url', 'mauvaise adresse d’indexer : agents affichés quand même');
   const plain = await widget('wazuh-noindex');
   assert.deepEqual([plain.alerts, plain.agents.active], [null, 3], 'sans indexer : seulement les agents');
   const { INTEGRATIONS } = require('../integrations');
@@ -538,6 +541,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'rss-bad': 'rss_invalid',
     'traefik-bad': 'auth_refused',
     'wazuh-bad': 'wazuh_credentials',
+    'wazuh-web': 'wazuh_api',
     'crowdsec-bad': 'crowdsec_credentials',
     'crowdsec-badkey': 'crowdsec_key',
     'ical-bad': 'ical_invalid',
