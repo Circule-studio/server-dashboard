@@ -265,6 +265,12 @@
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/immich.svg" alt="" loading="lazy">Immich</span>
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pi-hole.svg" alt="" loading="lazy">Pi-hole</span>
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/adguard-home.svg" alt="" loading="lazy">AdGuard Home</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/home-assistant.svg" alt="" loading="lazy">Home Assistant</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/uptime-kuma.svg" alt="" loading="lazy">Uptime Kuma</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/frigate.svg" alt="" loading="lazy">Frigate</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/crowdsec.svg" alt="" loading="lazy">CrowdSec</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/wazuh.svg" alt="" loading="lazy">Wazuh</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/traefik.svg" alt="" loading="lazy">Traefik</span>
         </div>
         <ul class="checks">
           <li><b>Proxmox VE:</b> host CPU, RAM and disk, and the state of every VM and LXC container.</li>
@@ -275,7 +281,9 @@
           <li><b>Pi-hole and AdGuard Home:</b> DNS queries, blocked queries and protection status.</li>
           <li><b>Immich:</b> photos, videos and storage, per user with quotas.</li>
           <li><b>Weather:</b> current conditions and a 5-day forecast, no API key (Open-Meteo).</li>
-          <li><b>Coming soon:</b> Nginx Proxy Manager, Home Assistant, Frigate… and the widget you suggest.</li>
+          <li><b>Home Assistant and Frigate:</b> your sensors and entities, cameras and the latest events.</li>
+          <li><b>Security with CrowdSec, Wazuh and Traefik:</b> attacks and banned addresses, agents and security alerts, failing routers.</li>
+          <li><b>And over 30 widgets in all:</b> Uptime Kuma, Nginx Proxy Manager, Speedtest, Scrutiny, RSS feeds, calendar… and the widget you suggest.</li>
         </ul>
       </div>
       <div class="phone">
@@ -340,14 +348,25 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
             <li>GitHub, Uptime Kuma, Home Assistant, Frigate and Nginx Proxy Manager widgets</li>
             <li>GoAccess, Alwaysdata, RSS / Atom feed and iCal calendar widgets</li>
             <li>Proxmox Backup Server, Scrutiny, Speedtest Tracker, Lidarr, Readarr, Prowlarr, Bazarr and custom API widgets</li>
+            <li>CrowdSec, Wazuh and Traefik security widgets</li>
+            <li>Tile status from another address or a ping, with the response time</li>
             <li>Tiles linked to a VM, LXC or container (CPU and RAM)</li>
             <li>Several machines on the same dashboard (Glances or agent)</li>
-            <li>ntfy, Gotify, Discord or webhook notifications when an app goes down, a VM stops or a disk fills up</li>
+            <li>ntfy, Gotify, Discord or webhook notifications when an app goes down, a VM stops, a disk fills up or an attack is detected</li>
             <li>Catalog of well-known apps and tile sizes</li>
             <li>Configuration export and import</li>
             <li>Docker (amd64 / arm64 image) or systemd install</li>
             <li>Welcome screen on first launch</li>
             <li>Interface and website in English and French</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <div class="phase-head"><h3>Organization and customization</h3><span class="tag tag-next">Up next</span></div>
+          <ul>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/92">Tabs and collapsible categories <span>#92</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/93">Bookmarks: compact lists of links <span>#93</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/95">Background image, accent color and installable app <span>#95</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/96">Per-widget settings: shown figures and color thresholds <span>#96</span></a></li>
           </ul>
         </article>
         <article class="phase">
@@ -361,6 +380,7 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
           <div class="phase-head"><h3>Further out</h3><span class="tag tag-later">Being explored</span></div>
           <ul>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/15">One-click install via community-scripts (Proxmox) <span>#15</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/105">Honeypot: see who is attacking the server in real time <span>#105</span></a></li>
           </ul>
         </article>
       </div>

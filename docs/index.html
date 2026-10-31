@@ -272,6 +272,12 @@
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/immich.svg" alt="" loading="lazy">Immich</span>
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pi-hole.svg" alt="" loading="lazy">Pi-hole</span>
           <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/adguard-home.svg" alt="" loading="lazy">AdGuard Home</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/home-assistant.svg" alt="" loading="lazy">Home Assistant</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/uptime-kuma.svg" alt="" loading="lazy">Uptime Kuma</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/frigate.svg" alt="" loading="lazy">Frigate</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/crowdsec.svg" alt="" loading="lazy">CrowdSec</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/wazuh.svg" alt="" loading="lazy">Wazuh</span>
+          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/traefik.svg" alt="" loading="lazy">Traefik</span>
         </div>
         <ul class="checks">
           <li><b>Proxmox VE :</b> CPU, RAM et disque de l’hôte, état de toutes tes VM et conteneurs LXC.</li>
@@ -282,7 +288,9 @@
           <li><b>Pi-hole et AdGuard Home :</b> requêtes DNS, requêtes bloquées et état de la protection.</li>
           <li><b>Immich :</b> photos, vidéos et stockage, par utilisateur avec les quotas.</li>
           <li><b>Météo :</b> conditions actuelles et prévisions sur 5 jours, sans clé API (Open-Meteo).</li>
-          <li><b>Bientôt :</b> Nginx Proxy Manager, Home Assistant, Frigate… et le widget que tu proposeras.</li>
+          <li><b>Home Assistant et Frigate :</b> tes capteurs et entités, les caméras et les derniers événements.</li>
+          <li><b>Sécurité avec CrowdSec, Wazuh et Traefik :</b> attaques et adresses bannies, agents et alertes de sécurité, routeurs en erreur.</li>
+          <li><b>Et plus de 30 widgets au total :</b> Uptime Kuma, Nginx Proxy Manager, Speedtest, Scrutiny, flux RSS, calendrier… et le widget que tu proposeras.</li>
         </ul>
       </div>
       <div class="phone">
@@ -347,14 +355,25 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
             <li>Widgets GitHub, Uptime Kuma, Home Assistant, Frigate et Nginx Proxy Manager</li>
             <li>Widgets GoAccess, Alwaysdata, flux RSS / Atom et calendrier iCal</li>
             <li>Widgets Proxmox Backup Server, Scrutiny, Speedtest Tracker, Lidarr, Readarr, Prowlarr, Bazarr et API personnalisée</li>
+            <li>Widgets sécurité CrowdSec, Wazuh et Traefik</li>
+            <li>Statut des tuiles par une autre adresse ou un ping, avec le temps de réponse</li>
             <li>Tuiles liées à une VM, un LXC ou un conteneur (CPU et RAM)</li>
             <li>Plusieurs machines sur le même dashboard (Glances ou agent)</li>
-            <li>Notifications ntfy, Gotify, Discord ou webhook quand une app tombe, une VM s’arrête ou un disque se remplit</li>
+            <li>Notifications ntfy, Gotify, Discord ou webhook quand une app tombe, une VM s’arrête, un disque se remplit ou une attaque est détectée</li>
             <li>Catalogue d'apps connues et taille des tuiles</li>
             <li>Export et import de la configuration</li>
             <li>Installation Docker (image amd64 / arm64) ou systemd</li>
             <li>Écran d'accueil au premier lancement</li>
             <li>Interface et site en français et en anglais</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <div class="phase-head"><h3>Organisation et personnalisation</h3><span class="tag tag-next">Prochainement</span></div>
+          <ul>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/92">Onglets et catégories repliables <span>#92</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/93">Favoris : des listes de liens compactes <span>#93</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/95">Image de fond, couleur d’accent et application installable <span>#95</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/96">Réglages par widget : chiffres affichés et seuils de couleur <span>#96</span></a></li>
           </ul>
         </article>
         <article class="phase">
@@ -368,6 +387,7 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
           <div class="phase-head"><h3>Plus loin</h3><span class="tag tag-later">À l'étude</span></div>
           <ul>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/15">Installation en un clic via community-scripts (Proxmox) <span>#15</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/105">Honeypot : voir en temps réel qui attaque le serveur <span>#105</span></a></li>
           </ul>
         </article>
       </div>
