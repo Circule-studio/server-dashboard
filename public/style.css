@@ -314,7 +314,30 @@ a.version-update:hover { text-decoration: underline; }
 /* ---------- Catégories & tuiles ---------- */
 .category { padding-bottom: 8px; }
 .category-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.category-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--muted); }
+.category-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.category-head .category-icon { width: 24px; height: 24px; border-radius: 6px; font-size: 0.75rem; flex: none; }
+/* Titre cliquable pour replier la catégorie (#92). */
+.category-toggle {
+  display: flex; align-items: center; gap: 8px; padding: 2px 4px; margin: -2px -4px;
+  border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; cursor: pointer;
+}
+.category-toggle:hover { color: var(--text); }
+.category-toggle:focus-visible { outline: 2px solid var(--accent); }
+.category-toggle .chevron { display: inline-block; transform: rotate(90deg); transition: transform 0.15s; font-size: 1.1rem; line-height: 1; }
+.category-toggle[aria-expanded="false"] .chevron { transform: none; }
+.category.collapsed .category-head { margin-bottom: 0; }
+
+/* ---------- Onglets (#92) ---------- */
+.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 16px; border-bottom: 1px solid var(--border); }
+.tab {
+  padding: 8px 14px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent;
+  background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px 6px 0 0; }
+.tab-tools { display: inline-flex; gap: 2px; margin-right: 8px; }
+.item-tab { max-width: 9rem; font-size: 0.75rem; padding: 2px 4px; }
 .category-tools { display: flex; gap: 4px; margin-left: auto; }
 
 .grid {

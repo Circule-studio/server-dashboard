@@ -609,6 +609,41 @@ test('Taille des tuiles : invalide ou absente = inchangée', async () => {
   assert.equal(r.json.tileSize, 'large');
 });
 
+test('Onglets et catégories repliables (#92)', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  let r = await api('PUT', '/api/config', {
+    ...cfg,
+    tabs: [{ id: 'maison', name: 'Maison' }, { id: 'maison', name: 'Doublon' }, { name: '' }, 'invalide'],
+    categories: [
+      { id: 'c1', name: 'Médias', icon: 'jellyfin', collapsed: true, apps: [] },
+      { id: 'c2', name: 'Infra', icon: '', collapsed: 'oui', apps: [] },
+    ],
+    layout: [
+      { kind: 'category', id: 'c1', w: 12, tab: 'maison' },
+      { kind: 'category', id: 'c2', w: 12, tab: 'onglet-supprime' },
+      { kind: 'widget', id: 'jellyfin', w: 3 },
+    ],
+  });
+  assert.equal(r.status, 200, r.text);
+  const { tabs, categories, layout } = r.json;
+  assert.equal(tabs.length, 3, 'onglet invalide ignoré');
+  assert.deepEqual([tabs[0], tabs[2].name], [{ id: 'maison', name: 'Maison' }, 'Onglet']);
+  assert.notEqual(tabs[1].id, 'maison', 'identifiant en double remplacé');
+  assert.deepEqual(categories.map(({ apps, ...c }) => c), [
+    { id: 'c1', name: 'Médias', icon: 'jellyfin', collapsed: true },
+    { id: 'c2', name: 'Infra' },
+  ]);
+  assert.deepEqual(layout.map((it) => it.tab ?? null), ['maison', null, null], 'onglet inconnu : élément affiché partout');
+  // Ancienne interface (sans « tabs ») : onglets inchangés.
+  const { tabs: _, ...withoutTabs } = r.json;
+  r = await api('PUT', '/api/config', withoutTabs);
+  assert.equal(r.json.tabs.length, 3);
+  r = await api('PUT', '/api/config', { ...r.json, tabs: [] });
+  assert.deepEqual([r.json.tabs, r.json.layout.some((it) => it.tab)], [[], false], 'onglets supprimés : éléments affichés partout');
+  r = await api('PUT', '/api/config', { ...r.json, categories: cfg.categories, layout: cfg.layout });
+  assert.equal(r.status, 200, r.text);
+});
+
 // ---------- Secrets ----------
 test('Version : réservée à l’admin, avec la release plus récente', async () => {
   const r = await api('GET', '/api/version');

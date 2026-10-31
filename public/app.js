@@ -15,6 +15,7 @@ const state = {
   searchOpen: false, // champ ouvert avec « / » alors que la barre est masquée
   searchItems: [],   // suggestions de la recherche rapide, et celle choisie au clavier
   searchIndex: 0,
+  tab: null,         // onglet affiché (#92) ; null : premier onglet
 };
 
 // ---------- Utilitaires ----------
@@ -138,8 +139,12 @@ function render() {
   // celle du brouillon : déplacer ou redimensionner modifie directement ses objets.
   const layout = layoutOf(cfg);
   if (state.editing) cfg.layout = layout;
+  const tab = activeTab(cfg);
+  renderTabs(cfg, tab);
   let found = 0;
   layout.forEach((item, index) => {
+    // Un élément sans onglet s'affiche dans tous ; la recherche parcourt tous les onglets.
+    if (tab && !q && item.tab && item.tab !== tab) return;
     let el;
     if (item.kind === 'widget') {
       const wi = cfg.widgets.findIndex((w) => w.id === item.id);
@@ -152,6 +157,9 @@ function render() {
     }
     if (el) board.append(boardItem(el, item, index));
   });
+  if (tab && !q && !board.querySelector('.board-item') && (cfg.categories.length || cfg.widgets?.length)) {
+    boardMessage(h('div', { class: 'empty' }, t(state.editing ? 'tab.emptyEditing' : 'tab.empty')));
+  }
   if (q && !found) boardMessage(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
   layoutBoard();
@@ -170,10 +178,19 @@ function categoryEl(cat, ci, q) {
   const catMatch = !q || fold(cat.name).includes(q);
   const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
   if (!state.editing && !apps.length) return { el: null, found: 0 };
-  const head = h('div', { class: 'category-head' }, h('h2', {}, cat.name));
+  // Repliée seulement hors édition et hors recherche : on doit voir ce qu'on modifie ou cherche.
+  const collapsed = !state.editing && !q && isCollapsed(cat);
+  const icon = cat.icon ? iconEl(cat) : null;
+  icon?.classList.add('category-icon');
+  const title = state.editing
+    ? h('h2', {}, icon, cat.name)
+    : h('h2', {}, h('button', {
+      class: 'category-toggle', 'aria-expanded': String(!collapsed), onclick: () => toggleCategory(cat),
+    }, icon, h('span', {}, cat.name), h('span', { class: 'chevron', 'aria-hidden': 'true' }, '›')));
+  const head = h('div', { class: 'category-head' }, title);
   if (state.editing) {
     head.append(h('div', { class: 'category-tools' },
-      h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameCategory(ci) }, '✎'),
+      h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openCategoryDialog(ci) }, '✎'),
       h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
     ));
   }
@@ -182,7 +199,123 @@ function categoryEl(cat, ci, q) {
   const grid = h('div', { class: 'grid', 'data-cat': ci, 'data-drop': state.editing ? 'tile' : null });
   apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
   if (state.editing) grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
-  return { el: h('section', { class: 'category' }, head, grid), found: apps.length };
+  return { el: h('section', { class: `category${collapsed ? ' collapsed' : ''}` }, head, collapsed ? null : grid), found: apps.length };
+}
+
+// Catégories repliées ou dépliées par ce visiteur (navigateur) ; sinon le réglage de la catégorie.
+const COLLAPSED_KEY = 'sd-collapsed';
+function collapsedState() {
+  try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY)) || {}; } catch { return {}; }
+}
+const isCollapsed = (cat) => collapsedState()[cat.id] ?? !!cat.collapsed;
+
+function toggleCategory(cat) {
+  const saved = collapsedState();
+  saved[cat.id] = !isCollapsed(cat);
+  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(saved)); } catch { /* stockage indisponible */ }
+  render();
+}
+
+// ---------- Onglets (#92) ----------
+// Plusieurs pages dans le même dashboard. Chaque élément de la mise en page a un onglet
+// (item.tab) ou aucun : il s'affiche alors dans tous. Sans onglet créé, rien ne change.
+const tabsOf = (cfg) => cfg.tabs || [];
+const tabSlug = (tab) => fold(tab.name).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || tab.id;
+const TAB_KEY = 'sd-tab';
+const MAX_TABS = 20; // même limite que server.js
+
+function activeTab(cfg) {
+  const tabs = tabsOf(cfg);
+  if (!tabs.length) return null;
+  return tabs.some((tb) => tb.id === state.tab) ? state.tab : tabs[0].id;
+}
+
+// Onglet demandé par l'adresse (#medias), sinon le dernier ouvert dans ce navigateur.
+function initialTab(cfg) {
+  const wanted = decodeURIComponent(location.hash.slice(1));
+  const fromHash = wanted && tabsOf(cfg).find((tb) => tabSlug(tb) === wanted || tb.id === wanted);
+  if (fromHash) return fromHash.id;
+  try { return localStorage.getItem(TAB_KEY); } catch { return null; }
+}
+
+function selectTab(id, focus = false) {
+  state.tab = id;
+  try { localStorage.setItem(TAB_KEY, id); } catch { /* stockage indisponible */ }
+  const tab = tabsOf(current()).find((tb) => tb.id === id);
+  if (tab) history.replaceState(null, '', `#${tabSlug(tab)}`);
+  render();
+  if (focus) $('#tabs [aria-selected="true"]')?.focus();
+}
+
+function renderTabs(cfg, active) {
+  const nav = $('#tabs');
+  const tabs = tabsOf(cfg);
+  nav.hidden = !tabs.length;
+  nav.replaceChildren(...tabs.flatMap((tb, i) => {
+    const on = tb.id === active;
+    const btn = h('button', {
+      class: 'tab', role: 'tab', id: `tab-${tb.id}`, 'aria-selected': String(on), tabindex: on ? '0' : '-1',
+      onclick: () => selectTab(tb.id),
+    }, tb.name);
+    if (!state.editing || !on) return [btn];
+    return [btn, h('span', { class: 'tab-tools' },
+      h('button', { class: 'icon-btn', title: t('tab.moveLeft'), disabled: i === 0, onclick: () => moveTab(i, -1) }, '‹'),
+      h('button', { class: 'icon-btn', title: t('tab.moveRight'), disabled: i === tabs.length - 1, onclick: () => moveTab(i, 1) }, '›'),
+      h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameTab(i) }, '✎'),
+      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteTab(i) }, '✕'))];
+  }));
+}
+
+// Flèches gauche / droite, Début / Fin : onglet voisin (motif « tablist » de l'ARIA).
+function onTabsKey(e) {
+  if (!e.target.matches('.tab')) return;
+  const tabs = tabsOf(current());
+  const i = tabs.findIndex((tb) => tb.id === activeTab(current()));
+  const next = { ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: tabs.length - 1 }[e.key];
+  if (next == null) return;
+  e.preventDefault();
+  selectTab(tabs[(next + tabs.length) % tabs.length].id, true);
+}
+
+async function addTab() {
+  const tabs = tabsOf(state.draft);
+  if (tabs.length >= MAX_TABS) return toast(t('tab.max', { max: MAX_TABS }), true);
+  const name = await askText(t('tab.new'), t('common.name'));
+  if (!name) return;
+  const id = uid('tab');
+  // Le premier onglet reçoit tout ce qui existe déjà : les suivants partent vides.
+  if (!tabs.length) state.draft.layout = layoutOf(state.draft).map((it) => ({ ...it, tab: id }));
+  state.draft.tabs = [...tabs, { id, name }];
+  selectTab(id);
+}
+
+async function renameTab(i) {
+  const name = await askText(t('tab.rename'), t('common.name'), state.draft.tabs[i].name);
+  if (name) { state.draft.tabs[i].name = name; selectTab(state.draft.tabs[i].id); }
+}
+
+// Ce qui était dans l'onglet supprimé s'affiche ensuite dans tous les onglets : rien n'est perdu.
+function deleteTab(i) {
+  const tab = state.draft.tabs[i];
+  if (!confirm(t('tab.deleteConfirm', { name: tab.name }))) return;
+  state.draft.tabs.splice(i, 1);
+  for (const it of state.draft.layout || []) if (it.tab === tab.id) delete it.tab;
+  render();
+}
+
+function moveTab(i, delta) {
+  const tabs = state.draft.tabs;
+  [tabs[i], tabs[i + delta]] = [tabs[i + delta], tabs[i]];
+  render();
+}
+
+// Un élément créé pendant qu'un onglet est affiché va dans cet onglet.
+function placeInTab(kind, id) {
+  const tab = activeTab(state.draft);
+  if (!tab) return;
+  state.draft.layout = layoutOf(state.draft);
+  const it = state.draft.layout.find((x) => x.kind === kind && x.id === id);
+  if (it) it.tab = tab;
 }
 
 // ---------- Grille de mise en page ----------
@@ -203,15 +336,17 @@ function layoutOf(cfg) {
   const lists = { widget: cfg.widgets || [], category: cfg.categories };
   const items = [];
   const seen = new Set();
-  const add = (kind, id, w, height) => {
+  const tabs = new Set(tabsOf(cfg).map((tb) => tb.id));
+  const add = (kind, id, w, height, tab) => {
     const key = `${kind}:${id}`;
     if (!lists[kind] || seen.has(key) || !lists[kind].some((x) => x.id === id)) return;
     seen.add(key);
     const item = { kind, id, w: Math.min(GRID_COLS, Math.max(1, Math.round(w) || DEFAULT_WIDTH[kind])) };
     if (height > 0) item.h = Math.max(MIN_HEIGHT, Math.round(height));
+    if (tabs.has(tab)) item.tab = tab;
     items.push(item);
   };
-  for (const it of cfg.layout || []) add(it.kind, it.id, it.w, it.h);
+  for (const it of cfg.layout || []) add(it.kind, it.id, it.w, it.h, it.tab);
   for (const w of lists.widget) add('widget', w.id, DEFAULT_WIDTH.widget);
   for (const c of lists.category) add('category', c.id, DEFAULT_WIDTH.category);
   return items;
@@ -257,6 +392,15 @@ function boardItem(el, item, index) {
   if (!state.editing) return el;
 
   el.dataset.index = index;
+  const tabs = tabsOf(state.draft);
+  if (tabs.length) {
+    const select = h('select', {
+      class: 'item-tab', title: t('tab.move'), 'aria-label': t('tab.move'),
+      onchange: (e) => { if (e.target.value) item.tab = e.target.value; else delete item.tab; render(); },
+    }, h('option', { value: '' }, t('tab.all')), tabs.map((tb) => h('option', { value: tb.id }, tb.name)));
+    select.value = item.tab || '';
+    (el.querySelector('.category-tools, .tile-tools') || el).prepend(select);
+  }
   el.append(h('div', {
     class: 'resize-handle', title: t('layout.resize'), 'aria-hidden': 'true',
     onpointerdown: (e) => startResize(e, el, item),
@@ -740,7 +884,10 @@ function submitWidget(e) {
     }
   }
   if (prev) state.draft.widgets[widgetDialogIndex] = w;
-  else state.draft.widgets.push(w);
+  else {
+    state.draft.widgets.push(w);
+    placeInTab('widget', w.id);
+  }
   $('#widgetDialog').close();
   render();
 }
@@ -909,9 +1056,38 @@ function makeStatDraggable(card) {
 }
 
 // ---------- Actions d'édition ----------
-async function renameCategory(ci) {
-  const name = await askText(t('category.rename'), t('common.name'), state.draft.categories[ci].name);
-  if (name) { state.draft.categories[ci].name = name; render(); }
+let categoryDialogIndex = null;
+
+function openCategoryDialog(ci) {
+  categoryDialogIndex = ci;
+  const cat = ci != null ? state.draft.categories[ci] : {};
+  const f = $('#categoryForm').elements;
+  $('#categoryDialogTitle').textContent = ci != null ? t('category.edit') : t('category.new');
+  f.name.value = cat.name || '';
+  f.icon.value = cat.icon || '';
+  f.collapsed.checked = !!cat.collapsed;
+  $('#categoryDialog').showModal();
+}
+
+function submitCategory(e) {
+  e.preventDefault();
+  const f = e.target.elements;
+  const name = f.name.value.trim();
+  if (!name) return;
+  let cat = state.draft.categories[categoryDialogIndex];
+  if (!cat) {
+    cat = { id: uid('cat'), name, apps: [] };
+    state.draft.categories.push(cat);
+    placeInTab('category', cat.id);
+  }
+  cat.name = name;
+  const icon = f.icon.value.trim();
+  if (icon) cat.icon = icon;
+  else delete cat.icon;
+  if (f.collapsed.checked) cat.collapsed = true;
+  else delete cat.collapsed;
+  $('#categoryDialog').close();
+  render();
 }
 
 function deleteCategory(ci) {
@@ -1690,9 +1866,15 @@ async function init() {
   // Fermer l'onglet ou recharger avec des modifications : le navigateur demande confirmation.
   window.addEventListener('beforeunload', (e) => { if (isDirty()) e.preventDefault(); });
   $('#authBtn').addEventListener('click', onAuthClick);
-  $('#addCatBtn').addEventListener('click', async () => {
-    const name = await askText(t('category.new'), t('common.name'));
-    if (name) { state.draft.categories.push({ id: uid('cat'), name, apps: [] }); render(); }
+  $('#addCatBtn').addEventListener('click', () => openCategoryDialog());
+  $('#categoryForm').addEventListener('submit', submitCategory);
+  $('#addTabBtn').addEventListener('click', addTab);
+  $('#tabs').addEventListener('keydown', onTabsKey);
+  window.addEventListener('hashchange', () => {
+    const cfg = current();
+    if (!cfg) return;
+    const id = initialTab(cfg);
+    if (id && id !== state.tab) selectTab(id);
   });
   $('#renameBoardBtn').addEventListener('click', async () => {
     const title = await askText(t('board.rename'), t('common.title'), state.draft.title);
@@ -1741,6 +1923,7 @@ async function init() {
 
   state.config = await api('/api/config');
   if (!displayOptions(state.config).lang) followBrowserLang();
+  state.tab = initialTab(state.config);
   render();
   refreshVersion();
 

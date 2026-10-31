@@ -353,6 +353,14 @@ function sanitizeDisplay(display) {
 // dans la grille. Seuls les éléments qui existent sont gardés ; ceux qui manquent
 // sont placés par l'interface (largeur par défaut, à la fin).
 const LAYOUT_KINDS = { widget: 'widgets', category: 'categories' };
+const MAX_TABS = 20;
+
+function sanitizeTabs(tabs) {
+  const ids = new Set();
+  return (Array.isArray(tabs) ? tabs : []).slice(0, MAX_TABS)
+    .filter((t) => t && typeof t === 'object' && !Array.isArray(t))
+    .map((t) => ({ id: uniqueId(ids, t.id, 'tab'), name: str(t.name, 50) || 'Onglet' }));
+}
 
 function sanitizeLayout(layout, cfg) {
   const seen = new Set();
@@ -367,6 +375,8 @@ function sanitizeLayout(layout, cfg) {
     // Hauteur fixe en pixels (#75), facultative : sans elle, la hauteur suit le contenu.
     const h = Math.round(Number(it.h));
     if (it.h != null && Number.isFinite(h)) out.h = Math.min(3000, Math.max(60, h));
+    // Onglet de l'élément (#92) ; sans onglet (ou onglet supprimé) : affiché dans tous.
+    if (cfg.tabs.some((t) => t.id === it.tab)) out.tab = it.tab;
     return [out];
   });
 }
@@ -410,9 +420,14 @@ function sanitizeConfig(input, previous) {
     disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
       .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
       .filter((d) => d.path),
+    // Onglets (#92) : absents de la requête (ancienne interface) = inchangés.
+    tabs: sanitizeTabs(input.tabs ?? previous?.tabs),
     categories: input.categories.map(item).map((c) => ({
       id: uniqueId(catIds, c.id, 'cat'),
       name: str(c.name, 100) || 'Sans nom',
+      // Icône facultative (mêmes valeurs que les tuiles) ; repliée par défaut (#92).
+      ...(str(c.icon, 2000) ? { icon: str(c.icon, 2000) } : {}),
+      ...(c.collapsed === true ? { collapsed: true } : {}),
       apps: (Array.isArray(c.apps) ? c.apps : []).map(item).map((a) => {
         return {
           id: uniqueId(appIds, a.id, 'app'),
