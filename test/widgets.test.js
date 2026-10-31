@@ -90,6 +90,8 @@ const WIDGETS = [
   { id: 'traefik-bad', type: 'traefik', url: 'http://localhost:18098', username: 'traefik', password: 'faux' },
   { id: 'wazuh', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass', indexerUrl: 'http://localhost:18097', apiKey: 'admin:indexer-pass' },
   { id: 'wazuh-noindex', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass' },
+  { id: 'wazuh-web', type: 'wazuh', url: 'http://localhost:18094', username: 'wazuh-wui', password: 'wazuh-pass' },
+  { id: 'wazuh-badindex', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass', indexerUrl: 'http://localhost:18094', apiKey: 'admin:indexer-pass' },
   { id: 'wazuh-bad', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'faux' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
@@ -138,7 +140,7 @@ before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
   await start('dev/mocks.js', {}, 'mocks prêts');
   // Vérification des apps pour les notifications : 200 ms au lieu d'une minute.
-  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200' }, 'Server Dashboard sur');
+  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200', UPDATE_API: 'http://localhost:14000' }, 'Server Dashboard sur');
   const login = await fetch(`${BASE}/api/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: PASSWORD }),
   });
@@ -365,6 +367,7 @@ test('Wazuh : agents, alertes de l’indexer, sans indexer', async () => {
   assert.deepEqual([d.version, d.agents.active, d.agents.disconnected, d.agents.never], ['v4.12.0', 3, 1, 1]);
   assert.deepEqual(d.disconnected.map((a) => a.name), ['nas']);
   assert.deepEqual([d.alerts.high, d.alerts.medium, d.alerts.low, d.alerts.recent.length], [2, 30, 380, 3]);
+  assert.equal((await widget('wazuh-badindex')).alertsError, 'wazuh_indexer_url', 'mauvaise adresse d’indexer : agents affichés quand même');
   const plain = await widget('wazuh-noindex');
   assert.deepEqual([plain.alerts, plain.agents.active], [null, 3], 'sans indexer : seulement les agents');
   const { INTEGRATIONS } = require('../integrations');
@@ -538,6 +541,7 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'rss-bad': 'rss_invalid',
     'traefik-bad': 'auth_refused',
     'wazuh-bad': 'wazuh_credentials',
+    'wazuh-web': 'wazuh_api',
     'crowdsec-bad': 'crowdsec_credentials',
     'crowdsec-badkey': 'crowdsec_key',
     'ical-bad': 'ical_invalid',
@@ -606,6 +610,20 @@ test('Taille des tuiles : invalide ou absente = inchangée', async () => {
 });
 
 // ---------- Secrets ----------
+test('Version : réservée à l’admin, avec la release plus récente', async () => {
+  const r = await api('GET', '/api/version');
+  assert.equal(r.status, 200, r.text);
+  assert.deepEqual(r.json, {
+    version: require('../package.json').version,
+    latest: '99.0.0', url: 'https://github.com/circule-studio/server-dashboard/releases/tag/v99.0.0',
+  });
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/version');
+  cookie = saved;
+  assert.equal(visitor.status, 401, 'version cachée aux visiteurs');
+});
+
 test('Aucun secret dans /api/config (connecté ou non)', async () => {
   const authed = await api('GET', '/api/config');
   const saved = cookie;

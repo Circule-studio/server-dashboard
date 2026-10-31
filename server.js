@@ -859,6 +859,44 @@ app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
 
 app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));
 
+// Version du dashboard et dernière release publiée (#112). Réservé aux admins : afficher la version
+// à tous aiderait à repérer une installation vulnérable. GitHub est interrogé au plus toutes les 12 h.
+const UPDATE_CHECK = process.env.UPDATE_CHECK !== 'false';
+const UPDATE_API = process.env.UPDATE_API || 'https://api.github.com';
+const UPDATE_EVERY_MS = 12 * 3600_000;
+const release = { t: 0, latest: null, url: null, pending: null };
+
+async function latestRelease() {
+  if (!UPDATE_CHECK) return release;
+  if (Date.now() - release.t < UPDATE_EVERY_MS) return release;
+  release.pending ||= request(`${UPDATE_API}/repos/circule-studio/server-dashboard/releases/latest`, { headers: { Accept: 'application/vnd.github+json' }, timeout: 5000 })
+    .then((r) => {
+      if (r.status === 200 && typeof r.json?.tag_name === 'string') {
+        release.latest = r.json.tag_name.replace(/^v/, '');
+        release.url = typeof r.json.html_url === 'string' ? r.json.html_url : null;
+      }
+    })
+    .catch(() => {}) // hors ligne : la version installée reste affichée
+    .finally(() => { release.t = Date.now(); release.pending = null; });
+  await release.pending;
+  return release;
+}
+
+// 0.20.0 < 0.21.0 < 1.0.0 ; une préversion (« -beta.1 ») n'est jamais proposée.
+function isNewer(latest, current) {
+  if (!latest || latest.includes('-')) return false;
+  const a = latest.split('.').map(Number);
+  const b = current.split(/[.-]/).map(Number);
+  for (let i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+  return false;
+}
+
+app.get('/api/version', requireAuth, route(async (req, res) => {
+  const { latest, url } = await latestRelease();
+  const update = isNewer(latest, APP_VERSION);
+  res.json({ version: APP_VERSION, latest: update ? latest : null, url: update ? url : null });
+}));
+
 app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses(STATUS_CACHE_MS, { stale: true }))));
 
 app.get('/api/system', readAuth, route(async (req, res) => {

@@ -200,6 +200,7 @@ Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIB
 | `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
 | `NOTIFY_INTERVAL_MS` | `60000` | Intervalle de vérification des applications pour les notifications (en millisecondes) |
+| `UPDATE_CHECK` | `true` | `false` : ne pas vérifier sur GitHub si une nouvelle version existe (la version installée reste affichée à l’admin) |
 
 ## Sécurité
 

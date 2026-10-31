@@ -1145,6 +1145,7 @@ async function onAuthClick() {
     state.authed = false;
     stopEditing();
     renderDocker();
+    refreshVersion();
     toast(t('login.loggedOut'));
     return;
   }
@@ -1165,10 +1166,28 @@ async function submitLogin(e) {
     $('#loginDialog').close();
     render();
     renderDocker();
+    refreshVersion();
     toast(t('login.loggedIn'));
   } catch (err) {
     $('#loginError').textContent = errMsg(err);
   }
+}
+
+// ---------- Version (#112) ----------
+// Montrée à l'admin connecté seulement, avec un lien quand une release plus récente existe.
+async function refreshVersion() {
+  const el = $('#version');
+  el.hidden = true;
+  if (!state.authed) return;
+  try {
+    const v = await api('/api/version');
+    el.textContent = v.latest ? `v${v.version} · ${t('version.update', { version: `v${v.latest}` })}` : `v${v.version}`;
+    el.classList.toggle('version-update', !!v.latest);
+    if (v.url) el.href = v.url;
+    else el.removeAttribute('href');
+    el.title = v.latest ? t('version.updateHelp') : t('version.installed');
+    el.hidden = false;
+  } catch { /* ancienne version du serveur ou session expirée : rien à afficher */ }
 }
 
 // ---------- Stats système ----------
@@ -1723,6 +1742,7 @@ async function init() {
   state.config = await api('/api/config');
   if (!displayOptions(state.config).lang) followBrowserLang();
   render();
+  refreshVersion();
 
   refreshSystem();
   refreshStatus();

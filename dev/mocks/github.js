@@ -93,6 +93,8 @@ http.createServer((req, res) => {
   if (rest === '/releases') return ghJson(req, res, r.releases.map(([tag, min, pre]) => ({
     tag_name: tag, name: tag, published_at: ghAgo(min), prerelease: !!pre, draft: false, html_url: `${html}/releases/tag/${tag}`,
   })));
+  // Dernière release du dashboard, pour l'avertissement de mise à jour (#112, UPDATE_API).
+  if (rest === '/releases/latest') return ghJson(req, res, { tag_name: 'v99.0.0', html_url: `${html}/releases/tag/v99.0.0` });
   if (rest === '/tags') return ghJson(req, res, (r.tags || []).map((name) => ({ name })));
   if (rest === '/commits') {
     if (r.empty) { res.writeHead(409); return res.end('{"message":"Git Repository is empty."}'); }
