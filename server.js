@@ -10,6 +10,7 @@ const http = require('http');
 const crypto = require('crypto');
 const { INTEGRATIONS, fetchWidget, resetIntegrations, request, orStale } = require('./integrations');
 const { NOTIFY_TYPES, sendNotification, createMonitor } = require('./notify');
+const { sanitizeCheck, checkApp } = require('./checks');
 
 // En local (npm start), lit le fichier .env s'il existe. Les variables déjà définies
 // (Docker, systemd) restent prioritaires.
@@ -335,9 +336,15 @@ const sanitizeSearchEngine = (v) => {
   return SEARCH_ENGINES.includes(s) ? s : s ? checkUrl(s) : 'duckduckgo';
 };
 
+// Style du statut des tuiles (#94) : pastille seule, pastille et temps de réponse, ou texte.
+const STATUS_STYLES = ['dot', 'ms', 'text'];
+
 function sanitizeDisplay(display) {
   const src = display && typeof display === 'object' ? display : {};
-  return Object.fromEntries(DISPLAY_OPTIONS.map((k) => [k, src[k] !== false]));
+  return {
+    ...Object.fromEntries(DISPLAY_OPTIONS.map((k) => [k, src[k] !== false])),
+    statusStyle: STATUS_STYLES.includes(src.statusStyle) ? src.statusStyle : 'dot',
+  };
 }
 
 // Mise en page : ordre et largeur (1 à 12 colonnes) des widgets et des catégories
@@ -412,6 +419,7 @@ function sanitizeConfig(input, previous) {
           icon: str(a.icon, 2000),
           description: str(a.description, 200),
           link: sanitizeLink(a.link),
+          check: sanitizeCheck(a.check),
         };
       }),
     })),
@@ -526,17 +534,8 @@ setInterval(() => {
   if (pruned) saveRevoked();
 }, 10 * 60 * 1000).unref();
 
-// ---------- Ping des services ----------
-async function ping(url, timeout = 5000) {
-  const start = Date.now();
-  try {
-    const { status } = await request(url, { timeout, discardBody: true });
-    // Un 401/403 signifie que le service répond : on le considère en ligne.
-    return { online: status < 500, code: status, ms: Date.now() - start };
-  } catch (e) {
-    return { online: false, error: e.message, errorCode: e.key, ms: Date.now() - start };
-  }
-}
+// ---------- Statut des services ----------
+// Vérification de chaque tuile : son adresse, une autre adresse, un ping ou rien (checks.js).
 
 // Statuts partagés entre tous les visiteurs pendant STATUS_CACHE_MS.
 let statusCache = null; // { t, promise }
@@ -544,9 +543,10 @@ let linksCache = null; // tuiles liées : { t, promise } (voir getLinks)
 
 async function computeStatuses() {
   const cfg = await readConfig();
-  const apps = cfg.categories.flatMap((c) => c.apps).filter((a) => a.url);
-  const results = await Promise.all(apps.map(async (a) => [a.id, await ping(a.url)]));
-  return Object.fromEntries(results);
+  const apps = cfg.categories.flatMap((c) => c.apps);
+  const results = await Promise.all(apps.map(async (a) => [a.id, await checkApp(a)]));
+  // Tuile sans vérification (« aucune ») : pas de statut, ni pastille ni notification.
+  return Object.fromEntries(results.filter(([, s]) => s));
 }
 
 // `maxAge` : âge maximal des statuts partagés (plus court pour la vérification des notifications).
