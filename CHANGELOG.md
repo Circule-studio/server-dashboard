@@ -4,6 +4,10 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- Widget **Wazuh** : agents actifs, déconnectés (avec leur dernier contact) et jamais connectés, version du manager. Facultatif : avec l’indexer (OpenSearch), les alertes de sécurité des 24 h par gravité (critiques, élevées, faibles) et les dernières alertes importantes. « M’alerter » : notification quand un agent se déconnecte, et en cas d’alerte critique (niveau 12 ou plus) dans les 24 h (#103).
+- Widget **Traefik** : nombre de routeurs, services et middlewares, ceux en erreur ou en alerte, points d’entrée et version. API protégée par basicAuth acceptée. « M’alerter » : notification quand un routeur HTTP passe en erreur, puis à son retour (#104).
+
 ## [0.19.1] - 2026-10-31
 
 ### Corrigé
