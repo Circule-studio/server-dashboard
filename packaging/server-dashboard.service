@@ -19,6 +19,9 @@ Restart=on-failure
 RestartSec=5
 
 # Durcissement : le code et le système restent en lecture seule pour le service.
+# Ping ICMP des tuiles (#94) : seul droit accordé, la commande ping n'en a pas toujours dans un conteneur.
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true
