@@ -4,6 +4,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Ajouté
+- **Version du dashboard** en haut de la page, à côté du nom du serveur, pour l’admin connecté. Quand une release plus récente existe, elle est signalée avec un lien vers ses nouveautés. GitHub est interrogé au plus toutes les 12 h ; `UPDATE_CHECK=false` désactive cette vérification (#112).
+
 ## [0.20.0] - 2026-10-31
 
 ### Ajouté

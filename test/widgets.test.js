@@ -138,7 +138,7 @@ before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
   await start('dev/mocks.js', {}, 'mocks prêts');
   // Vérification des apps pour les notifications : 200 ms au lieu d'une minute.
-  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200' }, 'Server Dashboard sur');
+  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200', UPDATE_API: 'http://localhost:14000' }, 'Server Dashboard sur');
   const login = await fetch(`${BASE}/api/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: PASSWORD }),
   });
@@ -606,6 +606,20 @@ test('Taille des tuiles : invalide ou absente = inchangée', async () => {
 });
 
 // ---------- Secrets ----------
+test('Version : réservée à l’admin, avec la release plus récente', async () => {
+  const r = await api('GET', '/api/version');
+  assert.equal(r.status, 200, r.text);
+  assert.deepEqual(r.json, {
+    version: require('../package.json').version,
+    latest: '99.0.0', url: 'https://github.com/circule-studio/server-dashboard/releases/tag/v99.0.0',
+  });
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/version');
+  cookie = saved;
+  assert.equal(visitor.status, 401, 'version cachée aux visiteurs');
+});
+
 test('Aucun secret dans /api/config (connecté ou non)', async () => {
   const authed = await api('GET', '/api/config');
   const saved = cookie;

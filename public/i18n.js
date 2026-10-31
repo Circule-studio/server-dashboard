@@ -124,6 +124,9 @@ const I18N = {
     'login.submit': 'Se connecter',
     'login.loggedIn': 'Connecté',
     'login.loggedOut': 'Déconnecté',
+    'version.installed': 'Version installée',
+    'version.update': '{version} disponible',
+    'version.updateHelp': 'Une nouvelle version est disponible : voir les nouveautés',
     'gate.private': 'Ce dashboard est privé : connecte-toi pour y accéder.',
     'gate.loadError': 'Erreur de chargement : {error}',
 
@@ -839,6 +842,9 @@ const I18N = {
     'login.submit': 'Log in',
     'login.loggedIn': 'Logged in',
     'login.loggedOut': 'Logged out',
+    'version.installed': 'Installed version',
+    'version.update': '{version} available',
+    'version.updateHelp': 'A new version is available: see what\'s new',
     'gate.private': 'This dashboard is private: log in to access it.',
     'gate.loadError': 'Loading error: {error}',
 
