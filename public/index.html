@@ -16,7 +16,12 @@
       <span id="host" class="muted"></span>
     </div>
     <div class="topbar-right">
-      <input id="search" class="search" type="search" autocomplete="off" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria" hidden>
+      <div class="search-wrap">
+        <input id="search" class="search" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="searchMenu" aria-expanded="false"
+          data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria" hidden>
+        <!-- Suggestions : tuiles, adresse à ouvrir, recherche web (#91). -->
+        <ul id="searchMenu" class="search-menu" role="listbox" hidden></ul>
+      </div>
       <span id="clock" class="clock"></span>
       <button id="themeBtn" class="btn btn-ghost btn-icon"></button>
       <button id="langBtn" class="btn btn-ghost btn-lang" data-i18n="lang.switch" data-i18n-title="lang.switchTitle"></button>
@@ -86,6 +91,9 @@
       </label>
       <label><span data-i18n="app.description"></span><input name="description" maxlength="200"></label>
       <label><span data-i18n="app.category"></span><select name="category"></select></label>
+      <label><span data-i18n="app.link"></span><select name="link"></select>
+        <small class="muted" data-i18n="app.linkHelp"></small>
+      </label>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
@@ -117,6 +125,10 @@
       <label data-field="feeds"><span data-i18n="widget.feeds"></span>
         <textarea name="feeds" rows="3" autocomplete="off" spellcheck="false" placeholder="https://example.com/feed.xml"></textarea>
         <small class="muted" data-i18n="widget.feedsHelp"></small>
+      </label>
+      <label data-field="mappings"><span data-i18n="widget.mappings"></span>
+        <textarea name="mappings" rows="4" autocomplete="off" spellcheck="false" data-i18n-placeholder="widget.mappingsPlaceholder"></textarea>
+        <small class="muted" data-i18n="widget.mappingsHelp"></small>
       </label>
       <label data-field="entities"><span data-i18n="widget.entities"></span>
         <textarea name="entities" rows="4" autocomplete="off" spellcheck="false" data-i18n-placeholder="widget.entitiesPlaceholder"></textarea>
@@ -224,6 +236,24 @@
         <small class="muted" data-i18n="display.help"></small>
       </fieldset>
       <fieldset class="sections">
+        <legend data-i18n="display.engine"></legend>
+        <select name="searchEngine">
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="google">Google</option>
+          <option value="bing">Bing</option>
+          <option value="brave">Brave</option>
+          <option value="qwant">Qwant</option>
+          <option value="ecosia">Ecosia</option>
+          <option value="custom" data-i18n="display.engineCustom"></option>
+          <option value="none" data-i18n="display.engineNone"></option>
+        </select>
+        <label data-engine-url hidden><span data-i18n="display.engineUrl"></span>
+          <input name="searchUrl" type="url" autocomplete="off" placeholder="https://search.example.com/?q=%s">
+          <small class="muted" data-i18n="display.engineUrlHelp"></small>
+        </label>
+        <small class="muted" data-i18n="display.engineHelp"></small>
+      </fieldset>
+      <fieldset class="sections">
         <legend data-i18n="display.tiles"></legend>
         <label class="check"><input type="radio" name="tileSize" value="compact"><span data-i18n="display.tileCompact"></span></label>
         <label class="check"><input type="radio" name="tileSize" value="normal"><span data-i18n="display.tileNormal"></span></label>
@@ -262,6 +292,9 @@
   <!-- Un fichier par widget, dans l'ordre de la liste « Type » du formulaire. -->
   <script src="widgets/pulse.js"></script>
   <script src="widgets/proxmox.js"></script>
+  <script src="widgets/pbs.js"></script>
+  <script src="widgets/scrutiny.js"></script>
+  <script src="widgets/speedtest.js"></script>
   <script src="widgets/glances.js"></script>
   <script src="widgets/agent.js"></script>
   <script src="widgets/uptimekuma.js"></script>
@@ -279,5 +312,6 @@
   <script src="widgets/npm.js"></script>
   <script src="widgets/weather.js"></script>
   <script src="widgets/github.js"></script>
+  <script src="widgets/customapi.js"></script>
 </body>
 </html>

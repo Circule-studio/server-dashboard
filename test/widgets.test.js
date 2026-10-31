@@ -57,6 +57,17 @@ const WIDGETS = [
   { id: 'qbittorrent', type: 'qbittorrent', url: 'http://localhost:18080', username: 'admin', password: 'secret' },
   { id: 'sonarr', type: 'sonarr', url: 'http://localhost:18989', apiKey: 'sonarr-key' },
   { id: 'radarr', type: 'radarr', url: 'http://localhost:17878', apiKey: 'radarr-key' },
+  { id: 'pbs', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'pbs-secret' },
+  { id: 'pbs-bad', type: 'pbs', url: 'http://localhost:18007', username: 'root@pam!dashboard', apiKey: 'faux' },
+  { id: 'speedtest', type: 'speedtest', url: 'http://localhost:18766', apiKey: 'speedtest-token' },
+  { id: 'speedtest-v0', type: 'speedtest', url: 'http://localhost:18766' },
+  { id: 'speedtest-bad', type: 'speedtest', url: 'http://localhost:18766', apiKey: 'faux' },
+  { id: 'scrutiny', type: 'scrutiny', url: 'http://localhost:18580' },
+  { id: 'lidarr', type: 'lidarr', url: 'http://localhost:18686', apiKey: 'lidarr-key' },
+  { id: 'readarr', type: 'readarr', url: 'http://localhost:18787', apiKey: 'readarr-key' },
+  { id: 'prowlarr', type: 'prowlarr', url: 'http://localhost:19696', apiKey: 'prowlarr-key' },
+  { id: 'bazarr', type: 'bazarr', url: 'http://localhost:16767', apiKey: 'bazarr-key' },
+  { id: 'bazarr-bad', type: 'bazarr', url: 'http://localhost:16767', apiKey: 'faux' },
   { id: 'proxmox', type: 'proxmox', url: 'http://localhost:18006', username: 'root@pam!dashboard', apiKey: 'pve-secret' },
   { id: 'pulse', type: 'pulse', url: 'http://localhost:17655', apiKey: 'pulse-token' },
   { id: 'weather', type: 'weather', url: 'http://localhost:18765', location: 'Nantes' },
@@ -101,8 +112,17 @@ const WIDGETS = [
   { id: 'github-private', type: 'github', url: 'http://localhost:14000', repo: 'demo/private' },
   { id: 'github-limit', type: 'github', url: 'http://localhost:14000', repo: 'demo/rate-limited' },
   { id: 'unreachable', type: 'sonarr', url: 'http://localhost:9', apiKey: 'x' },
+  // API personnalisée : en-tête, Basic, mauvaise clé, réponse qui n'est pas du JSON.
+  {
+    id: 'customapi', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'X-Api-Key: custom-key',
+    mappings: 'data.users.count | Utilisateurs | nombre\ndata.storage.percent | Stockage | pourcentage\n\ndata.items.0.name | Dernière\n'
+      + 'data.items.length | Tâches | number\ndata.manquant | Absent\ndata.__proto__ | Piège\ndata.online | En ligne\ndata.updated | Mise à jour | date',
+  },
+  { id: 'customapi-basic', type: 'customapi', url: 'http://localhost:18092/prive', username: 'api', password: 'api-pass', mappings: [{ path: 'data.speed', label: 'Débit', format: 'rate' }] },
+  { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
+  { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -156,6 +176,60 @@ test('Sonarr et Radarr : à venir et file d’attente', async () => {
     assert.ok(Array.isArray(d.upcoming) && d.upcoming.length > 0, id);
     assert.equal(typeof d.queue.total, 'number', id);
   }
+});
+
+test('Lidarr et Readarr : à venir (artiste, auteur, déjà disponible) et file d’attente', async () => {
+  const l = await widget('lidarr');
+  assert.deepEqual(l.upcoming.map((e) => [e.title, e.subtitle, e.hasFile]), [
+    ['Moon Music', 'Coldplay', true], ['Hit Me Hard and Soft (Deluxe)', 'Billie Eilish', false],
+  ], 'triés par date');
+  assert.equal(l.queue.total, 2);
+  const r = await widget('readarr');
+  assert.deepEqual(r.upcoming.map((e) => e.subtitle), ['Giuliano da Empoli']);
+});
+
+test('Prowlarr : indexeurs actifs, en pause, statistiques', async () => {
+  const d = await widget('prowlarr');
+  assert.deepEqual([d.enabled, d.queries, d.grabs], [3, 1925, 99]);
+  assert.deepEqual(d.failing.map((f) => f.name), ['1337x'], 'une pause terminée ne compte plus');
+});
+
+test('Proxmox Backup Server : datastores, tâches en échec, alertes', async () => {
+  const d = await widget('pbs');
+  assert.deepEqual(d.datastores.map((s) => s.name), ['sauvegardes', 'externe'], 'datastore en erreur écarté');
+  assert.deepEqual(d.backups, { ok: 2, failed: 1 }, 'avertissements comptés comme réussis, tâche en cours ignorée');
+  assert.equal(d.tasks, 5);
+  assert.deepEqual(d.failed.map((f) => [f.type, f.id, f.error]), [['backup', 'externe:ct/101', 'backup failed: no space left on device']]);
+  assert.deepEqual([d.cpu, d.mem.total > 0, d.uptime], [0.12, true, 864000]);
+  const { INTEGRATIONS } = require('../integrations');
+  const alerts = INTEGRATIONS.pbs.alerts(d, { id: 'pbs', name: 'PBS', url: 'http://pbs' });
+  assert.deepEqual(alerts.map((a) => [a.id, a.problem, a.online, a.value]), [
+    ['pbs:tasks', 'backup', false, 1], ['pbs:disk:sauvegardes', 'disk', true, 62], ['pbs:disk:externe', 'disk', false, 94],
+  ]);
+});
+
+test('Scrutiny : disques, échec SMART en premier, alertes', async () => {
+  const d = await widget('scrutiny');
+  assert.deepEqual(d.disks.map((x) => [x.name, x.failed, x.temp]), [['sdb', true, 57], ['sda', false, 34], ['sdc', false, 38]], 'disque archivé ignoré');
+  assert.equal(d.failed, 1);
+  const { INTEGRATIONS } = require('../integrations');
+  const a = INTEGRATIONS.scrutiny.alerts(d, { id: 's', name: 'NAS', url: 'http://nas' });
+  assert.deepEqual(a.map((x) => [x.id, x.problem, x.online]), [['s:smart:0x5000cca2b3c4d5e6', 'smart', false], ['s:smart:0x5000c500a1b2c3d4', 'smart', true], ['s:smart:0x50014ee2c3d4e5f6', 'smart', true]]);
+  assert.equal(a[0].name, 'NAS · sdb (WDC WD40EFRX-68N32N0)');
+});
+
+test('Speedtest Tracker : dernier test, moyenne sur 7 jours, ancienne API', async () => {
+  const d = await widget('speedtest');
+  assert.deepEqual([d.latest.down, d.latest.up, d.latest.ping], [850, 210, 12], 'bit/s convertis en Mbit/s');
+  // 7 jours = 14 tests toutes les 12 h, moins celui en échec.
+  assert.equal(d.average.count, 13);
+  assert.ok(d.history.length === 12 && d.history.every((r, i) => i === 0 || r.date >= d.history[i - 1].date), '12 derniers, dans l’ordre');
+  const v0 = await widget('speedtest-v0');
+  assert.deepEqual([v0.latest.down, v0.latest.up, v0.average], [912.5, 230.1, null]);
+});
+
+test('Bazarr : sous-titres manquants', async () => {
+  assert.deepEqual(await widget('bazarr'), { episodes: 37, movies: 4, providers: 1 });
 });
 
 test('Proxmox VE : nœuds, VM et stockages', async () => {
@@ -375,10 +449,42 @@ test('GitHub : version, issues, PR (dépôt donné par son adresse)', async () =
   assert.equal(saved.name, 'circule-studio/server-dashboard', 'nom par défaut');
 });
 
+test('API personnalisée : valeurs choisies, chemins, formats et authentification', async () => {
+  const d = await widget('customapi');
+  assert.deepEqual(d.values.slice(0, 7).map((v) => [v.label, v.format, v.value]), [
+    ['Utilisateurs', 'number', 42], ['Stockage', 'percent', 73.5], ['Dernière', 'text', 'sauvegarde-nuit'],
+    ['Tâches', 'number', 2], ['Absent', 'text', null], ['Piège', 'text', null], ['En ligne', 'text', true],
+  ]);
+  assert.equal(d.values[7].format, 'date');
+  assert.ok(Date.now() - Date.parse(d.values[7].value) > 60 * 60_000, 'date telle que renvoyée');
+  assert.deepEqual((await widget('customapi-basic')).values, [{ label: 'Débit', format: 'rate', value: 1_250_000 }]);
+  // Enregistré sous forme d'objets (ligne vide ignorée, libellé par défaut : vide).
+  const saved = (await api('GET', '/api/config')).json.widgets.find((w) => w.id === 'customapi');
+  assert.deepEqual(saved.mappings[2], { path: 'data.items.0.name', label: 'Dernière', format: 'text' });
+  assert.equal(saved.mappings.length, 8);
+});
+
+test('API personnalisée : valeurs invalides refusées à l’enregistrement', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const many = Array.from({ length: 13 }, (_, i) => `v${i}`).join('\n');
+  for (const [mappings, code, params] of [
+    ['', 'mappings_missing'], ['a b | x', 'mapping_invalid', { line: 1 }], ['ok\nx | y | inconnu', 'mapping_invalid', { line: 2 }],
+    ['a..b', 'mapping_invalid', { line: 1 }], [many, 'mappings_too_many', { max: 12 }],
+  ]) {
+    const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { id: 'api-x', type: 'customapi', url: 'http://localhost:18092/stats', mappings }] });
+    assert.deepEqual([r.status, r.json.code, r.json.params], [400, code, params], mappings);
+  }
+});
+
 // ---------- Erreurs ----------
 test('Erreurs : un code traduisible pour chaque cas', async () => {
   const expected = {
     'jellyfin-bad': 'auth_refused',
+    'customapi-bad': 'auth_refused',
+    'bazarr-bad': 'auth_refused',
+    'pbs-bad': 'auth_refused',
+    'speedtest-bad': 'auth_refused',
+    'customapi-text': 'unexpected_response',
     'plex-bad': 'auth_refused',
     'qbit-bad': 'qbit_credentials',
     'immich-user': 'immich_admin',
@@ -769,4 +875,68 @@ test('Docker : conteneurs du faux socket', { skip: process.platform === 'win32' 
   const r = await api('GET', '/api/docker/containers');
   assert.equal(r.json.available, true, r.text);
   assert.ok(r.json.containers.some((c) => c.name === 'jellyfin'));
+});
+
+test('Tuiles liées à une VM / un LXC Proxmox ou à un conteneur Docker (#89)', { skip: process.platform === 'win32' && 'socket unix' }, async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const app = (id, link) => ({ id, name: id, url: 'http://localhost:9', link });
+  const apps = [
+    app('l-lxc', { type: 'proxmox', widget: 'proxmox', vmid: 100 }),
+    app('l-vm-off', { type: 'proxmox', widget: 'proxmox', vmid: 120 }),
+    app('l-gone', { type: 'proxmox', widget: 'proxmox', vmid: 4242 }),
+    app('l-docker', { type: 'docker', container: 'jellyfin' }),
+    app('l-docker-off', { type: 'docker', container: 'immich-server' }),
+    app('l-docker-gone', { type: 'docker', container: 'supprime' }),
+    // Refusés : widget qui n'est pas un Proxmox VE, nom de conteneur invalide, type inconnu.
+    app('l-not-pve', { type: 'proxmox', widget: 'jellyfin', vmid: 100 }),
+    app('l-bad-name', { type: 'docker', container: '../../etc' }),
+    app('l-bad-type', { type: 'ssh', host: 'pve' }),
+  ];
+  try {
+    const r = await api('PUT', '/api/config', { ...cfg, categories: [...cfg.categories, { id: 'cat-links', name: 'Liées', apps }] });
+    assert.equal(r.status, 200, r.text);
+    const saved = Object.fromEntries(r.json.categories.find((c) => c.id === 'cat-links').apps.map((a) => [a.id, a.link]));
+    assert.deepEqual(saved['l-lxc'], { type: 'proxmox', widget: 'proxmox', vmid: 100 });
+    assert.deepEqual([saved['l-not-pve'], saved['l-bad-name'], saved['l-bad-type']], [undefined, undefined, undefined]);
+
+    const links = (await api('GET', '/api/links')).json;
+    assert.equal(links['l-lxc'].name, 'LXC 100 · photo-server');
+    assert.ok(links['l-lxc'].running && Math.abs(links['l-lxc'].mem - 0.3) < 1e-9 && links['l-lxc'].cpu === 0.04);
+    assert.deepEqual([links['l-vm-off'].name, links['l-vm-off'].running], ['VM 120 · windows-11', false]);
+    assert.deepEqual(links['l-gone'], { missing: true });
+    // Docker : part de la machine entière (3 % de CPU), mémoire sans le cache (300 Mo / 16 Go).
+    assert.equal(links['l-docker'].name, 'Docker · jellyfin');
+    assert.ok(links['l-docker'].running && Math.abs(links['l-docker'].cpu - 0.03) < 1e-9 && Math.abs(links['l-docker'].mem - 300e6 / 16e9) < 1e-9);
+    assert.deepEqual(links['l-docker-off'], { name: 'Docker · immich-server', running: false });
+    assert.deepEqual(links['l-docker-gone'], { missing: true });
+    assert.ok(!('l-not-pve' in links), 'pas de lien, pas de mesure');
+
+    // Widget Proxmox supprimé : le lien disparaît avec lui.
+    const now = (await api('GET', '/api/config')).json;
+    const r2 = await api('PUT', '/api/config', { ...now, widgets: now.widgets.filter((w) => w.id !== 'proxmox') });
+    assert.equal(r2.json.categories.find((c) => c.id === 'cat-links').apps.find((a) => a.id === 'l-lxc').link, undefined);
+  } finally {
+    const now = (await api('GET', '/api/config')).json;
+    // Le widget Proxmox revient avec sa clé (supprimé, il l'a perdue).
+    const widgets = now.widgets.some((w) => w.id === 'proxmox') ? now.widgets : [...now.widgets, WIDGETS.find((w) => w.id === 'proxmox')];
+    await api('PUT', '/api/config', { ...now, widgets, categories: now.categories.filter((c) => c.id !== 'cat-links') });
+  }
+});
+
+test('Recherche rapide : moteur de recherche web enregistré et vérifié (#91)', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  assert.equal(cfg.searchEngine, 'duckduckgo', 'DuckDuckGo par défaut');
+  try {
+    for (const engine of ['qwant', 'none', 'https://search.example.com/?q=%s']) {
+      const r = await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: engine });
+      assert.equal(r.json.searchEngine, engine);
+    }
+    // Absent de la requête (ancienne interface) : inchangé.
+    const { searchEngine, ...rest } = (await api('GET', '/api/config')).json;
+    assert.equal((await api('PUT', '/api/config', rest)).json.searchEngine, searchEngine);
+    const bad = await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: 'javascript:alert(1)' });
+    assert.deepEqual([bad.status, bad.json.code], [400, 'invalid_url']);
+  } finally {
+    await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: 'duckduckgo' });
+  }
 });

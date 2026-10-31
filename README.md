@@ -15,14 +15,19 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
 
 *Captures réalisées avec les faux services de `npm run mocks`.*
 
-- **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local.
+- **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local. Une tuile peut être **liée à sa VM, son LXC Proxmox ou son conteneur Docker** pour afficher leur CPU et leur RAM.
 - **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
 - **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
+- **Recherche rapide** : commence à taper n’importe où. Elle filtre les tuiles et propose, au clavier, la tuile à ouvrir, l’adresse tapée (`nas.maison:8080`) ou une recherche web (DuckDuckGo, Google, Qwant…, ou une adresse personnalisée, réglable dans Affichage).
 - **Widgets d'intégration** :
   - **Jellyfin / Plex** : lectures en cours (utilisateur, progression, pause) et taille de la bibliothèque.
   - **qBittorrent** : débits, torrents actifs, progression et temps restant.
-  - **Sonarr / Radarr** : épisodes et films à venir, file de téléchargement.
+  - **Sonarr / Radarr / Lidarr / Readarr** : épisodes, films, albums et livres à venir, file de téléchargement.
+  - **Prowlarr** : indexeurs actifs et en pause, requêtes et téléchargements récupérés. **Bazarr** : épisodes et films sans sous-titres.
   - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
+  - **Proxmox Backup Server** : sauvegardes réussies et en échec des dernières 24 h, occupation des datastores.
+  - **Scrutiny** : santé SMART des disques, ceux en échec en premier, avec leur température.
+  - **Speedtest Tracker** : dernier test de débit, moyenne sur 7 jours et derniers tests.
   - **Uptime Kuma** : sondes d’une page de statut, celles en panne en premier, avec le temps de réponse et la disponibilité sur 24 h.
   - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
   - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
@@ -37,6 +42,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
   - **Nginx Proxy Manager** : hôtes actifs et désactivés, certificats SSL triés par date d’expiration, ceux qui expirent dans les 14 jours mis en évidence.
   - **GitHub** : suivre un dépôt, avec sa dernière version, les commits non publiés depuis, les issues et les pull requests ouvertes.
+  - **API personnalisée** : n’importe quelle API JSON (service sans widget, script maison) : on choisit les valeurs à afficher par leur chemin dans la réponse, avec un format (nombre, pourcentage, octets, débit, date).
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
 - **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](agent/README.md).
 - **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé. Avec la case « M’alerter » d’un widget, aussi pour ce qu’il surveille : VM, conteneur ou nœud Proxmox arrêté, disque à plus de 90 % (Proxmox, Glances, Agent), machine Glances ou Agent hors ligne, certificat Nginx Proxy Manager qui expire dans 7 jours, sonde Uptime Kuma hors ligne, caméra Frigate coupée.
@@ -131,9 +137,13 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Jellyfin | URL + clé API | Tableau de bord > Clés API > « + » |
 | Plex | URL + token | Valeur `X-Plex-Token` ([doc Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) |
 | qBittorrent | URL + utilisateur / mot de passe de la WebUI | Options > Interface web |
-| Sonarr / Radarr | URL + clé API | Settings > General > API Key |
+| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + clé API | Settings > General > API Key |
+| Bazarr | URL (`http://IP:6767`) + clé API | Settings > General > Security > API Key |
 | Pulse | URL (`http://IP:7655`) + jeton d’API | Pulse > Paramètres > API Access, scope `monitoring:read` |
 | Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
+| Proxmox Backup Server | URL (`https://IP:8007`) + identifiant et secret d’un jeton d’API | Configuration > Access Control > API Token, avec le rôle **Audit** sur `/` pour le jeton (lecture seule) |
+| Scrutiny | URL de l’interface (`http://IP:8080`) | Aucune clé |
+| Speedtest Tracker | URL + jeton d’API facultatif | v1 : Settings > API Tokens (lecture). Sans jeton : ancienne API publique (v0) |
 | Pi-hole (v6) | URL (`http://IP`) + mot de passe | Celui de l’interface web. Avec la 2FA : mot de passe d’application (Paramètres > Web interface / API, mode Expert, « Configure app password »). Vide si Pi-hole n’a pas de mot de passe |
 | AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
 | Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
@@ -147,6 +157,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Home Assistant | URL (`http://IP:8123`) + jeton + entités (une par ligne) | Ton profil > Sécurité > Jetons d’accès longue durée. Les identifiants d’entités (`sensor.salon_temperature`) sont dans Paramètres > Appareils et services > Entités |
 | Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / mot de passe | Le compte de l’interface d’administration. Un compte dédié avec la permission « Proxy Hosts » en lecture suffit |
 | GitHub | Dépôt (`propriétaire/dépôt` ou son adresse) + jeton facultatif | Jeton obligatoire pour un dépôt privé : Settings > Developer settings > *Fine-grained tokens*, en lecture seule (Contents, Issues, Pull requests, Metadata). Sans jeton, GitHub limite à 60 requêtes par heure : rafraîchi toutes les 15 min (2 min avec un jeton), ce qui permet 4 à 5 widgets. Si la limite est atteinte, les dernières données restent affichées. L’URL de l’API ne sert que pour GitHub Enterprise |
+| API personnalisée | URL qui renvoie du JSON + valeurs (une par ligne : `chemin \| libellé \| format`) + authentification facultative | Chemin avec des points : `data.users.count`, `items.0.name`, `liste.length`. Formats : texte, nombre, pourcentage, octets, débit, date. Authentification : un en-tête (`X-Api-Key: …`, ou une valeur seule envoyée en `Authorization: Bearer …`) ou identifiant / mot de passe (Basic) |
 
 **Pulse** : coche les blocs à afficher (Santé, Alertes, Nœuds / VM / LXC). Pour les placer librement, ajoute plusieurs widgets Pulse avec chacun un bloc, puis déplace-les par glisser-déposer.
 

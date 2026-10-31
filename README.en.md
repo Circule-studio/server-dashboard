@@ -17,11 +17,15 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
 
 ## Features
 
-- **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator checked **server-side** (works for LAN-only services).
+- **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator checked **server-side** (works for LAN-only services). A tile can be **linked to its Proxmox VM / LXC or Docker container** to show their CPU and RAM.
 - **Server stats**: CPU, memory, uptime and **as many disks as you want** (auto-detected, custom names).
 - **Docker panel**: list containers, start / stop / restart them.
+- **Quick search**: just start typing anywhere. It filters the tiles and offers, from the keyboard, the tile to open, the typed address (`nas.home:8080`) or a web search (DuckDuckGo, Google, Qwant…, or a custom address, set in Display).
 - **Widgets**:
   - **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
+  - **Proxmox Backup Server**: successful and failed backups over the last 24 h, datastore usage.
+  - **Scrutiny**: SMART disk health, failing disks first, with their temperature.
+  - **Speedtest Tracker**: latest speed test, 7-day average and recent tests.
   - **Uptime Kuma**: monitors from a status page, those down first, with response time and 24 h uptime.
   - **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
   - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
@@ -36,9 +40,11 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Home Assistant**: the sensors you choose (temperature, power, doors, motion, lights, presence…), with their translated state and since when.
   - **Nginx Proxy Manager**: active and disabled hosts, SSL certificates sorted by expiry date, those expiring within 14 days highlighted.
   - **GitHub**: follow a repository, with its latest release, unreleased commits since then, open issues and pull requests.
+  - **Custom API**: any JSON API (a service without a widget, your own script): pick the values to show by their path in the response, with a format (number, percent, bytes, rate, date).
   - **Jellyfin / Plex**: now playing, library size.
   - **qBittorrent**: speeds, active torrents.
-  - **Sonarr / Radarr**: upcoming episodes and movies, download queue.
+  - **Sonarr / Radarr / Lidarr / Readarr**: upcoming episodes, movies, albums and books, download queue.
+  - **Prowlarr**: active and paused indexers, queries and grabs. **Bazarr**: episodes and movies missing subtitles.
 - **Edit mode** (password protected) with drag & drop, and a welcome screen on first launch.
 - **Agent** for machines behind NAT or without an open port: a small script (Node.js, no dependency) pushes CPU, memory, disks and temperature to the dashboard itself; see [agent/README.md](agent/README.md) (in French).
 - **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With a widget’s “Alert me” box, also for what it monitors: stopped Proxmox VM, container or node, disk over 90% (Proxmox, Glances, Agent), Glances or Agent machine offline, Nginx Proxy Manager certificate expiring within 7 days, Uptime Kuma monitor down, Frigate camera off.
@@ -86,6 +92,9 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Service | Fields | Where to find them |
 |---|---|---|
 | Proxmox VE | URL (`https://IP:8006`) + API token ID and secret | `pveum user token add root@pam dashboard --privsep 1` then `pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor` (read-only) |
+| Proxmox Backup Server | URL (`https://IP:8007`) + API token ID and secret | Configuration > Access Control > API Token, with the **Audit** role on `/` for the token (read-only) |
+| Scrutiny | Web interface URL (`http://IP:8080`) | No key |
+| Speedtest Tracker | URL + optional API token | v1: Settings > API Tokens (read). Without a token: legacy public API (v0) |
 | Pulse | URL (`http://IP:7655`) + API token | Pulse > Settings > API Access, `monitoring:read` scope only |
 | Pi-hole (v6) | URL (`http://IP`) + password | The web interface password. With 2FA: an app password (Settings > Web interface / API, Expert mode, "Configure app password"). Empty if Pi-hole has no password |
 | AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
@@ -100,10 +109,12 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Home Assistant | URL (`http://IP:8123`) + token + entities (one per line) | Your profile > Security > Long-lived access tokens. Entity IDs (`sensor.living_room_temperature`) are in Settings > Devices & services > Entities |
 | Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / password | The admin interface account. A dedicated account with read access to "Proxy Hosts" is enough |
 | GitHub | Repository (`owner/repo` or its address) + optional token | Token required for a private repository: Settings > Developer settings > *Fine-grained tokens*, read-only (Contents, Issues, Pull requests, Metadata). Without a token, GitHub allows 60 requests per hour: refreshed every 15 min (2 min with a token), enough for 4 or 5 widgets. If the limit is reached, the last data stays on screen. The API URL is only for GitHub Enterprise |
+| Custom API | URL returning JSON + values (one per line: `path \| label \| format`) + optional authentication | Dotted path: `data.users.count`, `items.0.name`, `list.length`. Formats: text, number, percent, bytes, rate, date. Authentication: a header (`X-Api-Key: …`, or a bare value sent as `Authorization: Bearer …`) or username / password (Basic) |
 | Jellyfin | URL + API key | Dashboard > API Keys |
 | Plex | URL + token | Your `X-Plex-Token` |
 | qBittorrent | URL + Web UI username / password | Options > Web UI |
-| Sonarr / Radarr | URL + API key | Settings > General > API Key |
+| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + API key | Settings > General > API Key |
+| Bazarr | URL (`http://IP:6767`) + API key | Settings > General > Security > API Key |
 
 URLs must be reachable **from the dashboard server**.
 

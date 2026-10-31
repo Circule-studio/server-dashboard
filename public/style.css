@@ -110,7 +110,31 @@ a { color: var(--accent); }
 }
 .search::placeholder { color: var(--muted); }
 .search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-@media (max-width: 720px) { .topbar-right { flex-wrap: wrap; } .search { flex: 1 1 100%; width: auto; order: 9; } }
+.search-wrap { position: relative; }
+.search-wrap:has(> .search[hidden]) { display: none; }
+/* Suggestions de la recherche rapide (#91), sous le champ. */
+.search-menu {
+  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: max(100%, 320px); max-width: calc(100vw - 32px);
+  margin: 0; padding: 6px; list-style: none; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-2); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+.search-menu li {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; min-width: 0;
+}
+.search-menu li[aria-selected="true"] { background: var(--veil); }
+.search-menu .tile-icon { width: 28px; height: 28px; border-radius: 7px; font-size: 0.85rem; flex: none; }
+.search-menu .tile-icon img { width: 20px; height: 20px; }
+.search-menu .search-glyph { width: 28px; flex: none; text-align: center; color: var(--muted); }
+.search-menu .search-text { min-width: 0; display: flex; flex-direction: column; }
+.search-menu .search-text b, .search-menu .search-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-menu .search-text b { font-weight: 500; font-size: 0.9rem; }
+.search-menu .search-text small { color: var(--muted); font-size: 0.75rem; }
+@media (max-width: 720px) {
+  .topbar-right { flex-wrap: wrap; }
+  .search-wrap { flex: 1 1 100%; order: 9; }
+  .search { width: 100%; }
+  .search-menu { left: 0; width: auto; }
+}
 .clock { font-variant-numeric: tabular-nums; color: var(--muted); margin-right: 6px; }
 
 .btn {
@@ -319,6 +343,11 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 .tile-text { min-width: 0; flex: 1; }
 .tile-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-desc { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Charge de la VM / du conteneur lié (#89). */
+.tile-link { margin-top: 2px; font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.tile-link b { font-weight: 600; color: var(--text); }
+.tile-link b.warn { color: var(--warn); }
+.tile-link b.bad { color: var(--bad); }
 
 /* Taille des tuiles (mode édition > Affichage) : compacte sans description, grande sur deux lignes. */
 [data-tiles="compact"] .grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }
@@ -327,6 +356,7 @@ a.tile:hover { background: var(--card-hover); transform: translateY(-2px); borde
 [data-tiles="compact"] .tile-icon img { width: 24px; height: 24px; }
 [data-tiles="compact"] .tile-name { font-size: 0.9rem; }
 [data-tiles="compact"] .tile-desc { display: none; }
+[data-tiles="compact"] .tile-link { display: none; }
 [data-tiles="large"] .grid { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 [data-tiles="large"] .tile { gap: 16px; padding: 18px; }
 [data-tiles="large"] .tile-icon { width: 58px; height: 58px; border-radius: 12px; font-size: 1.5rem; }
@@ -584,3 +614,11 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 .gh-sha { font-size: 0.75rem; color: var(--muted); }
 .gh-label { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
 .gh-label i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+
+/* Scrutiny : disque à 55 °C ou plus. */
+.widget-scrutiny .scrutiny-hot { color: var(--warn); flex: none; }
+
+/* Speedtest Tracker : débit descendant des derniers tests, en barres. */
+.widget-speedtest .speedtest-when { margin: 0 0 4px; font-size: 0.8rem; }
+.speedtest-bars { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 8px; }
+.speedtest-bars i { flex: 1; min-width: 4px; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.75; }

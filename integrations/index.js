@@ -1,7 +1,8 @@
 // Intégrations : récupère et normalise les données des services. Un fichier par service (ou par
 // famille : arr.js pour Sonarr et Radarr, dns.js pour Pi-hole et AdGuard Home), qui exporte
 // { type: définition }. Une définition contient :
-//   fields        champs du widget : url, apiKey, username, password, location, repo, entities, slug
+//   fields        champs du widget : url, apiKey, username, password, location, repo, entities, feeds, slug,
+//                 mappings (valeurs choisies de l'API personnalisée)
 //   fetch(w)      récupère les données du widget w (une promesse)
 //   cacheMs       durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS) ;
 //                 une fonction du widget permet de l'adapter (GitHub : plus long sans jeton)
@@ -13,14 +14,14 @@
 //   reset()       vide les sessions et caches propres au service quand la config change
 //   alerts(d, w)  éléments surveillés par les notifications quand « M'alerter » est coché :
 //                 [{ id stable, name, url, online, problem?, value? }] tirés des données d (ex. VM
-//                 Proxmox arrêtée). problem : 'disk' ou 'cert' pour un message adapté (notify.js)
+//                 Proxmox arrêtée). problem : 'disk', 'cert', 'backup' ou 'smart' pour un message adapté (notify.js)
 //   offlineCodes  codes d'erreur qui veulent dire « machine éteinte » : alerte sur `${id}:machine`
 
 const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
-const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pulse',
-  'glances', 'agent', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr'];
+const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pbs', 'scrutiny', 'speedtest', 'pulse',
+  'glances', 'agent', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr', 'customapi'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
 // Petit cache pour ne pas solliciter les services à chaque visiteur.

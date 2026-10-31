@@ -18,6 +18,17 @@ if (process.platform !== 'win32') { try { require('fs').unlinkSync(DOCKER_SOCKET
 
 http.createServer((req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/containers/json')) return json(res, containers);
+  // Mesure de `docker stats` (stream=false) : CPU entre deux relevés, mémoire avec son cache.
+  const stats = req.url.match(/^\/containers\/([a-f0-9]+)\/stats/);
+  const sc = stats && containers.find((x) => x.Id.startsWith(stats[1]));
+  if (req.method === 'GET' && sc) {
+    const i = containers.indexOf(sc) + 1;
+    return json(res, {
+      cpu_stats: { cpu_usage: { total_usage: 5e9 + i * 3e7 }, system_cpu_usage: 4e11 + 1e9, online_cpus: 4 },
+      precpu_stats: { cpu_usage: { total_usage: 5e9 }, system_cpu_usage: 4e11 },
+      memory_stats: { usage: i * 300e6 + 50e6, limit: 16e9, stats: { inactive_file: 50e6 } },
+    });
+  }
   const m = req.url.match(/^\/containers\/([a-f0-9]+)\/(start|stop|restart)$/);
   const c = m && containers.find((x) => x.Id.startsWith(m[1]));
   if (req.method === 'POST' && c) {
