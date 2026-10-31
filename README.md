@@ -37,6 +37,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Alwaysdata** : les sites d’un compte d’hébergement, chacun testé par le dashboard (en ligne, en panne, temps de réponse), ceux en panne en premier.
   - **Calendrier** : les événements des 7 prochains jours d’un ou plusieurs agendas iCal (Nextcloud, Google Agenda, Proton…), récurrents compris, groupés par jour.
   - **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date.
+  - **CrowdSec** : les attaques détectées sur ton serveur dans les dernières 24 h (adresse, pays, opérateur, scénario), les plus actifs, et les adresses bannies ; alerte en cas de pic.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
   - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
   - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
@@ -150,6 +151,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | Calendrier | Adresse(s) `.ics` + identifiant / mot de passe facultatifs | Nextcloud : ⋯ > Copier le lien privé ; Google Agenda : Paramètres > Adresse secrète au format iCal. Plusieurs agendas : adresses séparées par un espace. L’adresse est gardée sur le serveur comme une clé |
 | GoAccess | URL du rapport JSON (`goaccess … -o rapport.json`) | Aucune clé. Pour ne rien exposer de sensible, génère un rapport limité au panneau des visiteurs (`--ignore-panel` pour tous les autres, dont `HOSTS`) : il ne contient aucune adresse IP |
 | Alwaysdata | Jeton d’API + nom du compte (facultatif) | Alwaysdata > Profil > Gestion des jetons. Le compte n’est utile que si le jeton en gère plusieurs. Le widget lit seulement la liste des sites, puis teste lui-même leur première adresse (HTTPS, sinon HTTP) |
+| CrowdSec | URL de l’API locale (`http://IP:8080`) + compte machine **ou** clé de bouncer | Sur la machine CrowdSec : `cscli machines add dashboard --password …` (attaques détaillées : pays, opérateur, scénario) ou `cscli bouncers add dashboard` (lecture seule : adresses bannies). La liste communautaire n’est pas comptée comme une attaque |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
 | Uptime Kuma | URL (`http://IP:3001`) + nom de la page de statut, ou l’adresse complète de la page | Aucune clé : les pages de statut sont publiques (Uptime Kuma > Pages de statut) |
 | Glances | URL (`http://IP:61208`) + mot de passe facultatif | Lance `glances -w` sur la machine (avec `--password` pour en exiger un ; utilisateur `glances` par défaut) |

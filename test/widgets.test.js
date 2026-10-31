@@ -81,6 +81,10 @@ const WIDGETS = [
   { id: 'ical', type: 'ical', apiKey: 'http://localhost:18091/agenda.ics http://localhost:18091/prive.ics', username: 'agenda', password: 'agenda-pass' },
   { id: 'ical-bad', type: 'ical', apiKey: 'http://localhost:18091/pas-ical' },
   { id: 'ical-auth', type: 'ical', apiKey: 'http://localhost:18091/prive.ics', username: 'agenda', password: 'faux' },
+  { id: 'crowdsec', type: 'crowdsec', url: 'http://localhost:18093', username: 'dashboard', password: 'crowdsec-pass' },
+  { id: 'crowdsec-key', type: 'crowdsec', url: 'http://localhost:18093', apiKey: 'crowdsec-bouncer' },
+  { id: 'crowdsec-bad', type: 'crowdsec', url: 'http://localhost:18093', username: 'dashboard', password: 'faux' },
+  { id: 'crowdsec-badkey', type: 'crowdsec', url: 'http://localhost:18093', apiKey: 'fausse-cle' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
@@ -122,7 +126,7 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -327,6 +331,17 @@ test('Calendrier : récurrences, exception, occurrence déplacée, journée enti
   assert.deepEqual([simple.location, simple.start], ['Salle 2', `${day(1)}T14:00:00.000Z`]);
 });
 
+test('CrowdSec : attaques des 24 h (sans CAPI ni simulation), pays, bannis', async () => {
+  const d = await widget('crowdsec');
+  assert.deepEqual([d.mode, d.alerts24h, d.attackers24h, d.bans.total], ['machine', 4, 4, 3]);
+  assert.deepEqual(d.recent.map((a) => a.ip), ['185.220.101.4', '45.148.10.81', '218.92.0.31', '103.152.79.12'], 'plus récentes d’abord');
+  assert.deepEqual(d.scenarios[0], { name: 'ssh-bf', count: 2 });
+  assert.equal(d.recent[0].country, 'DE');
+  assert.equal(d.recent[3].banned, false);
+  const b = await widget('crowdsec-key');
+  assert.deepEqual([b.mode, b.bans.total, b.recent.length], ['bouncer', 2, 2], 'liste communautaire (CAPI) écartée');
+});
+
 test('Pi-hole et AdGuard Home : format commun', async () => {
   for (const id of ['pihole', 'adguard']) {
     const d = await widget(id);
@@ -490,6 +505,8 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
     'rss-bad': 'rss_invalid',
+    'crowdsec-bad': 'crowdsec_credentials',
+    'crowdsec-badkey': 'crowdsec_key',
     'ical-bad': 'ical_invalid',
     'ical-auth': 'auth_refused',
     'alwaysdata-bad': 'auth_refused',

@@ -34,6 +34,7 @@ A lightweight, self-hosted dashboard (Homarr-style) to reach all the services of
   - **Alwaysdata**: the sites of a hosting account, each checked by the dashboard (up, down, response time), down ones first.
   - **Calendar**: events of the next 7 days from one or more iCal calendars (Nextcloud, Google Calendar, Proton…), recurring ones included, grouped by day.
   - **RSS / Atom feeds**: the 10 latest articles of one or more feeds, mixed by date.
+  - **CrowdSec**: attacks detected on your server in the last 24 h (address, country, ISP, scenario), the most active ones, and banned addresses; alert on a spike.
   - **GoAccess**: a website’s unique visitors (total, today, last 7 days), requests and traffic, from a GoAccess JSON report.
   - **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
   - **Frigate**: cameras online and frames per second, detection speed, latest events (person, car…) with their thumbnail, served by the dashboard.
@@ -101,6 +102,7 @@ It installs Node.js if needed, creates a `server-dashboard` systemd service and 
 | Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
 | Alwaysdata | API token + account name (optional) | Alwaysdata > Profile > Token management. The account is only needed if the token manages several. The widget only reads the list of sites, then checks their first address itself (HTTPS, else HTTP) |
 | Calendar | `.ics` address(es) + optional username / password | Nextcloud: ⋯ > Copy private link; Google Calendar: Settings > Secret address in iCal format. Several calendars: addresses separated by a space. The address is kept on the server like a key |
+| CrowdSec | Local API URL (`http://IP:8080`) + machine account **or** bouncer key | On the CrowdSec machine: `cscli machines add dashboard --password …` (detailed attacks: country, ISP, scenario) or `cscli bouncers add dashboard` (read-only: banned addresses). The community blocklist is not counted as an attack |
 | GoAccess | URL of the JSON report (`goaccess … -o report.json`) | No key. To expose nothing sensitive, generate a report limited to the visitors panel (`--ignore-panel` for all others, including `HOSTS`): it contains no IP address |
 | Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
 | Uptime Kuma | URL (`http://IP:3001`) + status page name, or the full page address | No key: status pages are public (Uptime Kuma > Status Pages) |

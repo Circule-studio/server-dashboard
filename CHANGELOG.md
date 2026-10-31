@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.18.0] - 2026-10-31
+
+### Ajouté
+- Widget **CrowdSec** : les attaques détectées sur le serveur dans les dernières 24 h (adresse, pays, opérateur, scénario), les pays et scénarios les plus actifs, et les adresses bannies. Compte machine pour le détail, ou clé de bouncer en lecture seule pour les seuls bannissements. La liste communautaire (CAPI) et le mode simulation ne comptent pas. « M’alerter » : notification au-delà de 50 attaques en 24 h, puis au retour à la normale. Première étape de #105.
+
 ## [0.17.0] - 2026-10-31
 
 ### Ajouté
@@ -228,7 +233,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.17.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.15.0...v0.16.0
