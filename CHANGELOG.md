@@ -4,6 +4,8 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.17.0] - 2026-10-31
+
 ### Ajouté
 - Widget **Speedtest Tracker** : dernier test (débit descendant, montant, ping), moyenne des 7 derniers jours et barres des 12 derniers tests. API v1 avec un jeton, ou ancienne API publique sans jeton (#100).
 - Widget **Scrutiny** : santé SMART des disques (sains, en échec en premier) avec modèle, capacité, température et heures de fonctionnement. « M’alerter » : notification quand un disque passe en mauvaise santé, puis quand il redevient sain. Scrutiny et Proxmox Backup Server ajoutés au catalogue d’applications (#99).
@@ -12,6 +14,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 - **Recherche rapide étendue** : commencer à taper n’importe où ouvre la recherche (pas en mode édition, ni Espace qui fait défiler la page). Sous le champ, des suggestions au clavier (flèches, Entrée) ou à la souris : les tuiles trouvées, « Ouvrir … » quand le texte ressemble à une adresse (`nas.maison`, `192.168.1.10:8096`), et une recherche web. Moteur réglable dans Affichage : DuckDuckGo (par défaut), Google, Bing, Brave, Qwant, Ecosia, une adresse personnalisée (`%s`) ou aucun. Idée reprise de Homepage (#91).
 - Widget **API personnalisée** : n’importe quelle API JSON. On choisit jusqu’à 12 valeurs par leur chemin dans la réponse (`data.users.count`, `items.0.name`, `liste.length`), avec un libellé et un format (texte, nombre, pourcentage, octets, débit, date) ; 4 valeurs ou moins en blocs de chiffres, au-delà en liste. Authentification facultative par en-tête ou en Basic, gardée sur le serveur. Idée reprise de Homepage (#90).
 - **Tuile liée à une VM, un LXC ou un conteneur** : dans le formulaire d’une application, « Lier à » propose les VM et LXC des widgets Proxmox VE enregistrés et les conteneurs du panneau Docker. La tuile affiche alors leur CPU et leur RAM (en orange ou rouge au-delà de 70 % et 90 %), « à l’arrêt » ou « introuvable ». Le lien réutilise la connexion du widget Proxmox ou le socket Docker : aucun nouveau secret. Idée reprise de Homepage (#89).
+
+### Sécurité
+- Dépendance `qs` mise à jour (6.16.1 → 6.17.1).
 
 ## [0.16.1] - 2026-10-29
 
@@ -223,7 +228,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.14.0...v0.15.0
