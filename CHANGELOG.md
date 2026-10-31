@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.20.0] - 2026-10-31
+
+### Ajouté
+- Widget **Wazuh** : agents actifs, déconnectés (avec leur dernier contact) et jamais connectés, version du manager. Facultatif : avec l’indexer (OpenSearch), les alertes de sécurité des 24 h par gravité (critiques, élevées, faibles) et les dernières alertes importantes. « M’alerter » : notification quand un agent se déconnecte, et en cas d’alerte critique (niveau 12 ou plus) dans les 24 h (#103).
+- Widget **Traefik** : nombre de routeurs, services et middlewares, ceux en erreur ou en alerte, points d’entrée et version. API protégée par basicAuth acceptée. « M’alerter » : notification quand un routeur HTTP passe en erreur, puis à son retour (#104).
+
 ## [0.19.1] - 2026-10-31
 
 ### Corrigé
@@ -248,7 +254,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.18.0...v0.18.1

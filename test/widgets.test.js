@@ -85,6 +85,12 @@ const WIDGETS = [
   { id: 'crowdsec-key', type: 'crowdsec', url: 'http://localhost:18093', apiKey: 'crowdsec-bouncer' },
   { id: 'crowdsec-bad', type: 'crowdsec', url: 'http://localhost:18093', username: 'dashboard', password: 'faux' },
   { id: 'crowdsec-badkey', type: 'crowdsec', url: 'http://localhost:18093', apiKey: 'fausse-cle' },
+  { id: 'traefik', type: 'traefik', url: 'http://localhost:18094' },
+  { id: 'traefik-auth', type: 'traefik', url: 'http://localhost:18098', username: 'traefik', password: 'traefik-pass' },
+  { id: 'traefik-bad', type: 'traefik', url: 'http://localhost:18098', username: 'traefik', password: 'faux' },
+  { id: 'wazuh', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass', indexerUrl: 'http://localhost:18097', apiKey: 'admin:indexer-pass' },
+  { id: 'wazuh-noindex', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass' },
+  { id: 'wazuh-bad', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'faux' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
@@ -126,7 +132,7 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['traefik-pass', 'wazuh-pass', 'indexer-pass', 'crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -342,6 +348,31 @@ test('CrowdSec : attaques des 24 h (sans CAPI ni simulation), pays, bannis', asy
   assert.deepEqual([b.mode, b.bans.total, b.recent.length], ['bouncer', 2, 2], 'liste communautaire (CAPI) écartée');
 });
 
+test('Traefik : routeurs, services, middlewares, erreurs d’abord', async () => {
+  for (const id of ['traefik', 'traefik-auth']) {
+    const d = await widget(id);
+    assert.deepEqual([d.version, d.routers, d.middlewares.errors], ['3.4.1', { total: 5, warnings: 1, errors: 1 }, 1], id);
+    assert.deepEqual(d.problems.map((p) => [p.name, p.status]), [['nextcloud@file', 'error'], ['ha@docker', 'warning']]);
+    assert.deepEqual(d.entrypoints.map((e) => e.name), ['web', 'websecure']);
+  }
+  const { INTEGRATIONS } = require('../integrations');
+  const items = INTEGRATIONS.traefik.alerts(await widget('traefik'), { id: 't', name: 'Traefik', url: 'u' });
+  assert.deepEqual(items.filter((i) => !i.online).map((i) => i.name), ['Traefik · nextcloud@file', 'Traefik · ha@docker']);
+});
+
+test('Wazuh : agents, alertes de l’indexer, sans indexer', async () => {
+  const d = await widget('wazuh');
+  assert.deepEqual([d.version, d.agents.active, d.agents.disconnected, d.agents.never], ['v4.12.0', 3, 1, 1]);
+  assert.deepEqual(d.disconnected.map((a) => a.name), ['nas']);
+  assert.deepEqual([d.alerts.high, d.alerts.medium, d.alerts.low, d.alerts.recent.length], [2, 30, 380, 3]);
+  const plain = await widget('wazuh-noindex');
+  assert.deepEqual([plain.alerts, plain.agents.active], [null, 3], 'sans indexer : seulement les agents');
+  const { INTEGRATIONS } = require('../integrations');
+  const items = INTEGRATIONS.wazuh.alerts(d, { id: 'z', name: 'Wazuh', url: 'u' });
+  assert.deepEqual(items.filter((i) => !i.online).map((i) => i.name), ['Wazuh · nas', 'Wazuh'], 'agent déconnecté et alerte critique');
+  assert.ok(!items.some((i) => /manager|portable/.test(i.name)), 'manager et agent jamais connecté ignorés');
+});
+
 test('Pi-hole et AdGuard Home : format commun', async () => {
   for (const id of ['pihole', 'adguard']) {
     const d = await widget(id);
@@ -505,6 +536,8 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
     'rss-bad': 'rss_invalid',
+    'traefik-bad': 'auth_refused',
+    'wazuh-bad': 'wazuh_credentials',
     'crowdsec-bad': 'crowdsec_credentials',
     'crowdsec-badkey': 'crowdsec_key',
     'ical-bad': 'ical_invalid',

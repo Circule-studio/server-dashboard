@@ -31,10 +31,12 @@
 //   GitHub       http://localhost:14000  dépôt  circule-studio/server-dashboard (jeton facultatif)
 //                demo/private (jeton gh-token obligatoire), demo/tags-only, demo/empty, demo/rate-limited, demo/secondary
 //   CrowdSec     http://localhost:18093  machine dashboard / crowdsec-pass, ou clé de bouncer crowdsec-bouncer
+//   Traefik      http://localhost:18094 (sans mot de passe) ou :18098 avec traefik / traefik-pass
+//   Wazuh        API http://localhost:18095  wazuh-wui / wazuh-pass ; indexer http://localhost:18097  admin:indexer-pass
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
-  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs', 'scrutiny', 'speedtest', 'crowdsec'];
+  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs', 'scrutiny', 'speedtest', 'crowdsec', 'traefik', 'wazuh'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 

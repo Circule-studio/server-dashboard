@@ -251,6 +251,8 @@ function sanitizeWidgets(list, previous = []) {
     if (INTEGRATIONS[type].alerts) out.alert = w.alert === true;
     // Lieu de la météo : nom de ville ou coordonnées.
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
+    // Deuxième adresse facultative (indexer Wazuh).
+    if (INTEGRATIONS[type].fields.includes('indexerUrl')) out.indexerUrl = checkUrl(str(w.indexerUrl, 2000));
     if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
     if (INTEGRATIONS[type].fields.includes('feeds')) out.feeds = sanitizeFeeds(w.feeds);
     if (INTEGRATIONS[type].fields.includes('mappings')) out.mappings = sanitizeMappings(w.mappings);
