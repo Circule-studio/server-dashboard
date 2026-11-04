@@ -3,6 +3,7 @@
 
 WIDGET_TYPES.updates = {
   label: t('updates.label'), icon: '/icons/updates.svg', kind: 'updates', refresh: 30_000, fields: [], urlOptional: true,
+  refreshFollowUps: [6000, 10_000, 15_000], // la recherche se fait en arrière-plan sur chaque machine
 };
 
 const STALE_LISTS_MS = 7 * 86400_000; // listes de paquets plus vieilles : le décompte n'est plus fiable

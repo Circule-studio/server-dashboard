@@ -5,6 +5,8 @@
 //                 mappings (valeurs choisies de l'API personnalisée)
 //   fetch(w)      récupère les données du widget w (une promesse)
 //   withWidgets   fetch reçoit aussi tous les widgets de la config (mises à jour : les agents)
+//   refresh(w, widgets) avant un rafraîchissement demandé (bouton ⟳) : oublier ses caches, prévenir l'agent…
+//                 ce qu'elle renvoie accompagne les données
 //   keep          champs gardés d'un enregistrement à l'autre, jamais envoyés par le formulaire (date de connexion…)
 //   oauth         connexion à un compte : { start(w), finish(w, adresse), redirectUri } (routes /api/widgets/:id/oauth)
 //   publicData(d) ce qu'un visiteur non connecté voit des données d (par défaut : tout)
@@ -55,6 +57,13 @@ async function fetchWidget(w, widgets) {
   return entry.promise;
 }
 
+// Bouton ⟳ : les données à l'instant, jamais une réponse précédente, même récente.
+async function refreshWidget(w, widgets) {
+  const extra = await INTEGRATIONS[w.type].refresh?.(w, widgets);
+  cache.delete(w.id);
+  return { ...extra, data: await fetchWidget(w, widgets) };
+}
+
 // La promesse si elle aboutit dans STALE_WAIT_MS, sinon `stale` (elle continue en arrière-plan).
 function orStale(promise, stale) {
   let timer;
@@ -68,4 +77,4 @@ function resetIntegrations() {
   for (const integration of Object.values(INTEGRATIONS)) integration.reset?.();
 }
 
-module.exports = { INTEGRATIONS, fetchWidget, resetIntegrations, request, orStale };
+module.exports = { INTEGRATIONS, fetchWidget, refreshWidget, resetIntegrations, request, orStale };

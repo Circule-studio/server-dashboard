@@ -137,6 +137,7 @@ module.exports = {
   spotify: {
     fields: ['username', 'password', 'apiKey'], userRequired: true, keep: ['authorizedAt'], cacheMs: 10_000, fetch: spotify,
     reset: () => { sessions.clear(); recents.clear(); },
+    refresh: (w) => { recents.delete(w.id); },
     oauth: { start: startOAuth, finish: finishOAuth, redirectUri: REDIRECT_URI },
     // Visiteur non connecté : le titre en cours, pas l'historique d'écoute ni l'appareil.
     publicData: ({ now, recent, expiresAt, ...d }) => ({ ...d, now: now && { ...now, device: '' }, recent: [] }),

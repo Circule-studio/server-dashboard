@@ -2,7 +2,7 @@
 
 Petit script Node.js, sans dépendance, à lancer sur une machine que tu veux voir sur le dashboard : PC, Raspberry Pi, NAS ou 2e serveur. Il envoie le CPU, la mémoire, les disques, la température et l'uptime toutes les 30 secondes, et les mises à jour en attente (widget **Mises à jour**).
 
-**C'est la machine qui contacte le dashboard.** Il n'y a aucun port à ouvrir chez elle, et ça marche aussi derrière un NAT, chez quelqu'un d'autre par exemple. Si la machine n'envoie plus rien, le widget affiche « Plus de nouvelles depuis… » avec ses dernières valeurs.
+**C'est la machine qui contacte le dashboard.** Il n'y a aucun port à ouvrir chez elle, et ça marche aussi derrière un NAT, chez quelqu'un d'autre par exemple. L'agent garde pour cela une connexion ouverte vers le dashboard : le bouton ⟳ du widget y répond, et il envoie alors ses valeurs tout de suite. Si la machine n'envoie plus rien, le widget affiche « Plus de nouvelles depuis… » avec ses dernières valeurs.
 
 Pour une machine du réseau local où tu peux installer [Glances](https://github.com/nicolargo/glances), le widget **Glances** fait la même chose sans agent.
 
