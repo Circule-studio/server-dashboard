@@ -949,6 +949,28 @@ test('Spotify : connexion du compte', async () => {
   assert.equal(resaved.json.widgets.find((x) => x.id === 'spotify-new').authorizedAt, w.authorizedAt);
 });
 
+test('Widgets dans une catégorie : gardés, catégorie supprimée, type vérifié', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const categories = [{ id: 'cat-a', name: 'A', apps: [] }, { id: 'cat-b', name: 'B', apps: [] }];
+  let r = await api('PUT', '/api/config', {
+    ...cfg, categories,
+    layout: [
+      { kind: 'widget', id: 'jellyfin', w: 4, category: 'cat-a' },
+      { kind: 'widget', id: 'plex', w: 3, category: 'inconnue' },
+      { kind: 'category', id: 'cat-b', w: 12, category: 'cat-a' },
+      { kind: 'category', id: 'cat-a', w: 12 },
+    ],
+  });
+  assert.equal(r.status, 200, r.text);
+  const of = (json, id) => json.layout.find((it) => it.id === id).category;
+  assert.deepEqual([of(r.json, 'jellyfin'), of(r.json, 'plex'), of(r.json, 'cat-b')], ['cat-a', undefined, undefined], 'catégorie inconnue, ou catégorie dans une catégorie : refusées');
+  r = await api('PUT', '/api/config', { ...r.json, categories: [categories[1]] });
+  assert.equal(of(r.json, 'jellyfin'), undefined, 'catégorie supprimée : le widget revient dans la grille');
+  assert.ok(r.json.widgets.some((w) => w.id === 'jellyfin'), 'le widget n’est pas supprimé');
+  r = await api('PUT', '/api/config', { ...r.json, categories: cfg.categories, layout: cfg.layout });
+  assert.equal(r.status, 200, r.text);
+});
+
 test('Mises à jour : décompte par machine, détail réservé à l’admin (#122)', async () => {
   const { parseApt, parseImage } = require('../agent/server-dashboard-agent');
   const apt = parseApt([

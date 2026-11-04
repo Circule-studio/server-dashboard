@@ -7,6 +7,7 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 ## [0.26.0] - 2026-11-05
 
 ### Ajouté
+- **Widgets dans les catégories** : en mode édition, le menu de chaque widget le range dans une catégorie, sous ses tuiles. Il se replie avec elle et suit son onglet. Une catégorie peut ne contenir que des widgets. Si elle est supprimée, ses widgets reviennent dans la grille.
 - Widget **Spotify** : ce qui joue en ce moment (titre, pochette, progression, appareil) et les dernières écoutes, cachées aux visiteurs non connectés. Il faut une application Spotify, dont le propriétaire a Premium (règle de Spotify depuis 2026). La connexion du compte se fait dans le formulaire du widget, et est à refaire tous les 6 mois : le widget prévient 14 jours avant (#128).
 
 ## [0.25.1] - 2026-11-05

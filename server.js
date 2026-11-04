@@ -379,6 +379,8 @@ function sanitizeLayout(layout, cfg) {
     if (it.h != null && Number.isFinite(h)) out.h = Math.min(3000, Math.max(60, h));
     // Onglet de l'élément (#92) ; sans onglet (ou onglet supprimé) : affiché dans tous.
     if (cfg.tabs.some((t) => t.id === it.tab)) out.tab = it.tab;
+    // Widget rangé dans une catégorie ; catégorie supprimée : il revient dans la grille.
+    if (kind === 'widget' && cfg.categories.some((c) => c.id === it.category)) out.category = it.category;
     return [out];
   });
 }

@@ -142,7 +142,10 @@ function render() {
   const tab = activeTab(cfg);
   renderTabs(cfg, tab);
   let found = 0;
+  // Index dans la mise en page : le glisser-déposer déplace toujours dans la liste complète.
+  const inCategory = (id) => layout.flatMap((item, index) => (item.category === id ? [{ item, index }] : []));
   layout.forEach((item, index) => {
+    if (item.category) return; // affiché dans sa catégorie
     // Un élément sans onglet s'affiche dans tous ; la recherche parcourt tous les onglets.
     if (tab && !q && item.tab && item.tab !== tab) return;
     let el;
@@ -151,7 +154,7 @@ function render() {
       el = widgetCard(cfg.widgets[wi], wi);
     } else {
       const ci = cfg.categories.findIndex((c) => c.id === item.id);
-      const result = categoryEl(cfg.categories[ci], ci, q);
+      const result = categoryEl(cfg.categories[ci], ci, q, inCategory(item.id));
       found += result.found;
       el = result.el;
     }
@@ -163,10 +166,7 @@ function render() {
   if (q && !found) boardMessage(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
   layoutBoard();
-  for (const el of board.children) {
-    fitRows(el);
-    itemObserver.observe(el);
-  }
+  for (const el of board.querySelectorAll('.board-item, .board-full')) itemObserver.observe(el);
   renderStatsOrder();
   updateSaveBar();
   renderSearchMenu();
@@ -174,10 +174,12 @@ function render() {
 
 // Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
 // recherche est désactivée ; une catégorie dont le nom correspond s'affiche en entier.
-function categoryEl(cat, ci, q) {
+function categoryEl(cat, ci, q, widgets = []) {
   const catMatch = !q || fold(cat.name).includes(q);
   const apps = cat.apps.map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
-  if (!state.editing && !apps.length) return { el: null, found: 0 };
+  // Pendant une recherche, ses widgets suivent la catégorie : seulement si son nom correspond.
+  const shown = catMatch ? widgets : [];
+  if (!state.editing && !apps.length && !shown.length) return { el: null, found: 0 };
   // Repliée seulement hors édition et hors recherche : on doit voir ce qu'on modifie ou cherche.
   const collapsed = !state.editing && !q && isCollapsed(cat);
   const icon = cat.icon ? iconEl(cat) : null;
@@ -199,7 +201,13 @@ function categoryEl(cat, ci, q) {
   const grid = h('div', { class: 'grid', 'data-cat': ci, 'data-drop': state.editing ? 'tile' : null });
   apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
   if (state.editing) grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
-  return { el: h('section', { class: `category${collapsed ? ' collapsed' : ''}` }, head, collapsed ? null : grid), found: apps.length };
+  const board = shown.length ? h('div', { class: 'board category-board' }, shown.map(({ item, index }) => {
+    const wi = current().widgets.findIndex((w) => w.id === item.id);
+    return boardItem(widgetCard(current().widgets[wi], wi), item, index);
+  })) : null;
+  // Sans tuile, pas de grille vide au-dessus des widgets (en édition, elle sert à en ajouter).
+  const body = collapsed ? [] : [state.editing || apps.length ? grid : null, board];
+  return { el: h('section', { class: `category${collapsed ? ' collapsed' : ''}` }, head, body), found: apps.length };
 }
 
 // Catégories repliées ou dépliées par ce visiteur (navigateur) ; sinon le réglage de la catégorie.
@@ -337,37 +345,45 @@ function layoutOf(cfg) {
   const items = [];
   const seen = new Set();
   const tabs = new Set(tabsOf(cfg).map((tb) => tb.id));
-  const add = (kind, id, w, height, tab) => {
+  const categories = new Set(cfg.categories.map((c) => c.id));
+  const add = (kind, id, w, height, tab, category) => {
     const key = `${kind}:${id}`;
     if (!lists[kind] || seen.has(key) || !lists[kind].some((x) => x.id === id)) return;
     seen.add(key);
     const item = { kind, id, w: Math.min(GRID_COLS, Math.max(1, Math.round(w) || DEFAULT_WIDTH[kind])) };
     if (height > 0) item.h = Math.max(MIN_HEIGHT, Math.round(height));
     if (tabs.has(tab)) item.tab = tab;
+    if (kind === 'widget' && categories.has(category)) item.category = category;
     items.push(item);
   };
-  for (const it of cfg.layout || []) add(it.kind, it.id, it.w, it.h, it.tab);
+  for (const it of cfg.layout || []) add(it.kind, it.id, it.w, it.h, it.tab, it.category);
   for (const w of lists.widget) add('widget', w.id, DEFAULT_WIDTH.widget);
   for (const c of lists.category) add('category', c.id, DEFAULT_WIDTH.category);
   return items;
 }
 
 // Colonnes affichées selon la place : 12 sur grand écran, 6 sur tablette, 1 sur téléphone.
-function boardCols() {
-  const width = $('#board').clientWidth;
-  return width >= 1000 ? GRID_COLS : width >= 600 ? 6 : 1;
-}
+// La grille principale, ou celle des widgets d'une catégorie : selon la place qu'elle a.
+const colsFor = (grid) => (grid.clientWidth >= 1000 ? GRID_COLS : grid.clientWidth >= 600 ? 6 : 1);
 const spanOf = (w, cols) => Math.max(1, Math.min(cols, Math.round((w * cols) / GRID_COLS)));
+
+function layoutGrid(grid) {
+  const cols = colsFor(grid);
+  grid.style.setProperty('--cols', cols);
+  grid.dataset.cols = cols;
+  const items = [...grid.querySelectorAll(':scope > .board-item')];
+  for (const el of items) el.style.gridColumn = `span ${spanOf(Number(el.dataset.w), cols)}`;
+  return items;
+}
 
 function layoutBoard() {
   const board = $('#board');
-  const cols = boardCols();
-  board.style.setProperty('--cols', cols);
-  board.dataset.cols = cols;
-  const items = [...board.querySelectorAll(':scope > .board-item')];
-  for (const el of items) el.style.gridColumn = `span ${spanOf(Number(el.dataset.w), cols)}`;
-  // Une largeur qui change change aussi la hauteur.
+  const items = layoutGrid(board);
+  // Une largeur qui change change aussi la hauteur. Les widgets d'une catégorie d'abord :
+  // leur hauteur fait celle de la catégorie.
+  for (const inner of board.querySelectorAll('.category-board')) layoutGrid(inner).forEach(fitRows);
   items.forEach(fitRows);
+  board.querySelectorAll(':scope > .board-full').forEach(fitRows);
 }
 
 // Chaque élément réserve autant de lignes que sa hauteur (plus l'espace en dessous).
@@ -392,14 +408,24 @@ function boardItem(el, item, index) {
   if (!state.editing) return el;
 
   el.dataset.index = index;
+  const tools = el.querySelector('.category-tools, .tile-tools') || el;
   const tabs = tabsOf(state.draft);
-  if (tabs.length) {
+  // Dans une catégorie, un widget suit l'onglet de celle-ci.
+  if (tabs.length && !item.category) {
     const select = h('select', {
       class: 'item-tab', title: t('tab.move'), 'aria-label': t('tab.move'),
       onchange: (e) => { if (e.target.value) item.tab = e.target.value; else delete item.tab; render(); },
     }, h('option', { value: '' }, t('tab.all')), tabs.map((tb) => h('option', { value: tb.id }, tb.name)));
     select.value = item.tab || '';
-    (el.querySelector('.category-tools, .tile-tools') || el).prepend(select);
+    tools.prepend(select);
+  }
+  if (item.kind === 'widget' && state.draft.categories.length) {
+    const select = h('select', {
+      class: 'item-tab', title: t('layout.category'), 'aria-label': t('layout.category'),
+      onchange: (e) => { setItemCategory(item, e.target.value); render(); },
+    }, h('option', { value: '' }, t('layout.noCategory')), state.draft.categories.map((c) => h('option', { value: c.id }, c.name)));
+    select.value = item.category || '';
+    tools.prepend(select);
   }
   el.append(h('div', {
     class: 'resize-handle', title: t('layout.resize'), 'aria-hidden': 'true',
@@ -412,10 +438,33 @@ function boardItem(el, item, index) {
     handle: el.querySelector('.widget-head, .category-head'),
     group: 'item',
     key: `item:${item.kind}:${item.id}`,
-    onDrop: (target, after) => moveItem(index, Number(target.dataset.index) + (after ? 1 : 0)),
-    onStep: (delta) => moveItem(index, delta < 0 ? index - 1 : index + 2),
+    // Un widget déposé à côté d'un autre le rejoint : dans sa catégorie, ou dans la grille.
+    onDrop: (target, after) => {
+      if (item.kind === 'widget') setItemCategory(item, state.draft.layout[Number(target.dataset.index)]?.category || '');
+      moveItem(index, Number(target.dataset.index) + (after ? 1 : 0));
+    },
+    // Au clavier : d'un cran parmi ses voisins visibles, pas dans la liste complète.
+    onStep: (delta) => {
+      const list = state.draft.layout;
+      const neighbours = list.flatMap((x, i) => ((x.category || '') === (item.category || '') ? [i] : []));
+      const near = neighbours[neighbours.indexOf(index) + delta];
+      if (near !== undefined) moveItem(index, delta < 0 ? near : near + 1);
+    },
   });
   return el;
+}
+
+// Ranger un widget dans une catégorie (ou '' : dans la grille, sur l'onglet affiché).
+function setItemCategory(item, category) {
+  if (category === (item.category || '')) return;
+  if (category) {
+    item.category = category;
+    delete item.tab;
+  } else {
+    delete item.category;
+    const tab = activeTab(state.draft);
+    if (tab) item.tab = tab;
+  }
 }
 
 // Déplace l'élément `from` juste avant la position `to` (to = longueur : à la fin).
@@ -452,8 +501,8 @@ function startResize(e, el, item) {
   e.stopPropagation();
   const handle = e.currentTarget;
   handle.setPointerCapture?.(e.pointerId);
-  const cols = boardCols();
-  const colWidth = ($('#board').clientWidth + GRID_GAP) / cols;
+  const cols = colsFor(el.parentElement); // la grille principale, ou celle de la catégorie
+  const colWidth = (el.parentElement.clientWidth + GRID_GAP) / cols;
   const { left, top } = el.getBoundingClientRect();
   // Mesurée à chaque changement de largeur seulement : le contenu se réorganise.
   let natural = naturalHeight(el);

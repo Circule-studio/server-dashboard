@@ -54,6 +54,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **API personnalisée** : n’importe quelle API JSON (service sans widget, script maison) : on choisit les valeurs à afficher par leur chemin dans la réponse, avec un format (nombre, pourcentage, octets, débit, date).
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
 - **Onglets** (ex. « Maison », « Serveur », « Médias ») pour répartir widgets et catégories sur plusieurs pages, avec un lien direct par onglet (`#medias`). La recherche parcourt tous les onglets.
+- **Widgets dans les catégories** : en mode édition, chaque widget a un menu pour le ranger dans une catégorie, sous ses tuiles. Il suit alors son onglet et se replie avec elle.
 - **Catégories repliables** d’un clic sur leur titre (état mémorisé dans le navigateur, ou repliées par défaut), avec une icône facultative.
 - **Mises à jour** : un badge « 7 mises à jour en attente », cliquable pour le détail par machine : paquets apt (dont ceux de sécurité) et images Docker dont le tag a changé. Pour le serveur du dashboard et chaque machine avec un agent. Affichage seulement, rien n’est installé. Les visiteurs non connectés ne voient que les nombres ; voir [agent/README.md](agent/README.md#mises-à-jour-en-attente).
 - **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](agent/README.md).

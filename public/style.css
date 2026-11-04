@@ -339,6 +339,9 @@ a.version-update:hover { text-decoration: underline; }
 .tab-tools { display: inline-flex; gap: 2px; margin-right: 8px; }
 .item-tab { max-width: 9rem; font-size: 0.75rem; padding: 2px 4px; }
 .category-tools { display: flex; gap: 4px; margin-left: auto; }
+/* Widgets rangés dans une catégorie, sous ses tuiles. */
+.category-board { margin-top: 14px; }
+.category-board:first-child, .category-head + .category-board { margin-top: 0; }
 
 .grid {
   display: grid; gap: 12px;
