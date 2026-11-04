@@ -269,6 +269,7 @@ function sanitizeWidgets(list, previous = []) {
       const chosen = (Array.isArray(w.sections) ? w.sections : []).filter((s) => allowed.includes(s));
       out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
     }
+    for (const k of INTEGRATIONS[type].keep || []) if (old[k]) out[k] = old[k];
     // Jeton créé par le serveur (agent) : jamais saisi, gardé d'un enregistrement à l'autre.
     // regenerateKey : nouveau jeton demandé (l'ancien cesse de marcher).
     if (INTEGRATIONS[type].generatedKey) {
@@ -825,6 +826,43 @@ app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
   }
+}));
+
+// Connexion d'un widget à un compte (Spotify). Le jeton obtenu est enregistré sans changer la révision de la
+// config : un formulaire ouvert en même temps reste enregistrable, et son « vide = inchangé » garde le jeton.
+async function oauthWidget(req, res) {
+  const widget = (await readConfig()).widgets.find((w) => w.id === req.params.id);
+  const oauth = widget && INTEGRATIONS[widget.type].oauth;
+  if (!oauth) res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  return { widget, oauth };
+}
+
+app.get('/api/widgets/:id/oauth', requireAuth, route(async (req, res) => {
+  const { widget, oauth } = await oauthWidget(req, res);
+  if (!oauth) return;
+  res.set('Cache-Control', 'no-store');
+  res.json({ url: oauth.start(widget), redirectUri: oauth.redirectUri });
+}));
+
+app.post('/api/widgets/:id/oauth', requireAuth, route(async (req, res) => {
+  const { widget, oauth } = await oauthWidget(req, res);
+  if (!oauth) return;
+  let token;
+  try {
+    token = await oauth.finish(widget, String(req.body?.url || '').slice(0, 4000));
+  } catch (e) {
+    return res.status(400).json({ error: e.message, code: e.key, params: e.params });
+  }
+  await withConfigLock(async () => {
+    const cfg = structuredClone(await readConfig());
+    const w = cfg.widgets.find((x) => x.id === widget.id);
+    if (!w) return;
+    w.apiKey = token;
+    w.authorizedAt = new Date().toISOString();
+    await writeConfig(cfg);
+  });
+  resetIntegrations();
+  res.json({ ok: true });
 }));
 
 // Images d'un widget (miniatures des événements Frigate) : passent par le dashboard, avec les

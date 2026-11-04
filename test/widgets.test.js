@@ -108,6 +108,10 @@ const WIDGETS = [
   { id: 'pvebackup', type: 'pvebackup', url: 'http://localhost:18006', username: 'root@pam!dashboard', apiKey: 'pve-secret' },
   { id: 'pvebackup-bad', type: 'pvebackup', url: 'http://localhost:18006', username: 'root@pam!dashboard', apiKey: 'faux' },
   { id: 'backup-usb', type: 'backup', name: 'Disque USB' },
+  { id: 'spotify', type: 'spotify', username: 'client-id', password: 'client-secret', apiKey: 'refresh-spotify' },
+  { id: 'spotify-new', type: 'spotify', name: 'À connecter', username: 'client-id', password: 'client-secret' },
+  { id: 'spotify-expired', type: 'spotify', username: 'client-id', password: 'client-secret', apiKey: 'refresh-expire' },
+  { id: 'spotify-bad', type: 'spotify', username: 'client-id', password: 'mauvais-secret', apiKey: 'refresh-spotify' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
@@ -149,13 +153,13 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['loki-pass', 'loki-token', 'mauvais-loki', 'watchtower-token', 'mauvais-wt', 'traefik-pass', 'wazuh-pass', 'indexer-pass', 'crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['client-secret', 'mauvais-secret', 'refresh-spotify', 'refresh-expire', 'loki-pass', 'loki-token', 'mauvais-loki', 'watchtower-token', 'mauvais-wt', 'traefik-pass', 'wazuh-pass', 'indexer-pass', 'crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
   await start('dev/mocks.js', {}, 'mocks prêts');
   // Vérification des apps pour les notifications : 200 ms au lieu d'une minute.
-  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200', UPDATE_API: 'http://localhost:14000' }, 'Server Dashboard sur');
+  await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200', UPDATE_API: 'http://localhost:14000', SPOTIFY_ACCOUNTS_URL: 'http://localhost:18104', SPOTIFY_API_URL: 'http://localhost:18104' }, 'Server Dashboard sur');
   const login = await fetch(`${BASE}/api/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: PASSWORD }),
   });
@@ -554,6 +558,9 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
     'rss-bad': 'rss_invalid',
+    'spotify-new': 'spotify_connect',
+    'spotify-expired': 'spotify_reauth',
+    'spotify-bad': 'spotify_credentials',
     'loki-bad': 'auth_refused',
     'loki-query': 'loki_query',
     'loki-404': 'loki_api',
@@ -881,6 +888,65 @@ test('Sauvegarde par script : résultat reçu, gardé sur disque, retard, valeur
   const fresh = await INTEGRATIONS.backup.fetch({ id: 'seul' });
   assert.deepEqual(INTEGRATIONS.backup.alerts(fresh, { id: 's', name: 'USB' })[0].online, true);
   assert.equal(INTEGRATIONS.backup.alerts({ ...fresh, late: true }, { id: 's', name: 'USB' })[0].online, false);
+});
+
+test('Spotify : lecture en cours, écoutes récentes, rien en lecture, visiteur', async () => {
+  let d = await widget('spotify');
+  assert.deepEqual([d.now.title, d.now.artists, d.now.playing, d.now.progress, d.now.device], ['Paranoid Android', 'Radiohead', true, 95000, 'Salon']);
+  assert.equal(d.now.image, 'https://i.scdn.co/image/64', 'la plus petite image d’au moins 64 px');
+  assert.deepEqual(d.recent.map((x) => x.title), ['Karma Police', 'Airbag']);
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/widgets/spotify');
+  cookie = saved;
+  assert.deepEqual([visitor.json.now.title, visitor.json.now.device, visitor.json.recent], ['Paranoid Android', '', []], 'ni appareil ni historique');
+  await fetch('http://localhost:18104/__mock/player/idle', { method: 'POST' });
+  await new Promise((r) => setTimeout(r, 10_100)); // cache du widget
+  d = await widget('spotify');
+  assert.equal(d.now, null, 'rien en lecture : pas une erreur');
+  assert.equal(d.recent.length, 2);
+  await fetch('http://localhost:18104/__mock/player/playing', { method: 'POST' });
+});
+
+test('Spotify : connexion du compte', async () => {
+  const saved = cookie;
+  cookie = '';
+  assert.equal((await api('GET', '/api/widgets/spotify-new/oauth')).status, 401, 'réservée à l’admin');
+  assert.equal((await api('POST', '/api/widgets/spotify-new/oauth', { url: 'x' })).status, 401);
+  cookie = saved;
+  assert.equal((await api('GET', '/api/widgets/jellyfin/oauth')).status, 404, 'seulement pour un type qui en a besoin');
+  const start = (await api('GET', '/api/widgets/spotify-new/oauth')).json;
+  const auth = new URL(start.url);
+  assert.equal(start.redirectUri, 'http://127.0.0.1:8888/callback');
+  assert.deepEqual([auth.searchParams.get('client_id'), auth.searchParams.get('redirect_uri')], ['client-id', start.redirectUri]);
+  assert.match(auth.searchParams.get('scope'), /user-read-playback-state/);
+  assert.ok(!start.url.includes('client-secret'), 'le secret reste sur le serveur');
+  const state = auth.searchParams.get('state');
+  const paste = (url) => api('POST', '/api/widgets/spotify-new/oauth', { url });
+  for (const [url, code] of [
+    ['pas une adresse', 'spotify_paste'],
+    [`${start.redirectUri}?code=code-ok&state=autre`, 'spotify_paste'],
+    [`${start.redirectUri}?code=faux&state=${state}`, 'spotify_paste'],
+    [`${start.redirectUri}?error=access_denied&state=${state}`, 'spotify_denied'],
+  ]) {
+    const r = await paste(url);
+    assert.deepEqual([r.status, r.json.code], [400, code], url);
+  }
+  const before = (await api('GET', '/api/config')).json;
+  assert.equal((await paste(`${start.redirectUri}?code=code-ok&state=${state}`)).status, 200, 'adresse recopiée acceptée');
+  const after = (await api('GET', '/api/config')).json;
+  assert.equal(after.revision, before.revision, 'un formulaire ouvert reste enregistrable');
+  const w = after.widgets.find((x) => x.id === 'spotify-new');
+  assert.ok(w.hasApiKey && w.authorizedAt);
+  assert.ok(!JSON.stringify(after).includes('refresh-spotify'), 'jeton jamais renvoyé au navigateur');
+  assert.equal((await paste(`${start.redirectUri}?code=code-ok&state=${state}`)).status, 400, 'adresse à usage unique');
+  const d = await widget('spotify-new');
+  assert.equal(d.now.title, 'Paranoid Android');
+  assert.ok(new Date(d.expiresAt) - Date.now() > 170 * 86400_000, 'expire dans 6 mois');
+  // Enregistrer le formulaire garde le jeton et sa date.
+  const resaved = await api('PUT', '/api/config', after);
+  assert.equal(resaved.status, 200, resaved.text);
+  assert.equal(resaved.json.widgets.find((x) => x.id === 'spotify-new').authorizedAt, w.authorizedAt);
 });
 
 test('Mises à jour : décompte par machine, détail réservé à l’admin (#122)', async () => {

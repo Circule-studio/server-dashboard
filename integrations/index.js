@@ -5,6 +5,8 @@
 //                 mappings (valeurs choisies de l'API personnalisée)
 //   fetch(w)      récupère les données du widget w (une promesse)
 //   withWidgets   fetch reçoit aussi tous les widgets de la config (mises à jour : les agents)
+//   keep          champs gardés d'un enregistrement à l'autre, jamais envoyés par le formulaire (date de connexion…)
+//   oauth         connexion à un compte : { start(w), finish(w, adresse), redirectUri } (routes /api/widgets/:id/oauth)
 //   publicData(d) ce qu'un visiteur non connecté voit des données d (par défaut : tout)
 //   cacheMs       durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS) ;
 //                 une fonction du widget permet de l'adapter (GitHub : plus long sans jeton)
@@ -23,7 +25,7 @@ const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
 const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pbs', 'scrutiny', 'crowdsec', 'traefik', 'wazuh', 'speedtest', 'pulse',
-  'glances', 'agent', 'updates', 'loki', 'authelia', 'watchtower', 'backups', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr', 'customapi'];
+  'glances', 'agent', 'updates', 'loki', 'authelia', 'watchtower', 'backups', 'spotify', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr', 'customapi'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
 // Petit cache pour ne pas solliciter les services à chaque visiteur.

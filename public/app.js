@@ -791,11 +791,13 @@ let agentSetupRun = 0; // une réponse arrivée après un changement de type est
 async function agentSetup(type, w) {
   const run = ++agentSetupRun;
   const box = $('#widgetForm [data-agent-setup]');
-  box.hidden = !type.agentSetup;
-  if (!type.agentSetup) return;
+  box.hidden = !type.agentSetup && !type.renderSetup;
+  if (box.hidden) return;
   const text = box.querySelector('[data-agent-setup-text]');
   const commands = box.querySelector('[data-agent-setup-commands]');
   commands.replaceChildren();
+  // Étape propre au type (connexion à un compte Spotify…).
+  if (type.renderSetup) return type.renderSetup(text, commands, w, state.config.widgets.some((x) => x.id === w.id && x.type === w.type));
   if (!state.config.widgets.some((x) => x.id === w.id && x.type === w.type)) {
     text.textContent = t('agent.saveFirst');
     return;

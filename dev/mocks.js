@@ -37,10 +37,11 @@
 //   Loki         http://localhost:18100 (sans mot de passe) ou :18103 avec loki / loki-pass ou le jeton loki-token
 //   Authelia     http://localhost:18101 (métriques)
 //   Watchtower   http://localhost:18102  jeton watchtower-token
+//   Spotify      http://localhost:18104 : lancer le dashboard avec SPOTIFY_ACCOUNTS_URL et SPOTIFY_API_URL à cette adresse
 // Faux Docker : lancer le dashboard avec la variable DOCKER_SOCKET affichée au démarrage.
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
-  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs', 'scrutiny', 'speedtest', 'crowdsec', 'traefik', 'wazuh', 'registry', 'loki', 'authelia', 'watchtower'];
+  'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs', 'scrutiny', 'speedtest', 'crowdsec', 'traefik', 'wazuh', 'registry', 'loki', 'authelia', 'watchtower', 'spotify'];
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 
