@@ -41,6 +41,12 @@ async function pvebackup(w) {
   const tasks = perNode.flatMap((n) => n.tasks).filter((t) => t.endtime);
   const last = lastOf(tasks, 'endtime');
   const storageNames = new Set();
+  // Le rôle PVEAuditor ne voit pas le contenu des stockages : les tâches réussies disent alors qui est sauvegardé.
+  const fromTasks = new Map();
+  for (const t of tasks) {
+    const id = Number(t.id);
+    if (t.status === 'OK' && id && !latest.has(id) && (!fromTasks.has(id) || t.endtime > fromTasks.get(id).endtime)) fromTasks.set(id, t);
+  }
   return {
     last: last && {
       ok: last.status === 'OK',
@@ -54,8 +60,10 @@ async function pvebackup(w) {
     guests: [...latest.values()].sort((a, b) => b.ctime - a.ctime).map((v) => ({
       id: v.vmid, name: nameOf(v.vmid), time: new Date(v.ctime * 1000).toISOString(), size: v.size || 0,
       storage: String(v.volid).split(':')[0], protected: !!v.protected,
-    })),
-    missing: guests.filter((g) => !latest.has(g.vmid)).map((g) => ({ id: g.vmid, name: g.name || '' })).sort((a, b) => a.id - b.id),
+    })).concat([...fromTasks.values()].sort((a, b) => b.endtime - a.endtime).map((t) => ({
+      id: Number(t.id), name: nameOf(Number(t.id)), time: new Date(t.endtime * 1000).toISOString(), size: null, storage: '',
+    }))),
+    missing: guests.filter((g) => !latest.has(g.vmid) && !fromTasks.has(g.vmid)).map((g) => ({ id: g.vmid, name: g.name || '' })).sort((a, b) => a.id - b.id),
     storages: perNode.flatMap((n) => n.storages).filter((s) => s.total && !storageNames.has(s.storage) && storageNames.add(s.storage))
       .map((s) => ({ name: s.storage, used: s.used || 0, total: s.total })),
     next: (jobs || []).filter((j) => j.enabled !== 0 && j['next-run']).reduce((min, j) => (!min || j['next-run'] < min ? j['next-run'] : min), null),
