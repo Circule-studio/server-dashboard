@@ -66,7 +66,8 @@ main() {
   local url="${DASHBOARD_URL:-}" id="${AGENT_ID:-}" token="${AGENT_TOKEN:-}"
   [[ -n "$url" && -n "$id" && -n "$token" ]] || die "DASHBOARD_URL, AGENT_ID et AGENT_TOKEN sont obligatoires (commande donnée par le dashboard)."
   # Ces valeurs vont dans un fichier lu par systemd : rien d'autre qu'une adresse et des identifiants.
-  [[ "$url" =~ ^https?://[A-Za-z0-9.:_/\[\]-]+$ ]] || die "DASHBOARD_URL invalide : $url"
+  local url_re='^https?://[]A-Za-z0-9.:_/[-]+$' # ] en tête : dans [...], la barre oblique inverse ne l'échappe pas
+  [[ "$url" =~ $url_re ]] || die "DASHBOARD_URL invalide : $url"
   [[ "$id$token" =~ ^[A-Za-z0-9._-]+$ ]] || die "AGENT_ID ou AGENT_TOKEN invalide : recopie la commande donnée par le dashboard."
   url="${url%/}"
 
