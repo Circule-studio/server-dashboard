@@ -339,6 +339,9 @@ a.version-update:hover { text-decoration: underline; }
 .tab-tools { display: inline-flex; gap: 2px; margin-right: 8px; }
 .item-tab { max-width: 9rem; font-size: 0.75rem; padding: 2px 4px; }
 .category-tools { display: flex; gap: 4px; margin-left: auto; }
+/* Widgets rangés dans une catégorie, sous ses tuiles. */
+.category-board { margin-top: 14px; }
+.category-board:first-child, .category-head + .category-board { margin-top: 0; }
 
 .grid {
   display: grid; gap: 12px;
@@ -653,6 +656,16 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
   font-family: ui-monospace, monospace; font-size: 0.78rem; white-space: normal; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
 }
+/* Widget Spotify. */
+.spotify-now, .spotify-recent { display: flex; gap: 10px; align-items: center; }
+.spotify-text { flex: 1; min-width: 0; }
+.spotify-link { color: inherit; text-decoration: none; }
+.spotify-link:hover { text-decoration: underline; }
+.spotify-cover { width: 36px; height: 36px; border-radius: 4px; flex: none; object-fit: cover; }
+.spotify-cover-large { width: 64px; height: 64px; border-radius: 6px; }
+.spotify-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.spotify-steps { margin: 0; padding-left: 18px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 10px; }
+.spotify-steps input { margin: 6px 0; width: 100%; }
 .rss-title { display: block; white-space: normal; }
 .widget-rss a.rss-title { color: inherit; text-decoration: none; }
 .widget-rss a.rss-title:hover { text-decoration: underline; }

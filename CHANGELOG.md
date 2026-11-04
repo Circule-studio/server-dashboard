@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.26.0] - 2026-11-05
+
+### Ajouté
+- **Widgets dans les catégories** : en mode édition, le menu de chaque widget le range dans une catégorie, sous ses tuiles. Il se replie avec elle et suit son onglet. Une catégorie peut ne contenir que des widgets. Si elle est supprimée, ses widgets reviennent dans la grille.
+- Widget **Spotify** : ce qui joue en ce moment (titre, pochette, progression, appareil) et les dernières écoutes, cachées aux visiteurs non connectés. Il faut une application Spotify, dont le propriétaire a Premium (règle de Spotify depuis 2026). La connexion du compte se fait dans le formulaire du widget, et est à refaire tous les 6 mois : le widget prévient 14 jours avant (#128).
+
 ## [0.25.1] - 2026-11-05
 
 ### Corrigé
@@ -296,7 +302,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.23.0...v0.24.0
