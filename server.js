@@ -875,6 +875,7 @@ app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
 }));
 
 app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));
+app.get('/agent/install.sh', (req, res) => res.type('text/plain').sendFile(path.join(__dirname, 'agent', 'install.sh')));
 
 // Version du dashboard et dernière release publiée (#112). Réservé aux admins : afficher la version
 // à tous aiderait à repérer une installation vulnérable. GitHub est interrogé au plus toutes les 12 h.

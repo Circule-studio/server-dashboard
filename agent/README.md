@@ -8,9 +8,23 @@ Pour une machine du réseau local où tu peux installer [Glances](https://github
 
 ## Installation
 
-1. Dans le dashboard : **Éditer > + Widget > Agent**, puis enregistre.
-2. Rouvre le widget. Le formulaire affiche la commande à lancer sur la machine, avec son identifiant et son jeton. Elle télécharge le script depuis ton dashboard.
-3. Lance la commande sur la machine (Node.js 18.15 ou plus récent). Le widget se remplit au premier envoi.
+1. Dans le dashboard : **Éditer > + Widget > Agent**, donne-lui le nom de la machine, puis enregistre.
+2. Rouvre le widget. Le formulaire affiche les commandes à lancer, avec son identifiant et son jeton.
+3. Lance celle qui correspond :
+   - **Sur la machine** (Debian, Ubuntu) : `curl … | sudo env … bash`.
+   - **Dans un conteneur LXC, depuis le shell Proxmox** : `CT=100; curl … | pct exec $CT -- env … bash`, en remplaçant 100 par le numéro du conteneur.
+
+Le widget se remplit dans les secondes qui suivent. La commande installe Node.js si besoin (dépôt NodeSource), le script dans `/opt/server-dashboard-agent` et un service systemd sans droits, qui démarre avec la machine. Le jeton va dans `/etc/server-dashboard-agent.env`, lisible par root seul.
+
+**Relancer la même commande met à jour l'agent.** Pour désinstaller (Node.js reste) :
+
+```bash
+curl -fsSL http://IP-DU-DASHBOARD:7575/agent/install.sh | sudo bash -s -- --uninstall
+```
+
+Elle fait aussi deux choses pour le suivi des mises à jour, décrites plus bas : l'accès à Docker (`AGENT_DOCKER=0` dans la commande pour l'éviter) et le rafraîchissement des listes de paquets (`AGENT_APT_REFRESH=0`).
+
+Sur une autre machine, ou pour essayer sans rien installer, le formulaire donne aussi la commande qui lance le script directement (Node.js 18.15 ou plus récent).
 
 Variables facultatives :
 
@@ -23,11 +37,11 @@ Variables facultatives :
 
 `node server-dashboard-agent.js --once` fait un seul envoi puis s'arrête : pratique pour tester.
 
-## Lancement automatique
+## Lancement automatique à la main
 
 ### Linux (systemd)
 
-Copie le script dans `/opt/server-dashboard-agent/`, puis crée `/etc/systemd/system/server-dashboard-agent.service`. Remplace les trois valeurs par celles de la commande donnée par le dashboard :
+Inutile si tu as utilisé la commande d'installation. Sinon, copie le script dans `/opt/server-dashboard-agent/`, puis crée `/etc/systemd/system/server-dashboard-agent.service`. Remplace les trois valeurs par celles de la commande donnée par le dashboard :
 
 ```ini
 [Unit]
@@ -58,17 +72,17 @@ Crée une tâche dans le Planificateur de tâches, déclenchée « Au démarrage
 
 L'agent ne fait que compter : il n'installe rien et ne modifie rien.
 
-- **Paquets apt** (Debian, Ubuntu, Proxmox) : le résultat de `apt-get -s dist-upgrade`, une simulation qui ne demande pas d'être root. Elle se base sur les listes de paquets de la machine, que l'agent ne rafraîchit pas. Si le widget les signale comme trop vieilles, active leur rafraîchissement quotidien (ça n'installe rien) :
+- **Paquets apt** (Debian, Ubuntu, Proxmox) : le résultat de `apt-get -s dist-upgrade`, une simulation qui ne demande pas d'être root. Elle se base sur les listes de paquets de la machine, que l'agent ne rafraîchit pas. La commande d'installation active leur rafraîchissement quotidien (ça n'installe rien). Sans elle, si le widget les signale comme trop vieilles :
   ```bash
   echo 'APT::Periodic::Update-Package-Lists "1";' | sudo tee /etc/apt/apt.conf.d/20server-dashboard
   ```
 - **Images Docker** : pour chaque conteneur lancé, l'agent compare l'image à celle que le registre donne pour le même tag, sans compte. Il voit donc que `nginx:latest` a changé, mais pas qu'une version `nginx:1.26` existe quand tu es en `1.25`. Une image privée, ou construite localement, est signalée comme non vérifiée. L'agent contacte les registres (Docker Hub, ghcr.io…) toutes les 6 heures, et leur envoie uniquement les noms des images.
 
-  Avec le service systemd ci-dessus, l'agent a besoin de lire le socket de Docker. Ajoute dans `[Service]` :
+  L'agent a besoin de lire le socket de Docker. La commande d'installation le permet si le groupe `docker` existe. Avec le service écrit à la main, ajoute dans `[Service]` :
   ```ini
   SupplementaryGroups=docker
   ```
-  Le groupe `docker` donne un accès complet à Docker : ne l'ajoute que si tu veux ce suivi.
+  Le groupe `docker` donne un accès complet à Docker : sans ce suivi, évite-le (`AGENT_DOCKER=0`).
 
 ## Sécurité
 

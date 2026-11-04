@@ -50,7 +50,7 @@ jobs:
       - name: Tests des widgets
         run: npm test
       - name: ShellCheck
-        run: shellcheck packaging/install.sh
+        run: shellcheck packaging/install.sh agent/install.sh
 
   install:
     name: Installation sans Docker (systemd)
@@ -120,6 +120,38 @@ jobs:
       # Docker est installé sur les runners GitHub : l'installation doit donner l'accès au service.
       - name: Panneau Docker accessible au service
         run: curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"available":true'
+
+      # L'agent en une commande, sur un vrai systemd (#122) : décompte reçu, jeton protégé, désinstallation.
+      - name: Agent installé en une commande
+        run: |
+          curl -fsS -b jar http://127.0.0.1:7575/api/config > agent.json
+          node -e 'const c=require("./agent.json"); c.widgets=[{id:"agent-ci",type:"agent",name:"CI"},{id:"updates-ci",type:"updates",name:"MAJ"}]; require("fs").writeFileSync("agent.json", JSON.stringify(c))'
+          curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @agent.json http://127.0.0.1:7575/api/config > /dev/null
+          token=$(curl -fsS -b jar http://127.0.0.1:7575/api/agent/agent-ci/setup | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
+          agent_install() { curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo env DASHBOARD_URL=http://127.0.0.1:7575 AGENT_ID=agent-ci AGENT_TOKEN="$token" bash; }
+          agent_install
+          systemctl is-active server-dashboard-agent
+          test "$(sudo stat -c '%a %U' /etc/server-dashboard-agent.env)" = "600 root"
+          sudo grep -q '^SupplementaryGroups=docker$' /etc/systemd/system/server-dashboard-agent.service
+          sudo grep -q 'Update-Package-Lists "1"' /etc/apt/apt.conf.d/20server-dashboard
+          # Le décompte arrive sans attendre l'envoi suivant (30 s) : moins de 25 s ici.
+          for i in $(seq 1 12); do
+            curl -fsS -b jar http://127.0.0.1:7575/api/widgets/updates-ci > updates.json
+            if node -e 'const m=require("./updates.json").machines.find((x)=>x.id==="agent-ci"); process.exit(typeof m?.packages?.count==="number"&&m.docker&&!m.docker.error?0:1)'; then break; fi
+            sleep 2
+          done
+          head -c 600 updates.json; echo
+          node -e 'const m=require("./updates.json").machines.find((x)=>x.id==="agent-ci"); if(typeof m?.packages?.count!=="number"||!m.docker||m.docker.error) process.exit(1)'
+          # Relancer met à jour, sans doublon.
+          agent_install
+          systemctl is-active server-dashboard-agent
+          # Valeur invalide refusée par le script, service intact.
+          ! curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo env DASHBOARD_URL=http://127.0.0.1:7575 AGENT_ID=agent-ci AGENT_TOKEN='x y' bash
+          systemctl is-active server-dashboard-agent
+          curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo bash -s -- --uninstall
+          ! systemctl is-active server-dashboard-agent
+          ! sudo test -e /etc/server-dashboard-agent.env
+          ! sudo test -e /etc/apt/apt.conf.d/20server-dashboard
 
       - name: Mise à jour (2e passage) en gardant la config
         run: |
