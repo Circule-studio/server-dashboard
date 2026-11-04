@@ -14,6 +14,7 @@ http.createServer((req, res) => {
   const url = req.url.split('?')[0];
   if (url === '/api2/json/nodes') return json(res, { data: [{ node: 'pve', status: 'online' }, { node: 'eteint', status: 'offline' }] });
   if (url === '/api2/json/cluster/backup') return json(res, { data: [{ id: 'job', enabled: 1, 'next-run': nowS + 2 * 86400 }, { id: 'off', enabled: 0, 'next-run': nowS + 3600 }] });
+  if (url === '/api2/json/cluster/backup-info/not-backed-up') return json(res, { data: [{ vmid: 102, name: 'pulse', type: 'lxc' }, { vmid: 101, type: 'lxc' }, { vmid: 120, name: 'windows-11', type: 'qemu' }, { vmid: 9000, name: 'debian-template', type: 'lxc' }] });
   if (url === '/api2/json/nodes/pve/tasks') {
     const task = (id, hoursAgo, status) => ({ id, type: 'vzdump', starttime: nowS - hoursAgo * 3600 - 300, endtime: nowS - hoursAgo * 3600, status });
     return json(res, { data: [task('100', 26, 'OK'), task('110', 2, 'backup failed: no space left on device'), { id: '102', type: 'vzdump', starttime: nowS - 30 }] });

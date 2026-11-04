@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.25.1] - 2026-11-05
+
+### Corrigé
+- Widget Sauvegardes Proxmox : avec un jeton en lecture seule, des machines bien sauvegardées pouvaient apparaître comme non sauvegardées. La liste vient maintenant de Proxmox : les machines dans aucune sauvegarde planifiée. Trouvé sur un vrai Proxmox (#125).
+
 ## [0.25.0] - 2026-11-04
 
 ### Ajouté
@@ -291,7 +296,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.22.0...v0.23.0

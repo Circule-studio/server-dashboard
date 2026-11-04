@@ -42,7 +42,7 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Loki / Grafana** : volume de logs et erreurs des dernières 24 h, avec les dernières lignes d’erreur et les sources les plus bavardes.
   - **Authelia** : connexions réussies, refusées et bloquées, double authentification, accès autorisés et refusés.
   - **Watchtower** : conteneurs vérifiés, à mettre à jour et en échec lors du dernier passage.
-  - **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines sans sauvegarde, stockage et prochaine sauvegarde ; alerte en cas d’échec.
+  - **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines dans aucune sauvegarde planifiée, stockage et prochaine sauvegarde ; alerte en cas d’échec.
   - **Sauvegarde par script** : le résultat d’un script maison (rsync vers un disque USB…) : date, taille, succès ou échec, historique ; alerte en cas d’échec ou de retard.
   - **Traefik** : routeurs, services et middlewares, avec ceux en erreur ou en alerte ; alerte quand un routeur tombe en erreur.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).

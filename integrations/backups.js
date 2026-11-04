@@ -19,9 +19,10 @@ async function pvebackup(w) {
   const optional = (p) => pve(p).then((r) => r.data, () => null); // droit manquant : ce bloc reste vide
   const { data: nodes } = await pve('/nodes');
   const online = nodes.filter((n) => n.status === 'online').map((n) => n.node);
-  const [resources, jobs, ...perNode] = await Promise.all([
+  const [resources, jobs, uncovered, ...perNode] = await Promise.all([
     optional('/cluster/resources?type=vm'),
     optional('/cluster/backup'),
+    optional('/cluster/backup-info/not-backed-up'),
     ...online.map(async (node) => {
       const url = `/nodes/${encodeURIComponent(node)}`;
       const [tasks, storages] = await Promise.all([
@@ -63,7 +64,9 @@ async function pvebackup(w) {
     })).concat([...fromTasks.values()].sort((a, b) => b.endtime - a.endtime).map((t) => ({
       id: Number(t.id), name: nameOf(Number(t.id)), time: new Date(t.endtime * 1000).toISOString(), size: null, storage: '',
     }))),
-    missing: guests.filter((g) => !latest.has(g.vmid) && !fromTasks.has(g.vmid)).map((g) => ({ id: g.vmid, name: g.name || '' })).sort((a, b) => a.id - b.id),
+    // Selon Proxmox : dans aucune tâche planifiée. Une tâche sur plusieurs machines ne cite aucun numéro,
+    // et le rôle PVEAuditor ne voit pas les fichiers : les déduire donnerait de fausses alertes.
+    missing: (uncovered || []).filter((g) => guests.some((x) => x.vmid === g.vmid)).map((g) => ({ id: g.vmid, name: g.name || nameOf(g.vmid) })).sort((a, b) => a.id - b.id),
     storages: perNode.flatMap((n) => n.storages).filter((s) => s.total && !storageNames.has(s.storage) && storageNames.add(s.storage))
       .map((s) => ({ name: s.storage, used: s.used || 0, total: s.total })),
     next: (jobs || []).filter((j) => j.enabled !== 0 && j['next-run']).reduce((min, j) => (!min || j['next-run'] < min ? j['next-run'] : min), null),
