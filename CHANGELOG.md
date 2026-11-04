@@ -4,6 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.23.0] - 2026-11-04
+
+### Ajouté
+- Widget **Mises à jour** : le nombre de mises à jour en attente, en badge cliquable, avec le détail par machine : paquets apt (ceux de sécurité d’abord) et images Docker dont le tag a changé sur le registre. Il suit le serveur du dashboard et toutes les machines avec un widget Agent, qui recherchent toutes les 6 heures (`AGENT_UPDATES`). Affichage seulement : rien n’est installé. Les visiteurs non connectés ne voient que les nombres. Il faut relancer les agents déjà installés avec la nouvelle version du script (#122).
+
 ## [0.22.0] - 2026-10-31
 
 ### Ajouté
@@ -268,7 +273,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.22.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.19.1...v0.20.0

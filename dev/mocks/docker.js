@@ -9,7 +9,21 @@ const containers = [
   ['qbittorrent', 'linuxserver/qbittorrent:latest', 'running', 'Up 26 hours'],
   ['nextcloud', 'nextcloud:31-apache', 'running', 'Up 5 days'],
   ['immich-server', 'ghcr.io/immich-app/immich-server:release', 'exited', 'Exited (0) 2 hours ago'],
-].map(([name, image, state, status], i) => ({ Id: (i + 1).toString(16).repeat(64).slice(0, 64), Names: ['/' + name], Image: image, State: state, Status: status }));
+  // Pour le widget Mises à jour (faux registre : dev/mocks/registry.js).
+  ['web', 'localhost:18099/demo/web:latest', 'running', 'Up 2 days'],
+  ['cache', 'localhost:18099/demo/cache:7', 'running', 'Up 2 days'],
+  ['prive', 'localhost:18099/demo/private:1', 'running', 'Up 2 days'],
+  // Tag parti vers une image plus récente, déjà téléchargée : Docker donne l'identifiant de l'image.
+  ['ancien', 'sha256:ancien', 'running', 'Up 9 days'],
+].map(([name, image, state, status], i) => ({ Id: (i + 1).toString(16).repeat(64).slice(0, 64), Names: ['/' + name], Image: image, ImageID: image.startsWith('sha256:') ? image : `sha256:${name}`, State: state, Status: status }));
+
+// Empreintes des images téléchargées. Les autres : aucune, comme une image construite localement.
+const IMAGES = {
+  'sha256:web': ['localhost:18099/demo/web@sha256:ancienne'],
+  'sha256:cache': ['localhost:18099/demo/cache@sha256:identique'],
+  'sha256:prive': ['localhost:18099/demo/private@sha256:ancienne'],
+  'sha256:ancien': ['localhost:18099/demo/ancien@sha256:ancienne'],
+};
 
 const DOCKER_SOCKET = process.platform === 'win32'
   ? '\\\\.\\pipe\\server-dashboard-mock-docker'
@@ -18,6 +32,8 @@ if (process.platform !== 'win32') { try { require('fs').unlinkSync(DOCKER_SOCKET
 
 http.createServer((req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/containers/json')) return json(res, containers);
+  const image = req.url.match(/^\/images\/([^/]+)\/json$/);
+  if (req.method === 'GET' && image) return json(res, { RepoDigests: IMAGES[decodeURIComponent(image[1])] || [] });
   // Mesure de `docker stats` (stream=false) : CPU entre deux relevés, mémoire avec son cache.
   const stats = req.url.match(/^\/containers\/([a-f0-9]+)\/stats/);
   const sc = stats && containers.find((x) => x.Id.startsWith(stats[1]));

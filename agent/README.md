@@ -1,6 +1,6 @@
 # Agent Server Dashboard
 
-Petit script Node.js, sans dépendance, à lancer sur une machine que tu veux voir sur le dashboard : PC, Raspberry Pi, NAS ou 2e serveur. Il envoie le CPU, la mémoire, les disques, la température et l'uptime toutes les 30 secondes.
+Petit script Node.js, sans dépendance, à lancer sur une machine que tu veux voir sur le dashboard : PC, Raspberry Pi, NAS ou 2e serveur. Il envoie le CPU, la mémoire, les disques, la température et l'uptime toutes les 30 secondes, et les mises à jour en attente (widget **Mises à jour**).
 
 **C'est la machine qui contacte le dashboard.** Il n'y a aucun port à ouvrir chez elle, et ça marche aussi derrière un NAT, chez quelqu'un d'autre par exemple. Si la machine n'envoie plus rien, le widget affiche « Plus de nouvelles depuis… » avec ses dernières valeurs.
 
@@ -18,6 +18,8 @@ Variables facultatives :
 |---|---|---|
 | `AGENT_INTERVAL` | `30` | Secondes entre deux envois (5 au minimum) |
 | `AGENT_DISKS` | `/` (`C:\` sous Windows) | Disques à surveiller, séparés par des virgules : `/,/mnt/data` |
+| `AGENT_UPDATES` | `6` | Heures entre deux recherches de mises à jour, `0` pour désactiver |
+| `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker, pour les images à mettre à jour |
 
 `node server-dashboard-agent.js --once` fait un seul envoi puis s'arrête : pratique pour tester.
 
@@ -51,6 +53,22 @@ Puis : `sudo systemctl enable --now server-dashboard-agent`.
 ### Windows
 
 Crée une tâche dans le Planificateur de tâches, déclenchée « Au démarrage ». Elle lance `node.exe` avec en argument le chemin du script. Définis les trois variables d'environnement pour l'utilisateur, par exemple avec `setx DASHBOARD_URL http://192.168.1.10:7575`.
+
+## Mises à jour en attente
+
+L'agent ne fait que compter : il n'installe rien et ne modifie rien.
+
+- **Paquets apt** (Debian, Ubuntu, Proxmox) : le résultat de `apt-get -s dist-upgrade`, une simulation qui ne demande pas d'être root. Elle se base sur les listes de paquets de la machine, que l'agent ne rafraîchit pas. Si le widget les signale comme trop vieilles, active leur rafraîchissement quotidien (ça n'installe rien) :
+  ```bash
+  echo 'APT::Periodic::Update-Package-Lists "1";' | sudo tee /etc/apt/apt.conf.d/20server-dashboard
+  ```
+- **Images Docker** : pour chaque conteneur lancé, l'agent compare l'image à celle que le registre donne pour le même tag, sans compte. Il voit donc que `nginx:latest` a changé, mais pas qu'une version `nginx:1.26` existe quand tu es en `1.25`. Une image privée, ou construite localement, est signalée comme non vérifiée. L'agent contacte les registres (Docker Hub, ghcr.io…) toutes les 6 heures, et leur envoie uniquement les noms des images.
+
+  Avec le service systemd ci-dessus, l'agent a besoin de lire le socket de Docker. Ajoute dans `[Service]` :
+  ```ini
+  SupplementaryGroups=docker
+  ```
+  Le groupe `docker` donne un accès complet à Docker : ne l'ajoute que si tu veux ce suivi.
 
 ## Sécurité
 

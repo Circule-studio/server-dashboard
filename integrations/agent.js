@@ -14,6 +14,31 @@ const FORGET_MS = 7 * 86400_000; // widget supprimé ou agent arrêté depuis un
 const num = (v, min = 0, max = Infinity) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : null);
 const text = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 
+// Mises à jour en attente de la machine (#122), pour le widget « Mises à jour » : gardées à part, le
+// widget Agent n'a pas à montrer aux visiteurs les paquets en retard.
+function cleanUpdates(u) {
+  if (!u || typeof u !== 'object') return null;
+  const count = (v) => Math.round(num(v, 0, 1e6) ?? 0);
+  const p = u.packages && typeof u.packages === 'object' ? u.packages : null;
+  const d = u.docker && typeof u.docker === 'object' ? u.docker : null;
+  return {
+    checkedAt: num(u.checkedAt, 0, Date.now() + 86400_000),
+    packages: p && (p.error ? { error: 'apt' } : {
+      count: count(p.count),
+      security: count(p.security),
+      listsAt: num(p.listsAt, 0, Date.now() + 86400_000),
+      names: (Array.isArray(p.names) ? p.names : []).slice(0, 100).filter((x) => x && typeof x === 'object')
+        .map((x) => ({ name: text(x.name, 100), version: text(x.version, 60), security: x.security === true })),
+    }),
+    docker: d && (d.error ? { error: 'denied' } : {
+      count: count(d.count),
+      unknown: count(d.unknown),
+      images: (Array.isArray(d.images) ? d.images : []).slice(0, 50).filter((x) => x && typeof x === 'object')
+        .map((x) => ({ image: text(x.image, 150), containers: (Array.isArray(x.containers) ? x.containers : []).slice(0, 3).map((c) => text(c, 60)) })),
+    }),
+  };
+}
+
 // Le relevé vient d'une autre machine : chaque champ est vérifié et borné, rien n'est repris tel quel.
 function receive(w, body) {
   const prev = reports.get(w.id);
@@ -37,16 +62,23 @@ function receive(w, body) {
     temp,
     interval: num(b.interval, 5, 86400) ?? 30,
   };
-  reports.set(w.id, { t: Date.now(), data });
+  reports.set(w.id, { t: Date.now(), data, updates: cleanUpdates(b.updates) });
   return true;
 }
 
 async function agent(w) {
   const last = reports.get(w.id);
   if (!last) throw fail('agent_waiting', 'En attente du premier envoi de l\'agent');
-  const age = Date.now() - last.t;
   // Plus de nouvelles : dernières valeurs affichées, avec l'heure du dernier envoi.
-  return { ...last.data, seen: new Date(last.t).toISOString(), offline: age > last.data.interval * 1000 * MISSED };
+  return { ...last.data, ...freshness(last) };
+}
+
+const freshness = (r) => ({ seen: new Date(r.t).toISOString(), offline: Date.now() - r.t > r.data.interval * 1000 * MISSED });
+
+// Pour le widget « Mises à jour » (integrations/updates.js).
+function updatesOf(id) {
+  const last = reports.get(id);
+  return last ? { ...freshness(last), updates: last.updates } : null;
 }
 
 // Alertes : la machine (plus d'envoi depuis 3 intervalles) et ses disques.
@@ -54,5 +86,5 @@ const alerts = (d, w) => [{ id: `${w.id}:machine`, name: w.name, online: !d.offl
 
 module.exports = {
   // generatedKey : jeton créé par le serveur (server.js), jamais saisi.
-  agent: { fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts },
+  agent: { fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts, updatesOf },
 };
