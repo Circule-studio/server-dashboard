@@ -631,6 +631,20 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 .crowdsec-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .crowdsec-chips .badge { color: var(--muted); background: var(--veil); padding: 1px 8px; font-size: 0.74rem; }
 .traefik-meta { margin: 8px 0 0; font-size: 0.78rem; }
+/* Widget Mises à jour : badge cliquable, puis détail par machine (#122). */
+.updates-details > summary { cursor: pointer; list-style-position: outside; margin-left: 16px; }
+.updates-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.updates-badge { display: inline-flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: 8px; vertical-align: middle; }
+.updates-badge b { font-size: 0.95rem; }
+.updates-badge small { color: var(--muted); }
+.updates-pending { background: rgba(251, 191, 36, 0.14); }
+.updates-pending b { color: var(--warn); }
+.updates-clean { background: rgba(52, 211, 153, 0.12); }
+.updates-clean b { color: var(--ok); }
+.updates-details > .widget-list { margin-top: 12px; }
+.updates-row { display: inline-flex; width: calc(100% - 4px); vertical-align: top; }
+.updates-packages { margin: 8px 0 4px 16px; gap: 6px; max-height: none; overflow: visible; }
+.updates-note { margin: 8px 0 0; font-size: 0.78rem; }
 .rss-title { display: block; white-space: normal; }
 .widget-rss a.rss-title { color: inherit; text-decoration: none; }
 .widget-rss a.rss-title:hover { text-decoration: underline; }

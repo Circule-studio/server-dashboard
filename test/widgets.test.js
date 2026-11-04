@@ -75,6 +75,7 @@ const WIDGETS = [
   { id: 'pihole', type: 'pihole', url: 'http://localhost:10080', password: 'pihole-pass' },
   { id: 'adguard', type: 'adguard', url: 'http://localhost:13000', username: 'admin', password: 'adguard-pass' },
   { id: 'agent', type: 'agent', name: 'PC de bureau' },
+  { id: 'updates', type: 'updates', name: 'Mises à jour' },
   { id: 'alwaysdata', type: 'alwaysdata', url: 'http://localhost:17443/v1', username: 'thomas', apiKey: 'alwaysdata-token' },
   { id: 'alwaysdata-bad', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'mauvais-jeton-ad' },
   { id: 'alwaysdata-ip', type: 'alwaysdata', url: 'http://localhost:17443/v1', apiKey: 'alwaysdata-ip-token' },
@@ -782,6 +783,72 @@ async function until(check, ms = 5000) {
   }
   return true;
 }
+
+test('Mises à jour : décompte par machine, détail réservé à l’admin (#122)', async () => {
+  const { parseApt, parseImage } = require('../agent/server-dashboard-agent');
+  const apt = parseApt([
+    'NOTE: This is only a simulation!',
+    'Inst curl [7.1] (7.2 Debian:12.5/stable [amd64]) []',
+    'Inst libssl3 [3.0.11-1] (3.0.13-1 Debian-Security:12/stable-security [amd64])',
+    'Inst nouveau-paquet (1.0 Debian:12/stable [amd64])',
+    'Conf curl (7.2 Debian:12.5/stable [amd64])',
+  ].join('\n'));
+  assert.deepEqual([apt.count, apt.security, apt.names[0].name], [2, 1, 'libssl3'], 'sécurité d’abord, nouvelle dépendance non comptée');
+  assert.deepEqual(parseImage('nginx'), { registry: 'registry-1.docker.io', path: 'library/nginx', tag: 'latest' });
+  assert.deepEqual(parseImage('localhost:18099/demo/web:1'), { registry: 'localhost:18099', path: 'demo/web', tag: '1' });
+  assert.deepEqual(parseImage('lscr.io/linuxserver/sonarr'), { registry: 'lscr.io', path: 'linuxserver/sonarr', tag: 'latest' });
+
+  // Le décompte du serveur lui-même se fait en arrière-plan.
+  let d;
+  let here;
+  for (let i = 0; i < 100; i++) {
+    d = await widget('updates');
+    here = d.machines.find((m) => m.id === 'local');
+    if (!here?.checking) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  assert.equal(here.docker.count, 2, JSON.stringify(here.docker));
+  // Sur une machine avec apt (la CI) : le vrai apt-get, sans être root.
+  if (process.platform === 'linux' && fs.existsSync('/usr/bin/apt-get')) {
+    assert.equal(typeof here.packages?.count, 'number', JSON.stringify(here.packages));
+    assert.ok(here.packages.listsAt > 0);
+  }
+  assert.deepEqual(here.docker.images.map((x) => x.image).sort(), ['localhost:18099/demo/ancien', 'localhost:18099/demo/web:latest']);
+  assert.equal(here.docker.unknown, 7, 'image privée et images sans empreinte');
+
+  // Une machine avec agent : valeurs vérifiées et bornées.
+  const { token } = (await api('GET', '/api/agent/agent/setup')).json;
+  const push = () => fetch(`${BASE}/api/agent/agent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      hostname: 'pi', interval: 30,
+      updates: {
+        checkedAt: Date.now(),
+        packages: { count: 3, security: 1, listsAt: Date.now(), names: [{ name: 'x'.repeat(500), version: '1', security: true }, 'invalide'] },
+        docker: { count: -5, images: 'invalide' },
+      },
+    }),
+  });
+  for (let r = await push(); r.status === 429; r = await push()) await new Promise((res) => setTimeout(res, 500));
+  await new Promise((r) => setTimeout(r, 5100)); // cache du widget
+  d = await widget('updates');
+  const pi = d.machines.find((m) => m.id === 'agent');
+  assert.deepEqual([pi.name, pi.packages.count, pi.packages.names.length, pi.packages.names[0].name.length, pi.docker.count, pi.docker.images], ['PC de bureau', 3, 1, 100, 0, []]);
+  assert.equal(d.total, 3 + here.docker.count + (here.packages?.count || 0));
+  assert.ok(d.security >= 1);
+  assert.ok(!('updates' in await widget('agent')), 'pas de détail dans le widget Agent, visible des visiteurs');
+
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/widgets/updates');
+  cookie = saved;
+  assert.equal(visitor.status, 200);
+  assert.equal(visitor.json.total, d.total, 'le nombre reste visible');
+  assert.deepEqual([visitor.json.hidden, visitor.json.security], [true, undefined]);
+  const seen = visitor.json.machines.find((m) => m.id === 'agent');
+  assert.deepEqual(seen.packages, { count: 3 });
+  assert.ok(!visitor.text.includes('xxxx') && !visitor.text.includes('demo/web'), 'ni paquets ni images');
+});
 
 test('Notifications : une app qui tombe puis revient, deux notifications', async () => {
   const http = require('node:http');

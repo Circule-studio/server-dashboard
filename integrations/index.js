@@ -4,6 +4,8 @@
 //   fields        champs du widget : url, apiKey, username, password, location, repo, entities, feeds, slug, indexerUrl,
 //                 mappings (valeurs choisies de l'API personnalisée)
 //   fetch(w)      récupère les données du widget w (une promesse)
+//   withWidgets   fetch reçoit aussi tous les widgets de la config (mises à jour : les agents)
+//   publicData(d) ce qu'un visiteur non connecté voit des données d (par défaut : tout)
 //   cacheMs       durée pendant laquelle les données sont partagées entre visiteurs (défaut : CACHE_MS) ;
 //                 une fonction du widget permet de l'adapter (GitHub : plus long sans jeton)
 //   sections      blocs au choix (ex. Pulse, GitHub)
@@ -21,7 +23,7 @@ const { request } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
 const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pbs', 'scrutiny', 'crowdsec', 'traefik', 'wazuh', 'speedtest', 'pulse',
-  'glances', 'agent', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr', 'customapi'];
+  'glances', 'agent', 'updates', 'uptimekuma', 'jellyfin', 'plex', 'qbittorrent', 'arr', 'customapi'];
 const INTEGRATIONS = Object.assign({}, ...FILES.map((f) => require(`./${f}`)));
 
 // Petit cache pour ne pas solliciter les services à chaque visiteur.
@@ -31,7 +33,7 @@ const CACHE_MS = 4000;
 const STALE_MS = 5 * 60_000;
 const STALE_WAIT_MS = 300;
 
-async function fetchWidget(w) {
+async function fetchWidget(w, widgets) {
   const integration = INTEGRATIONS[w.type];
   if (!integration) throw new Error(`Type inconnu : ${w.type}`);
   const ttl = (typeof integration.cacheMs === 'function' ? integration.cacheMs(w) : integration.cacheMs) || CACHE_MS;
@@ -39,7 +41,7 @@ async function fetchWidget(w) {
   if (!entry || Date.now() - entry.t >= ttl) {
     // La dernière réponse réussie reste disponible pendant que la nouvelle se charge.
     const last = entry?.value ? { t: entry.t, value: entry.value } : entry?.last;
-    const current = { t: Date.now(), promise: integration.fetch(w), last };
+    const current = { t: Date.now(), promise: integration.withWidgets ? integration.fetch(w, widgets) : integration.fetch(w), last };
     current.promise.then((value) => { current.value = value; current.last = null; },
       () => { if (cache.get(w.id) === current) cache.delete(w.id); });
     cache.set(w.id, current);

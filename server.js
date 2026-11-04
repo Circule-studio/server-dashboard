@@ -818,7 +818,9 @@ app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   const widget = cfg.widgets.find((w) => w.id === req.params.id);
   if (!widget) return res.status(404).json({ error: 'Widget introuvable', code: 'not_found' });
   try {
-    res.json(await fetchWidget(widget));
+    const data = await fetchWidget(widget, cfg.widgets);
+    const { publicData } = INTEGRATIONS[widget.type];
+    res.json(publicData && !isAuthed(req) ? publicData(data) : data);
   } catch (e) {
     res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
   }
