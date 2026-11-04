@@ -291,6 +291,8 @@ async function loop() {
     // Un envoi n'attend pas la recherche, qui peut être longue (sauf --once : il n'y a qu'un envoi).
     const searching = refreshUpdates();
     if (ONCE) await searching;
+    // Le résultat part dès qu'il est prêt, après le délai minimal entre deux envois (2 s côté dashboard).
+    else searching?.then(() => new Promise((r) => { setTimeout(r, 3000); })).then(send).catch(() => {});
     await send();
     if (failures) console.log('Envoi rétabli.');
     failures = 0;

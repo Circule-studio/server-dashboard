@@ -818,8 +818,12 @@ async function agentSetup(type, w) {
         h('button', { type: 'button', class: 'btn btn-sm', onclick: () => copyText(code, el) }, t('agent.copy'))),
       h('pre', {}, el));
   };
+  const installer = `curl -fsSL ${base}/agent/install.sh`;
+  const vars = `DASHBOARD_URL=${base} AGENT_ID=${s.id} AGENT_TOKEN=${s.token}`;
   commands.replaceChildren(
-    block('Linux / macOS', `curl -fsSLO ${script}\nDASHBOARD_URL=${base} AGENT_ID=${s.id} AGENT_TOKEN=${s.token} node server-dashboard-agent.js`),
+    block(t('agent.installLinux'), `${installer} | sudo env ${vars} bash`),
+    block(t('agent.installProxmox'), `CT=100; ${installer} | pct exec $CT -- env ${vars} bash`),
+    block(t('agent.tryLinux'), `curl -fsSLO ${script}\n${vars} node server-dashboard-agent.js`),
     block('Windows (PowerShell)', `Invoke-WebRequest ${script} -OutFile server-dashboard-agent.js\n$env:DASHBOARD_URL="${base}"; $env:AGENT_ID="${s.id}"; $env:AGENT_TOKEN="${s.token}"; node server-dashboard-agent.js`),
     // Jeton à changer (commande partagée par erreur, historique du terminal…) : effectif à l'enregistrement.
     h('button', { type: 'button', class: 'btn btn-sm', onclick: () => regenerateAgentToken(w.id) }, t('agent.regenerate')));

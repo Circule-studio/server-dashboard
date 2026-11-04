@@ -17,6 +17,7 @@ const text = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 // Mises à jour en attente de la machine (#122), pour le widget « Mises à jour » : gardées à part, le
 // widget Agent n'a pas à montrer aux visiteurs les paquets en retard.
 function cleanUpdates(u) {
+  if (u === null) return { checking: true }; // première recherche en cours
   if (!u || typeof u !== 'object') return null;
   const count = (v) => Math.round(num(v, 0, 1e6) ?? 0);
   const p = u.packages && typeof u.packages === 'object' ? u.packages : null;

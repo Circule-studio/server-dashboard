@@ -817,6 +817,8 @@ test('Mises à jour : décompte par machine, détail réservé à l’admin (#12
   assert.equal(here.docker.unknown, 7, 'image privée et images sans empreinte');
 
   // Une machine avec agent : valeurs vérifiées et bornées.
+  const installer = await (await fetch(`${BASE}/agent/install.sh`)).text();
+  assert.ok(installer.startsWith('#!/usr/bin/env bash') && !installer.includes('\r'), 'script d’installation servi tel quel');
   const { token } = (await api('GET', '/api/agent/agent/setup')).json;
   const push = () => fetch(`${BASE}/api/agent/agent`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

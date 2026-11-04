@@ -31,7 +31,7 @@ async function updates(w, widgets = []) {
   const machines = agents.map((x) => {
     const r = agent.updatesOf(x.id);
     if (!r) return { id: x.id, name: x.name, waiting: true };
-    // Agent installé avant cette version : il n'envoie pas encore de décompte.
+    // Agent installé avant cette version (ou AGENT_UPDATES=0) : pas de décompte.
     return { id: x.id, name: x.name, seen: r.seen, offline: r.offline, ...(r.updates || { noData: true }) };
   });
   // Ni apt ni Docker sur le serveur (image Docker sans le socket) : rien à montrer pour lui.

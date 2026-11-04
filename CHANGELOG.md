@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.24.0] - 2026-11-04
+
+### Ajouté
+- **Agent en une commande** : le formulaire du widget Agent donne une commande qui installe tout (Node.js si besoin, script, service systemd sans droits), sur la machine ou dans un conteneur LXC depuis le shell Proxmox. La relancer met à jour l’agent ; `--uninstall` le retire. Le jeton est gardé dans un fichier lisible par root seul (#122).
+
+### Corrigé
+- Widget Mises à jour : une machine dont l’agent venait de démarrer affichait « agent à mettre à jour » pendant sa première recherche. Elle affiche maintenant « recherche en cours… », et le résultat part dès qu’il est prêt (#122).
+
 ## [0.23.0] - 2026-11-04
 
 ### Ajouté
@@ -273,7 +281,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.23.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.20.0...v0.21.0
