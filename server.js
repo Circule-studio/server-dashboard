@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const crypto = require('crypto');
-const { INTEGRATIONS, fetchWidget, resetIntegrations, request, orStale } = require('./integrations');
+const { INTEGRATIONS, fetchWidget, refreshWidget, resetIntegrations, request, orStale } = require('./integrations');
 const { NOTIFY_TYPES, sendNotification, createMonitor } = require('./notify');
 const { sanitizeCheck, checkApp } = require('./checks');
 
@@ -830,6 +830,25 @@ app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
   }
 }));
 
+// Bouton ⟳ : admin seulement, pour qu'un visiteur ne puisse pas épuiser les limites d'un service.
+const REFRESH_GAP_MS = 2000;
+const lastRefresh = new Map(); // id du widget -> date
+
+app.post('/api/widgets/:id/refresh', requireAuth, route(async (req, res) => {
+  const cfg = await readConfig();
+  const widget = cfg.widgets.find((w) => w.id === req.params.id);
+  if (!widget) return res.status(404).json({ error: 'Widget introuvable', code: 'not_found' });
+  if (Date.now() - (lastRefresh.get(widget.id) || 0) < REFRESH_GAP_MS) {
+    return res.status(429).json({ error: 'Rafraîchi à l\'instant : réessaie dans un moment', code: 'refresh_too_soon' });
+  }
+  lastRefresh.set(widget.id, Date.now());
+  try {
+    res.json(await refreshWidget(widget, cfg.widgets));
+  } catch (e) {
+    res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+  }
+}));
+
 // Connexion d'un widget à un compte (Spotify). Le jeton obtenu est enregistré sans changer la révision de la
 // config : un formulaire ouvert en même temps reste enregistrable, et son « vide = inchangé » garde le jeton.
 async function oauthWidget(req, res) {
@@ -897,11 +916,35 @@ function agentWidget(cfg, id) {
   return w && INTEGRATIONS[w.type]?.receive ? w : null;
 }
 
-app.post('/api/agent/:id', route(async (req, res) => {
+// Le widget d'un envoi, après vérification de son jeton (sinon la réponse est déjà faite).
+async function agentFromToken(req, res) {
   const w = agentWidget(await readConfig(), req.params.id);
-  if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  if (!w) {
+    res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+    return null;
+  }
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!w.apiKey || !safeEqual(token, w.apiKey)) return res.status(401).json({ error: 'Jeton refusé', code: 'auth_refused' });
+  if (!w.apiKey || !safeEqual(token, w.apiKey)) {
+    res.status(401).json({ error: 'Jeton refusé', code: 'auth_refused' });
+    return null;
+  }
+  return w;
+}
+
+// Demande ouverte de l'agent : le bouton ⟳ y répond tout de suite (voir integrations/agent.js).
+app.get('/api/agent/:id/wait', route(async (req, res) => {
+  const w = await agentFromToken(req, res);
+  if (!w) return;
+  if (!INTEGRATIONS[w.type].waitCommand) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  const { promise, cancel } = INTEGRATIONS[w.type].waitCommand(w);
+  req.on('close', cancel); // agent arrêté : la demande disparaît avec lui
+  res.set('Cache-Control', 'no-store');
+  res.json(await promise);
+}));
+
+app.post('/api/agent/:id', route(async (req, res) => {
+  const w = await agentFromToken(req, res);
+  if (!w) return;
   if (!INTEGRATIONS[w.type].receive(w, req.body)) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
   res.json({ ok: true });
 }));

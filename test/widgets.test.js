@@ -971,6 +971,75 @@ test('Widgets dans une catégorie : gardés, catégorie supprimée, type vérifi
   assert.equal(r.status, 200, r.text);
 });
 
+test('Bouton ⟳ : sans cache, admin seulement, limité, 404', async () => {
+  const before = await widget('watchtower');
+  await fetch('http://localhost:18102/__mock/scan', { method: 'POST' });
+  const cached = await widget('watchtower');
+  assert.equal(cached.scans, before.scans, 'la lecture normale passe par le cache');
+  let r = await api('POST', '/api/widgets/watchtower/refresh');
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.data.scans, before.scans + 1, 'valeur à l’instant');
+  r = await api('POST', '/api/widgets/watchtower/refresh');
+  assert.deepEqual([r.status, r.json.code], [429, 'refresh_too_soon']);
+  assert.equal((await api('POST', '/api/widgets/inconnu/refresh')).status, 404);
+  r = await api('POST', '/api/widgets/jellyfin-bad/refresh');
+  assert.equal(r.status, 502, 'erreur du service transmise');
+  assert.ok(r.json.code);
+  const saved = cookie;
+  cookie = '';
+  assert.equal((await api('POST', '/api/widgets/plex/refresh')).status, 401, 'pas pour un visiteur');
+  cookie = saved;
+});
+
+test('Bouton ⟳ : le vrai agent répond tout de suite, sans attendre son prochain envoi', async () => {
+  const { token } = (await api('GET', '/api/agent/agent/setup')).json;
+  const wait = (key = token) => fetch(`${BASE}/api/agent/agent/wait`, { headers: { Authorization: `Bearer ${key}` } });
+  assert.equal((await wait('faux')).status, 401);
+  assert.equal((await fetch(`${BASE}/api/agent/jellyfin/wait`, { headers: { Authorization: `Bearer ${token}` } })).status, 404);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  await sleep(2100); // limite du bouton
+  let r = await api('POST', '/api/widgets/agent/refresh');
+  assert.deepEqual([r.status, r.json.agentAnswered], [200, false], 'sans agent à l’écoute : on le dit');
+
+  // Une seconde demande remplace la première, qui se termine sans rien demander.
+  const first = wait();
+  await sleep(100);
+  const second = wait();
+  assert.deepEqual(await (await first).json(), {});
+  await sleep(2100);
+  const refreshing = api('POST', '/api/widgets/agent/refresh');
+  const command = await (await second).json();
+  assert.deepEqual(command, { refresh: true }, 'réponse immédiate à l’agent');
+  await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ hostname: 'a-l-instant', interval: 30 }) });
+  r = await refreshing;
+  assert.deepEqual([r.json.agentAnswered, r.json.data.hostname], [true, 'a-l-instant'], 'la limite entre deux envois ne bloque pas ce relevé');
+
+  await sleep(2100); // sinon le premier envoi du script serait refusé (limite entre deux envois)
+  // Le vrai script, avec un envoi par heure : seul le bouton peut le faire répondre si vite.
+  const script = path.join(dataDir, 'agent-live.js');
+  fs.writeFileSync(script, await (await fetch(`${BASE}/agent/server-dashboard-agent.js`)).text());
+  const child = spawn(process.execPath, [script], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: token, AGENT_INTERVAL: '3600', AGENT_UPDATES: '0' } });
+  children.push(child);
+  try {
+    let d;
+    for (let i = 0; i < 50; i++) {
+      d = (await api('GET', '/api/widgets/agent')).json;
+      if (d.hostname === os.hostname() && d.interval === 3600) break;
+      await sleep(100);
+    }
+    assert.equal(d.interval, 3600, 'premier envoi du script');
+    await sleep(2100);
+    await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ hostname: 'pas-le-script', interval: 3600 }) });
+    await sleep(2100);
+    const start = Date.now();
+    r = await api('POST', '/api/widgets/agent/refresh');
+    assert.deepEqual([r.json.agentAnswered, r.json.data.hostname], [true, os.hostname()], 'le script a envoyé ses valeurs');
+    assert.ok(Date.now() - start < 3000, `réponse en ${Date.now() - start} ms`);
+  } finally {
+    child.kill();
+  }
+});
+
 test('Mises à jour : décompte par machine, détail réservé à l’admin (#122)', async () => {
   const { parseApt, parseImage } = require('../agent/server-dashboard-agent');
   const apt = parseApt([

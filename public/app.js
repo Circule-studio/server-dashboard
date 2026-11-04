@@ -104,6 +104,7 @@ const matchesSearch = (app, q) => fold(`${app.name} ${app.description || ''}`).i
 function render() {
   const cfg = current();
   if (!cfg) return;
+  const scrollY = window.scrollY; // le tableau se vide un instant : le navigateur remonterait
   document.title = cfg.title;
   $('#title').textContent = cfg.title;
   document.body.classList.toggle('editing', state.editing);
@@ -170,6 +171,23 @@ function render() {
   renderStatsOrder();
   updateSaveBar();
   renderSearchMenu();
+  if (window.scrollY !== scrollY) window.scrollTo({ top: scrollY, behavior: 'instant' });
+}
+
+// Statut et charge des tuiles, sans reconstruire le tableau : les widgets gardent leur défilement
+// et ce qui est déplié, les icônes ne clignotent pas, et une tuile sélectionnée le reste.
+function updateTiles() {
+  const q = state.searchEnabled ? fold(state.search.trim()) : '';
+  for (const grid of document.querySelectorAll('#board .grid[data-cat]')) {
+    const cat = state.config.categories[Number(grid.dataset.cat)];
+    const catMatch = !q || fold(cat?.name).includes(q);
+    const apps = (cat?.apps || []).map((app, ai) => ({ app, ai })).filter(({ app }) => catMatch || matchesSearch(app, q));
+    if (apps.length !== grid.children.length) return render(); // la config a changé entre-temps
+    apps.forEach(({ app, ai }, i) => {
+      const [icon] = grid.children[i].children;
+      grid.children[i].replaceChildren(icon, ...[...tileEl(app, Number(grid.dataset.cat), ai).children].slice(1));
+    });
+  }
 }
 
 // Une catégorie de tuiles. Les index d'origine (ai) servent à l'édition, où la
@@ -659,7 +677,10 @@ function widgetCard(w, i) {
       ? h('a', { class: 'widget-title', href, target: '_blank', rel: 'noopener', draggable: state.editing ? 'false' : null }, w.name || type.label)
       : h('span', { class: 'widget-title' }, w.name || type.label));
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
-  if (!state.editing) return card;
+  if (!state.editing) {
+    if (state.authed) head.append(h('button', { class: 'icon-btn widget-refresh', title: t('widget.refresh'), 'aria-label': t('widget.refresh'), onclick: (e) => refreshNow(w, e.currentTarget) }, '⟳'));
+    return card;
+  }
 
   head.append(h('div', { class: 'tile-tools' },
     h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openWidgetDialog(i) }, '✎'),
@@ -683,7 +704,13 @@ function widgetBody(w) {
 function updateWidget(id) {
   const card = document.querySelector(`[data-widget="${CSS.escape(id)}"]`);
   const w = current().widgets.find((x) => x.id === id);
-  if (card && w) card.querySelector('.widget-body').replaceWith(widgetBody(w));
+  if (!card || !w) return;
+  // Le contenu est remplacé : une liste qu'on est en train de faire défiler reste où elle est.
+  const old = card.querySelector('.widget-body');
+  const lists = [...old.querySelectorAll('.widget-list')].map((l) => l.scrollTop);
+  const next = widgetBody(w);
+  old.replaceWith(next);
+  next.querySelectorAll('.widget-list').forEach((l, i) => { l.scrollTop = lists[i] || 0; });
 }
 
 // Après une erreur, on réessaie sans attendre l'intervalle normal (10 min pour la météo) :
@@ -707,6 +734,27 @@ async function refreshWidget(id) {
     }
   }
   updateWidget(id);
+}
+
+// Bouton ⟳ : les données à l'instant, sans le cache du serveur. Certains résultats arrivent ensuite
+// (type.refreshFollowUps : recherche de mises à jour sur chaque machine) : le widget les relit.
+async function refreshNow(w, btn) {
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  try {
+    const r = await api(`/api/widgets/${encodeURIComponent(w.id)}/refresh`, { method: 'POST' });
+    state.widgetData[w.id] = { data: r.data };
+    if (r.agentAnswered === false) toast(t('widget.agentNoAnswer'), true);
+  } catch (e) {
+    state.widgetData[w.id] = { error: errMsg(e), code: e.code };
+  }
+  updateWidget(w.id);
+  for (const delay of WIDGET_TYPES[w.type].refreshFollowUps || []) {
+    await new Promise((r) => { setTimeout(r, delay); });
+    await refreshWidget(w.id);
+  }
+  btn.disabled = false;
+  btn.classList.remove('spinning');
 }
 
 function scheduleWidgets() {
@@ -1699,14 +1747,14 @@ async function refreshLinks() {
   if (!state.config.categories.some((c) => c.apps.some((a) => a.link))) return;
   try {
     state.links = await api('/api/links');
-    if (!state.editing) render();
+    if (!state.editing) updateTiles();
   } catch { /* ignoré */ }
 }
 
 async function refreshStatus() {
   try {
     state.status = await api('/api/status');
-    if (!state.editing) render();
+    if (!state.editing) updateTiles();
   } catch { /* ignoré */ }
 }
 

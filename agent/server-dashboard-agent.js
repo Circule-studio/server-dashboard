@@ -12,6 +12,9 @@
 //   AGENT_UPDATES   heures entre deux recherches de mises à jour (6 par défaut, 0 pour désactiver)
 //   DOCKER_SOCKET   socket de l'API Docker, pour les images à mettre à jour
 //   --once          un seul envoi, puis arrêt (pour tester)
+//
+// L'agent garde aussi une demande ouverte vers le dashboard : le bouton ⟳ du widget y répond tout de suite,
+// et l'agent envoie alors ses valeurs sans attendre le prochain envoi. Aucun port n'est ouvert sur la machine.
 
 const fs = require('fs');
 const os = require('os');
@@ -110,6 +113,7 @@ function report() {
 // ---------- Mises à jour en attente (#122) ----------
 // Comptées seulement : rien n'est installé. Fonctions aussi utilisées par le dashboard pour sa propre
 // machine (integrations/updates.js) ; aucune dépendance, pour que ce script reste un seul fichier.
+const MIN_RECHECK_MS = 60_000; // bouton ⟳ : pas plus d'une recherche de mises à jour par minute
 const MAX_PACKAGES = 100;
 const MAX_IMAGES = 50;
 const REGISTRY_TIMEOUT_MS = 10_000;
@@ -285,6 +289,30 @@ async function send() {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+// Demande ouverte vers le dashboard, relancée dès qu'elle se termine (il répond au bout de 25 s sans demande).
+const WAIT_TIMEOUT_MS = 40_000;
+const WAIT_RETRY_MS = 30_000; // dashboard injoignable, ou trop ancien pour cette demande
+
+async function waitLoop() {
+  for (;;) {
+    try {
+      const res = await fetch(`${URL_BASE}/api/agent/${encodeURIComponent(ID)}/wait`, {
+        headers: { Authorization: `Bearer ${TOKEN}` }, signal: AbortSignal.timeout(WAIT_TIMEOUT_MS), redirect: 'manual',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const command = await res.json();
+      if (command.refresh) {
+        if (command.updates && Date.now() - updatesAt >= MIN_RECHECK_MS) updatesAt = 0;
+        refreshUpdates()?.then(send).catch(() => {}); // le résultat part dès qu'il est prêt
+        await send();
+      }
+    } catch {
+      // Les erreurs d'envoi sont déjà signalées par la boucle principale.
+      await new Promise((r) => { setTimeout(r, WAIT_RETRY_MS); });
+    }
+  }
+}
+
 let failures = 0;
 async function loop() {
   try {
@@ -317,6 +345,7 @@ if (require.main === module) {
   }
   console.log(`Agent Server Dashboard : envoi toutes les ${INTERVAL} s vers ${URL_BASE}`);
   setTimeout(loop, 1000); // une seconde de mesure pour le premier relevé du CPU
+  if (!ONCE) waitLoop();
 }
 
 module.exports = { checkUpdates, parseApt, parseImage };

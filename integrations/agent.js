@@ -6,6 +6,13 @@
 const { fail, diskAlerts } = require('./lib');
 
 const reports = new Map(); // id du widget -> { t, data } ; perdu au redémarrage du dashboard
+// Le dashboard ne peut pas appeler l'agent : celui-ci garde une demande ouverte (GET /api/agent/:id/wait),
+// à laquelle le bouton ⟳ répond tout de suite. Sans demande, elle se termine au bout de WAIT_MS.
+const WAIT_MS = 25_000;
+const ANSWER_MS = 5000; // temps laissé à l'agent pour envoyer ses valeurs
+const waiting = new Map(); // id du widget -> fonction qui répond à la demande ouverte
+const arrivals = new Map(); // id du widget -> [fonction appelée au prochain relevé]
+const wanted = new Set(); // relevé demandé : la limite entre deux envois ne s'y applique pas
 // Hors ligne après 3 envois manqués (l'agent indique son intervalle, 30 s par défaut).
 const MISSED = 3;
 const MIN_GAP_MS = 2000; // un agent qui envoie plus souvent est ignoré (429)
@@ -43,7 +50,7 @@ function cleanUpdates(u) {
 // Le relevé vient d'une autre machine : chaque champ est vérifié et borné, rien n'est repris tel quel.
 function receive(w, body) {
   const prev = reports.get(w.id);
-  if (prev && Date.now() - prev.t < MIN_GAP_MS) return false;
+  if (prev && Date.now() - prev.t < MIN_GAP_MS && !wanted.has(w.id)) return false;
   for (const [id, r] of reports) if (Date.now() - r.t > FORGET_MS) reports.delete(id);
   const b = body && typeof body === 'object' ? body : {};
   const mem = b.mem && num(b.mem.total, 1) ? { total: num(b.mem.total, 1), used: num(b.mem.used, 0, b.mem.total) ?? 0 } : null;
@@ -64,6 +71,8 @@ function receive(w, body) {
     interval: num(b.interval, 5, 86400) ?? 30,
   };
   reports.set(w.id, { t: Date.now(), data, updates: cleanUpdates(b.updates) });
+  wanted.delete(w.id);
+  for (const arrived of arrivals.get(w.id) || []) arrived(true);
   return true;
 }
 
@@ -82,10 +91,48 @@ function updatesOf(id) {
   return last ? { ...freshness(last), updates: last.updates } : null;
 }
 
+// Demande ouverte par l'agent : { promise, cancel }. promise donne ce qu'il doit faire ({} : rien).
+function waitCommand(w) {
+  waiting.get(w.id)?.({}); // l'agent n'a qu'une demande ouverte : la plus récente
+  let resolve;
+  const promise = new Promise((r) => { resolve = r; });
+  const finish = (command) => {
+    clearTimeout(timer);
+    if (waiting.get(w.id) === finish) waiting.delete(w.id);
+    resolve(command);
+  };
+  const timer = setTimeout(() => finish({}), WAIT_MS);
+  waiting.set(w.id, finish);
+  return { promise, cancel: () => finish({}) };
+}
+
+// Demande un relevé à l'agent, et attend qu'il arrive. false : l'agent n'a pas répondu (agent éteint,
+// ou installé avant cette version : il n'a pas de demande ouverte).
+function requestReport(id, command = {}) {
+  const answer = waiting.get(id);
+  if (!answer) return Promise.resolve(false);
+  wanted.add(id);
+  return new Promise((resolve) => {
+    const done = (ok) => {
+      clearTimeout(timer);
+      arrivals.set(id, (arrivals.get(id) || []).filter((f) => f !== done));
+      if (!arrivals.get(id).length) arrivals.delete(id);
+      if (!ok) wanted.delete(id);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => done(false), ANSWER_MS);
+    arrivals.set(id, [...(arrivals.get(id) || []), done]);
+    answer({ refresh: true, ...command });
+  });
+}
+
 // Alertes : la machine (plus d'envoi depuis 3 intervalles) et ses disques.
 const alerts = (d, w) => [{ id: `${w.id}:machine`, name: w.name, online: !d.offline }, ...diskAlerts(w, d.disks)];
 
 module.exports = {
   // generatedKey : jeton créé par le serveur (server.js), jamais saisi.
-  agent: { fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts, updatesOf },
+  agent: {
+    fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts, updatesOf, waitCommand, requestReport,
+    refresh: async (w) => ({ agentAnswered: await requestReport(w.id) }),
+  },
 };

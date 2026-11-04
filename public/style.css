@@ -260,6 +260,11 @@ a.version-update:hover { text-decoration: underline; }
   min-width: 0;
 }
 .widget-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.widget-refresh { margin-left: auto; flex: none; opacity: 0.55; }
+.widget-refresh:hover, .widget-refresh:focus-visible { opacity: 1; }
+.widget-refresh.spinning { animation: widget-spin 1s linear infinite; opacity: 1; }
+@keyframes widget-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .widget-refresh.spinning { animation: none; } }
 .widget-head .tile-icon { width: 32px; height: 32px; border-radius: 8px; font-size: 0.95rem; }
 .widget-head .tile-icon img { width: 24px; height: 24px; }
 .widget-title { flex: 1; min-width: 0; font-weight: 600; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

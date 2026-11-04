@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.27.0] - 2026-11-05
+
+### Corrigé
+- La page remontait toute seule toutes les 30 secondes : la mise à jour du statut des tuiles reconstruisait tout le tableau. Seules les tuiles sont maintenant mises à jour : la page reste où elle est, et les widgets gardent leur défilement et ce qui est déplié.
+
+### Ajouté
+- **Bouton ⟳ sur chaque widget**, pour l'admin connecté : les données à l'instant, sans cache. Un agent répond tout de suite grâce à une connexion qu'il garde ouverte vers le dashboard (aucun port à ouvrir) ; relancer sa commande d'installation le met à niveau, sinon le widget indique qu'il n'a pas répondu. Le widget Mises à jour relance la recherche sur chaque machine, une fois par minute au plus.
+
 ## [0.26.0] - 2026-11-05
 
 ### Ajouté
@@ -302,7 +310,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.26.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.24.0...v0.25.0

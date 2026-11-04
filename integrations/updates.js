@@ -8,6 +8,7 @@ const { checkUpdates } = require('../agent/server-dashboard-agent');
 const { agent } = require('./agent');
 
 const CHECK_EVERY_MS = 6 * 3600_000; // même rythme que l'agent
+const MIN_RECHECK_MS = 60_000; // bouton ⟳ : pas plus d'une recherche par minute
 const FIRST_WAIT_MS = 1500; // sans registre à interroger, la première recherche est vite finie
 const local = { t: 0, data: null, pending: null };
 
@@ -60,6 +61,12 @@ function publicData(d) {
   };
 }
 
+// Bouton ⟳ : nouvelle recherche ici et sur chaque machine. Le résultat arrive ensuite, l'interface le relit.
+function refresh(w, widgets = []) {
+  if (Date.now() - local.t >= MIN_RECHECK_MS) local.t = 0;
+  for (const x of widgets) if (x.type === 'agent') agent.requestReport(x.id, { updates: true });
+}
+
 module.exports = {
-  updates: { fields: [], cacheMs: 5000, fetch: updates, withWidgets: true, publicData },
+  updates: { fields: [], cacheMs: 5000, fetch: updates, withWidgets: true, publicData, refresh },
 };
