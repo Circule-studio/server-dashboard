@@ -846,7 +846,7 @@ test('Sauvegardes Proxmox : dernière tâche, machines, stockage, alerte', async
   assert.deepEqual([d.last.ok, d.last.id, d.failed, d.tasks], [false, 110, 1, 2], 'la plus récente, tâche en cours ignorée');
   assert.match(d.last.status, /no space left/);
   assert.deepEqual(d.guests.map((g) => [g.id, g.name, g.size]), [[100, 'photo-server', 12 * 1024 ** 3], [110, 'home-assistant', 30 * 1024 ** 3]], 'dernière de chaque machine');
-  assert.deepEqual(d.missing.map((g) => g.id), [101, 102, 120], 'sans sauvegarde, sans les modèles');
+  assert.deepEqual(d.missing.map((g) => [g.id, g.name]), [[101, 'obsidian-livesync'], [102, 'pulse'], [120, 'windows-11']], 'hors de toute tâche planifiée, sans les modèles');
   assert.deepEqual(d.storages, [{ name: 'usb', used: 400 * 1024 ** 3, total: 1000 * 1024 ** 3 }]);
   assert.ok(d.next > Date.now() / 1000 + 86400, 'tâche planifiée activée');
   const { INTEGRATIONS } = require('../integrations');
