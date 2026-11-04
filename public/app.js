@@ -692,6 +692,7 @@ function openWidgetDialog(i) {
   f.name.value = w.name || '';
   f.location.value = w.location || '';
   f.indexerUrl.value = w.indexerUrl || '';
+  f.query.value = w.query || '';
   f.repo.value = w.repo || '';
   f.slug.value = w.slug || '';
   f.entities.value = (w.entities || []).join('\n');
@@ -808,7 +809,7 @@ async function agentSetup(type, w) {
     return;
   }
   if (run !== agentSetupRun) return;
-  text.textContent = t('agent.setupHelp');
+  text.textContent = t(type.setupHelp || 'agent.setupHelp');
   const base = location.origin; // l'adresse utilisée par l'admin, celle que l'agent pourra joindre en général
   const script = `${base}/agent/server-dashboard-agent.js`;
   const block = (label, code) => {
@@ -820,6 +821,13 @@ async function agentSetup(type, w) {
   };
   const installer = `curl -fsSL ${base}/agent/install.sh`;
   const vars = `DASHBOARD_URL=${base} AGENT_ID=${s.id} AGENT_TOKEN=${s.token}`;
+  // Autre type qui envoie ses données (sauvegardes) : ses propres commandes.
+  const own = type.setupCommands?.(base, s);
+  if (own) {
+    commands.replaceChildren(...own.map(([label, code]) => block(label, code)),
+      h('button', { type: 'button', class: 'btn btn-sm', onclick: () => regenerateAgentToken(w.id) }, t('agent.regenerate')));
+    return;
+  }
   commands.replaceChildren(
     block(t('agent.installLinux'), `${installer} | sudo env ${vars} bash`),
     block(t('agent.installProxmox'), `CT=100; ${installer} | pct exec $CT -- env ${vars} bash`),
@@ -861,6 +869,7 @@ function submitWidget(e) {
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('indexerUrl')) w.indexerUrl = f.indexerUrl.value.trim();
+  if (fields.includes('query')) w.query = f.query.value.trim();
   if (fields.includes('repo')) w.repo = f.repo.value.trim(); // normalisé par le serveur
   if (fields.includes('slug')) w.slug = f.slug.value.trim(); // ou tiré de l'adresse de la page par le serveur
   if (fields.includes('entities')) w.entities = f.entities.value.split(/[\s,;]+/).filter(Boolean); // vérifiées par le serveur

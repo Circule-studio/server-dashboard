@@ -95,6 +95,21 @@ function request(url, {
 }
 
 const join = (base, p) => base.replace(/\/+$/, '') + p;
+
+// Format texte de Prometheus (Authelia, Watchtower) : [{ name, labels, value }].
+function parseMetrics(text) {
+  return String(text).split('\n').flatMap((line) => {
+    const m = line.match(/^([a-zA-Z_:][\w:]*)(?:\{(.*)\})?\s+(\S+)/);
+    if (!m) return [];
+    const labels = Object.fromEntries([...(m[2] || '').matchAll(/(\w+)="((?:[^"\\]|\\.)*)"/g)].map((l) => [l[1], l[2]]));
+    return [{ name: m[1], labels, value: Number(m[3]) || 0 }];
+  });
+}
+
+// Somme d'une métrique, avec ou sans le suffixe _total, selon la version du service.
+const sumMetric = (metrics, name, keep = () => true) => metrics
+  .filter((m) => (m.name === name || m.name === `${name}_total`) && keep(m.labels))
+  .reduce((sum, m) => sum + m.value, 0);
 const pad = (n) => String(n ?? 0).padStart(2, '0');
 
 // `forbidden` : code d'erreur plus précis pour un 403 (clé valide mais droits insuffisants).
@@ -148,4 +163,5 @@ const diskAlerts = (w, disks, label = (d) => d.mount) => disks.filter((d) => d.s
   online: d.used / d.size < DISK_ALERT, value: Math.round((d.used / d.size) * 100),
 }));
 
-module.exports = { request, fail, join, pad, getJson, sessionCache, basicAuth, diskAlerts };
+module.exports = {
+  parseMetrics, sumMetric, request, fail, join, pad, getJson, sessionCache, basicAuth, diskAlerts };

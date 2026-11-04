@@ -94,6 +94,20 @@ const WIDGETS = [
   { id: 'wazuh-web', type: 'wazuh', url: 'http://localhost:18094', username: 'wazuh-wui', password: 'wazuh-pass' },
   { id: 'wazuh-badindex', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'wazuh-pass', indexerUrl: 'http://localhost:18094', apiKey: 'admin:indexer-pass' },
   { id: 'wazuh-bad', type: 'wazuh', url: 'http://localhost:18095', username: 'wazuh-wui', password: 'faux' },
+  { id: 'loki', type: 'loki', url: 'http://localhost:18100' },
+  { id: 'loki-basic', type: 'loki', url: 'http://localhost:18103', username: 'loki', password: 'loki-pass' },
+  { id: 'loki-grafana', type: 'loki', url: 'http://localhost:18103/api/datasources/proxy/uid/abc', apiKey: 'loki-token' },
+  { id: 'loki-bad', type: 'loki', url: 'http://localhost:18103', apiKey: 'mauvais-loki' },
+  { id: 'loki-query', type: 'loki', url: 'http://localhost:18100', query: 'pas{valide' },
+  { id: 'loki-404', type: 'loki', url: 'http://localhost:18101' },
+  { id: 'authelia', type: 'authelia', url: 'http://localhost:18101' },
+  { id: 'authelia-bad', type: 'authelia', url: 'http://localhost:18094' },
+  { id: 'watchtower', type: 'watchtower', url: 'http://localhost:18102', apiKey: 'watchtower-token' },
+  { id: 'watchtower-bad', type: 'watchtower', url: 'http://localhost:18102', apiKey: 'mauvais-wt' },
+  { id: 'watchtower-404', type: 'watchtower', url: 'http://localhost:18101', apiKey: 'watchtower-token' },
+  { id: 'pvebackup', type: 'pvebackup', url: 'http://localhost:18006', username: 'root@pam!dashboard', apiKey: 'pve-secret' },
+  { id: 'pvebackup-bad', type: 'pvebackup', url: 'http://localhost:18006', username: 'root@pam!dashboard', apiKey: 'faux' },
+  { id: 'backup-usb', type: 'backup', name: 'Disque USB' },
   { id: 'rss', type: 'rss', feeds: ['http://localhost:18090/rss.xml', 'http://localhost:18090/atom.xml', 'http://localhost:9/flux'] },
   { id: 'rss-bad', type: 'rss', feeds: ['http://localhost:18090/pas-un-flux'] },
   { id: 'goaccess', type: 'goaccess', url: 'http://localhost:17890/summary.json' },
@@ -135,7 +149,7 @@ const WIDGETS = [
   { id: 'customapi-bad', type: 'customapi', url: 'http://localhost:18092/prive', apiKey: 'mauvaise-cle-api', mappings: 'data.users.count' },
   { id: 'customapi-text', type: 'customapi', url: 'http://localhost:18092/texte', mappings: 'data.users.count' },
 ];
-const SECRETS = ['traefik-pass', 'wazuh-pass', 'indexer-pass', 'crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
+const SECRETS = ['loki-pass', 'loki-token', 'mauvais-loki', 'watchtower-token', 'mauvais-wt', 'traefik-pass', 'wazuh-pass', 'indexer-pass', 'crowdsec-pass', 'crowdsec-bouncer', 'speedtest-token', 'pbs-secret', 'lidarr-key', 'readarr-key', 'prowlarr-key', 'bazarr-key', 'custom-key', 'api-pass', 'mauvaise-cle-api', 'agenda-pass', 'localhost:18091/agenda.ics', 'alwaysdata-token', 'mauvais-jeton-ad', 'alwaysdata-ip-token', 'jf-key', 'secret', 'sonarr-key', 'radarr-key', 'pve-secret', 'pulse-token', 'immich-key', 'pihole-pass', 'adguard-pass', 'mauvaise-cle', 'immich-user-key', 'npm-pass', 'ha-token', 'mauvais-jeton', 'frigate-pass', 'glances-pass', 'plex-token', 'mauvais-token'];
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
@@ -540,6 +554,13 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
     'immich-user': 'immich_admin',
     'goaccess-bad': 'unexpected_response',
     'rss-bad': 'rss_invalid',
+    'loki-bad': 'auth_refused',
+    'loki-query': 'loki_query',
+    'loki-404': 'loki_api',
+    'authelia-bad': 'authelia_metrics',
+    'watchtower-bad': 'auth_refused',
+    'watchtower-404': 'watchtower_api',
+    'pvebackup-bad': 'auth_refused',
     'traefik-bad': 'auth_refused',
     'wazuh-bad': 'wazuh_credentials',
     'wazuh-web': 'wazuh_api',
@@ -783,6 +804,84 @@ async function until(check, ms = 5000) {
   }
   return true;
 }
+
+test('Loki : volume, erreurs récentes, lignes réservées à l’admin', async () => {
+  for (const id of ['loki', 'loki-basic', 'loki-grafana']) {
+    const d = await widget(id);
+    assert.deepEqual([d.lines, d.bytes, d.errors], [12456, 52428800, 42], id);
+    assert.deepEqual(d.sources.map((s) => s.name), ['caddy', 'immich']);
+    assert.deepEqual(d.recent.map((r) => r.source), ['caddy', 'immich', 'caddy'], 'les plus récentes d’abord');
+    assert.equal(d.recent[0].line, 'ERROR upstream timed out', 'sans les couleurs de terminal');
+    assert.equal(d.recent[1].line.length, 300, 'ligne bornée');
+  }
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/widgets/loki');
+  cookie = saved;
+  assert.deepEqual([visitor.json.lines, visitor.json.recent, visitor.json.hidden], [12456, [], true]);
+  assert.ok(!visitor.text.includes('upstream'), 'pas de ligne de log pour un visiteur');
+});
+
+test('Authelia : connexions, double authentification, accès', async () => {
+  const d = await widget('authelia');
+  assert.deepEqual(d.logins, { ok: 41, failed: 6, banned: 2 });
+  assert.deepEqual(d.secondFactor, { ok: 39, failed: 3, banned: 0 });
+  assert.deepEqual([d.allowed, d.denied], [1240, 19]);
+  assert.ok(Date.now() - new Date(d.since) > 2 * 86400_000);
+});
+
+test('Watchtower : dernier passage, détection d’un nouveau passage', async () => {
+  const first = await widget('watchtower');
+  assert.deepEqual([first.scanned, first.updated, first.failed, first.skipped], [9, 3, 1, 2]);
+  assert.equal(first.seenAt, null, 'date inconnue au premier relevé');
+  await fetch('http://localhost:18102/__mock/scan', { method: 'POST' });
+  await new Promise((r) => setTimeout(r, 15_100)); // cache du widget
+  const next = await widget('watchtower');
+  assert.equal(next.scans, first.scans + 1);
+  assert.ok(Date.now() - new Date(next.seenAt) < 60_000, 'passage vu par le dashboard');
+});
+
+test('Sauvegardes Proxmox : dernière tâche, machines, stockage, alerte', async () => {
+  const d = await widget('pvebackup');
+  assert.deepEqual([d.last.ok, d.last.id, d.failed, d.tasks], [false, 110, 1, 2], 'la plus récente, tâche en cours ignorée');
+  assert.match(d.last.status, /no space left/);
+  assert.deepEqual(d.guests.map((g) => [g.id, g.name, g.size]), [[100, 'photo-server', 12 * 1024 ** 3], [110, 'home-assistant', 30 * 1024 ** 3]], 'dernière de chaque machine');
+  assert.deepEqual(d.missing.map((g) => g.id), [101, 102, 120], 'sans sauvegarde, sans les modèles');
+  assert.deepEqual(d.storages, [{ name: 'usb', used: 400 * 1024 ** 3, total: 1000 * 1024 ** 3 }]);
+  assert.ok(d.next > Date.now() / 1000 + 86400, 'tâche planifiée activée');
+  const { INTEGRATIONS } = require('../integrations');
+  assert.deepEqual(INTEGRATIONS.pvebackup.alerts(d, { id: 'p', name: 'PVE', url: 'u' }), [{ id: 'p:last', name: 'PVE', url: 'u', problem: 'lastbackup', online: false }]);
+});
+
+test('Sauvegarde par script : résultat reçu, gardé sur disque, retard, valeurs bornées', async () => {
+  assert.equal((await api('GET', '/api/widgets/backup-usb')).json.code, 'backup_waiting');
+  const { token } = (await api('GET', '/api/agent/backup-usb/setup')).json;
+  const send = (body, key = token) => fetch(`${BASE}/api/agent/backup-usb`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
+  assert.equal((await send({ ok: true }, 'faux')).status, 401);
+  assert.equal((await send({ ok: true, size: 1000, everyHours: 24, target: '/mnt/usb', message: 'x'.repeat(500) })).status, 200);
+  assert.equal((await send({ ok: true })).status, 429, 'pas deux envois de suite');
+  await new Promise((r) => setTimeout(r, 2100));
+  let d = await widget('backup-usb');
+  assert.deepEqual([d.ok, d.size, d.late, d.target, d.message.length, d.history.length], [true, 1000, false, '/mnt/usb', 200, 1]);
+  assert.equal((await send({ ok: 'oui', size: -5, everyHours: 0.0000001 })).status, 200);
+  await new Promise((r) => setTimeout(r, 1100)); // cache du widget
+  d = await widget('backup-usb');
+  assert.deepEqual([d.ok, d.size, d.history.length], [false, null, 2], 'seul ok: true est un succès');
+  assert.ok(fs.existsSync(path.join(dataDir, 'backup-reports.json')), 'gardé sur disque');
+  assert.ok(!fs.readFileSync(path.join(dataDir, 'backup-reports.json'), 'utf8').includes(token));
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/widgets/backup-usb');
+  cookie = saved;
+  assert.equal(visitor.json.ok, false);
+  assert.ok(!('target' in visitor.json), 'chemin caché aux visiteurs');
+  // Retard et alerte, sur le module seul.
+  const { INTEGRATIONS } = require('../integrations');
+  assert.ok(INTEGRATIONS.backup.receive({ id: 'seul' }, { ok: true, everyHours: 1 }));
+  const fresh = await INTEGRATIONS.backup.fetch({ id: 'seul' });
+  assert.deepEqual(INTEGRATIONS.backup.alerts(fresh, { id: 's', name: 'USB' })[0].online, true);
+  assert.equal(INTEGRATIONS.backup.alerts({ ...fresh, late: true }, { id: 's', name: 'USB' })[0].online, false);
+});
 
 test('Mises à jour : décompte par machine, détail réservé à l’admin (#122)', async () => {
   const { parseApt, parseImage } = require('../agent/server-dashboard-agent');
