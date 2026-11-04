@@ -124,6 +124,10 @@
       <h3 id="widgetDialogTitle" data-i18n="widget.dialogTitle"></h3>
       <label><span data-i18n="widget.type"></span><select name="type"></select></label>
       <label><span data-i18n="common.name"></span><input name="name" maxlength="100" data-i18n-placeholder="widget.namePlaceholder"></label>
+      <label data-field="query"><span data-i18n="loki.query"></span>
+        <input name="query" maxlength="500" autocomplete="off" placeholder='{job="varlogs"}'>
+        <small class="muted" data-i18n="loki.queryHelp"></small>
+      </label>
       <label data-field="indexerUrl"><span data-i18n="wazuh.indexerUrl"></span>
         <input name="indexerUrl" type="url" autocomplete="off" placeholder="https://192.168.1.20:9200">
         <small class="muted" data-i18n="wazuh.indexerUrlHelp"></small>
@@ -341,6 +345,10 @@
   <script src="widgets/glances.js"></script>
   <script src="widgets/agent.js"></script>
   <script src="widgets/updates.js"></script>
+  <script src="widgets/loki.js"></script>
+  <script src="widgets/authelia.js"></script>
+  <script src="widgets/watchtower.js"></script>
+  <script src="widgets/backups.js"></script>
   <script src="widgets/uptimekuma.js"></script>
   <script src="widgets/media.js"></script>
   <script src="widgets/qbittorrent.js"></script>

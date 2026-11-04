@@ -188,6 +188,24 @@ jobs:
 
   # Script community-scripts (packaging/proxmox) : la partie qui s'exécute dans le conteneur LXC
   # tourne sur n'importe quelle Debian / Ubuntu ; les fonctions de community-scripts sont simulées.
+  # Les vrais logiciels, pour vérifier les formats sur autre chose que nos faux services.
+  real-services:
+    name: Vrais services (Loki, Authelia, Watchtower)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Démarrage et vérification
+        run: bash dev/real-services.sh
+      - name: Journaux en cas d'échec
+        if: failure()
+        run: |
+          for c in sd-loki sd-authelia sd-watchtower; do echo "=== $c"; docker logs --tail 40 "$c" 2>&1 || true; done
+
   proxmox:
     name: Script Proxmox (community-scripts, hors Proxmox)
     runs-on: ubuntu-latest

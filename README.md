@@ -39,6 +39,11 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
   - **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date.
   - **CrowdSec** : les attaques détectées sur ton serveur dans les dernières 24 h (adresse, pays, opérateur, scénario), les plus actifs, et les adresses bannies ; alerte en cas de pic.
   - **Wazuh** : les agents actifs et déconnectés, et, avec l’indexer, les alertes de sécurité des 24 h par gravité ; alerte quand un agent se déconnecte ou en cas d’alerte critique.
+  - **Loki / Grafana** : volume de logs et erreurs des dernières 24 h, avec les dernières lignes d’erreur et les sources les plus bavardes.
+  - **Authelia** : connexions réussies, refusées et bloquées, double authentification, accès autorisés et refusés.
+  - **Watchtower** : conteneurs vérifiés, à mettre à jour et en échec lors du dernier passage.
+  - **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines sans sauvegarde, stockage et prochaine sauvegarde ; alerte en cas d’échec.
+  - **Sauvegarde par script** : le résultat d’un script maison (rsync vers un disque USB…) : date, taille, succès ou échec, historique ; alerte en cas d’échec ou de retard.
   - **Traefik** : routeurs, services et middlewares, avec ceux en erreur ou en alerte ; alerte quand un routeur tombe en erreur.
   - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
   - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
@@ -157,6 +162,11 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | GoAccess | URL du rapport JSON (`goaccess … -o rapport.json`) | Aucune clé. Pour ne rien exposer de sensible, génère un rapport limité au panneau des visiteurs (`--ignore-panel` pour tous les autres, dont `HOSTS`) : il ne contient aucune adresse IP |
 | Alwaysdata | Jeton d’API + nom du compte (facultatif) | Alwaysdata > Profil > Gestion des jetons. Le compte n’est utile que si le jeton en gère plusieurs. Le widget lit seulement la liste des sites, puis teste lui-même leur première adresse (HTTPS, sinon HTTP) |
 | Wazuh | URL de l’API du manager (`https://IP:55000`) + utilisateur et mot de passe de l’API ; facultatif : URL de l’indexer (`https://IP:9200`) et `utilisateur:mot de passe` de l’indexer | Compte de l’API Wazuh (idéalement avec le rôle `readonly`). Sans l’indexer, seuls les agents s’affichent. Certificats auto-signés acceptés |
+| Loki / Grafana | URL de Loki (`http://IP:3100`) ; identifiant et mot de passe si un reverse proxy la protège ; ou URL de Grafana avec le chemin de la source (`https://grafana/api/datasources/proxy/uid/UID`) et un jeton de compte de service (rôle Viewer) | Sélecteur LogQL facultatif, ex. `{job="varlogs"}`. Les lignes d’erreur ne sont montrées qu’aux admins |
+| Authelia | URL des métriques (`http://IP:9959`) | Dans sa configuration : `telemetry: { metrics: { enabled: true } }`. Compteurs depuis son démarrage. Authelia ne publie pas le nombre de sessions actives |
+| Watchtower | URL de l’API (`http://IP:8080`) + jeton | Lancer avec `WATCHTOWER_HTTP_API_METRICS=true` et `WATCHTOWER_HTTP_API_TOKEN`. Ses métriques ne donnent ni le nom des conteneurs ni la date du passage : le dashboard note quand il voit un nouveau passage. Pour les noms, voir le widget Mises à jour. Watchtower n’est plus maintenu depuis 2025 |
+| Sauvegardes Proxmox | Comme Proxmox VE : URL, identifiant et secret du jeton (rôle PVEAuditor) | Lit les tâches `vzdump` et les stockages de sauvegarde, y compris un disque USB monté dans Proxmox |
+| Sauvegarde par script | Rien : le jeton est généré | Enregistre le widget, rouvre-le, et colle les lignes affichées à la fin de ton script. Adapte le chemin et `everyHours` (heures entre deux sauvegardes, pour détecter un retard) |
 | Traefik | URL de l’API (`http://IP:8080` ou le routeur qui publie `api@internal`) ; utilisateur et mot de passe si un middleware basicAuth la protège | Activer `api.dashboard` (ou `api.insecure` sur un réseau privé) dans la configuration statique de Traefik |
 | CrowdSec | URL de l’API locale (`http://IP:8080`) + compte machine **ou** clé de bouncer | Sur la machine CrowdSec : `cscli machines add dashboard --password …` (attaques détaillées : pays, opérateur, scénario) ou `cscli bouncers add dashboard` (lecture seule : adresses bannies). La liste communautaire n’est pas comptée comme une attaque |
 | Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |

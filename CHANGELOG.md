@@ -4,6 +4,16 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.25.0] - 2026-11-04
+
+### Ajouté
+- Widget **Loki / Grafana** : volume de logs et nombre d’erreurs des dernières 24 h, sources les plus bavardes et dernières lignes d’erreur (réservées aux admins). Directement sur Loki, ou à travers Grafana avec un jeton de compte de service. Sélecteur LogQL facultatif.
+- Widget **Authelia** : connexions réussies, refusées et bloquées, double authentification, accès autorisés et refusés, lus dans ses métriques Prometheus (compteurs depuis son démarrage). Authelia ne publie pas le nombre de sessions actives.
+- Widget **Watchtower** : conteneurs vérifiés, à mettre à jour et en échec lors du dernier passage. Ses métriques ne donnent pas les noms : le widget Mises à jour les montre.
+- Widget **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines sans sauvegarde, stockages, prochaine sauvegarde. « M’alerter » en cas d’échec.
+- Widget **Sauvegarde par script** : un script maison (rsync vers un disque USB…) envoie son résultat au dashboard : date, taille, succès ou échec, 10 derniers résultats, gardés sur disque. « M’alerter » en cas d’échec ou de retard.
+- CI : ces intégrations sont vérifiées contre les vrais Loki, Authelia et Watchtower (#125).
+
 ## [0.24.0] - 2026-11-04
 
 ### Ajouté
@@ -281,7 +291,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.24.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.21.0...v0.22.0

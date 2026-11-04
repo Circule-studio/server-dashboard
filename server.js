@@ -253,6 +253,7 @@ function sanitizeWidgets(list, previous = []) {
     if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
     // Deuxième adresse facultative (indexer Wazuh).
     if (INTEGRATIONS[type].fields.includes('indexerUrl')) out.indexerUrl = checkUrl(str(w.indexerUrl, 2000));
+    if (INTEGRATIONS[type].fields.includes('query')) out.query = str(w.query, 500); // sélecteur LogQL
     if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
     if (INTEGRATIONS[type].fields.includes('feeds')) out.feeds = sanitizeFeeds(w.feeds);
     if (INTEGRATIONS[type].fields.includes('mappings')) out.mappings = sanitizeMappings(w.mappings);
