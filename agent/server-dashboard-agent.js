@@ -289,6 +289,12 @@ async function send() {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+// Le résultat d'une recherche part dès qu'il est prêt, après le délai minimal entre deux envois (2 s côté
+// dashboard) : sans lui, une recherche rapide serait refusée et attendrait l'envoi suivant.
+function sendWhenDone(searching) {
+  searching?.then(() => new Promise((r) => { setTimeout(r, 3000); })).then(send).catch(() => {});
+}
+
 // Demande ouverte vers le dashboard, relancée dès qu'elle se termine (il répond au bout de 25 s sans demande).
 const WAIT_TIMEOUT_MS = 40_000;
 const WAIT_RETRY_MS = 30_000; // dashboard injoignable, ou trop ancien pour cette demande
@@ -303,7 +309,7 @@ async function waitLoop() {
       const command = await res.json();
       if (command.refresh) {
         if (command.updates && Date.now() - updatesAt >= MIN_RECHECK_MS) updatesAt = 0;
-        refreshUpdates()?.then(send).catch(() => {}); // le résultat part dès qu'il est prêt
+        sendWhenDone(refreshUpdates());
         await send();
       }
     } catch {
@@ -319,8 +325,7 @@ async function loop() {
     // Un envoi n'attend pas la recherche, qui peut être longue (sauf --once : il n'y a qu'un envoi).
     const searching = refreshUpdates();
     if (ONCE) await searching;
-    // Le résultat part dès qu'il est prêt, après le délai minimal entre deux envois (2 s côté dashboard).
-    else searching?.then(() => new Promise((r) => { setTimeout(r, 3000); })).then(send).catch(() => {});
+    else sendWhenDone(searching);
     await send();
     if (failures) console.log('Envoi rétabli.');
     failures = 0;
