@@ -24,6 +24,6 @@ RENDERERS.immich = (d) => [
         h('span', { class: 'item-title', title: u.name }, u.name),
         h('span', { class: 'muted' }, u.quota ? `${fmtBytes(u.usage)} / ${fmtBytes(u.quota)}` : fmtBytes(u.usage))),
       h('div', { class: 'item-sub' }, t('immich.userLine', { photos: u.photos.toLocaleString(LOCALE), videos: u.videos.toLocaleString(LOCALE) })),
-      u.quota ? progressBar(u.usage / u.quota, u.usage / u.quota >= 0.9 ? 'bad' : u.usage / u.quota >= 0.7 ? 'warn' : '') : null))),
+      u.quota ? progressBar(u.usage / u.quota, levelOf(u.usage / u.quota)) : null))),
   ] : []),
 ];
