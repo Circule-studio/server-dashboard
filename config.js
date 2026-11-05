@@ -121,6 +121,21 @@ const OPTIONAL_FIELDS = {
   mappings: (w) => sanitizeMappings(w.mappings),
 };
 
+// Réglages des chiffres d'un widget (#96), rangés par libellé : masqué, seuils orange et rouge.
+const MAX_STAT_RULES = 60;
+const threshold = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? undefined : Number(v));
+
+function sanitizeStatRules(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return undefined;
+  const entries = Object.entries(input).slice(0, MAX_STAT_RULES).flatMap(([key, rule]) => {
+    const k = str(key, 100);
+    if (!k || !rule || typeof rule !== 'object') return [];
+    const out = { hide: rule.hide === true ? true : undefined, warn: threshold(rule.warn), bad: threshold(rule.bad) };
+    return out.hide || out.warn !== undefined || out.bad !== undefined ? [[k, out]] : [];
+  });
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
 // `previous` sert à conserver les secrets : le navigateur ne les reçoit jamais,
 // donc un champ vide signifie « inchangé ».
 function sanitizeWidgets(list, previous = []) {
@@ -159,6 +174,8 @@ function sanitizeWidgets(list, previous = []) {
       const chosen = (Array.isArray(w.sections) ? w.sections : []).filter((s) => def.sections.includes(s));
       out.sections = chosen.length ? [...new Set(chosen)] : [...def.sections];
     }
+    const stats = sanitizeStatRules(w.stats);
+    if (stats) out.stats = stats;
     for (const k of def.keep || []) if (old[k]) out[k] = old[k];
     // Jeton créé par le serveur (agent) : jamais saisi, gardé d'un enregistrement à l'autre.
     // regenerateKey : nouveau jeton demandé (l'ancien cesse de marcher).
@@ -221,6 +238,8 @@ function sanitizeNotify(input, previous) {
 
 // Taille des tuiles d'apps (réglage global).
 const TILE_SIZES = ['compact', 'normal', 'large'];
+// Bloc de favoris (#93) : des liens compacts, sans statut. Sans réglage : des tuiles.
+const CATEGORY_STYLES = ['links', 'icons'];
 // Recherche web de la recherche rapide (#91) : un moteur proposé, « none », ou une adresse
 // personnalisée (avec %s à la place des mots cherchés, ou qui se termine par ?q=).
 const SEARCH_ENGINES = ['duckduckgo', 'google', 'bing', 'brave', 'qwant', 'ecosia', 'none'];
@@ -238,6 +257,27 @@ function sanitizeDisplay(display) {
     ...Object.fromEntries(DISPLAY_OPTIONS.map((k) => [k, src[k] !== false])),
     statusStyle: STATUS_STYLES.includes(src.statusStyle) ? src.statusStyle : 'dot',
   };
+}
+
+// Apparence (#95) : couleur d'accent (bleue sans réglage) et image de fond, avec son opacité et le
+// flou des cartes posées dessus. L'image : une adresse, ou le fichier envoyé (POST /api/background).
+const ACCENTS = ['green', 'violet', 'orange', 'pink', 'teal'];
+const percent = (v, min, max, fallback) => {
+  const n = Math.round(Number(v));
+  return v === '' || v == null || !Number.isFinite(n) ? fallback : Math.min(max, Math.max(min, n));
+};
+
+function sanitizeAppearance(appearance) {
+  const src = appearance && typeof appearance === 'object' ? appearance : {};
+  const out = {};
+  if (ACCENTS.includes(src.accent)) out.accent = src.accent;
+  const background = str(src.background, 2000);
+  if (background) {
+    out.background = /^\/api\/background(\?v=\d+)?$/.test(background) ? background : checkUrl(background);
+    out.backgroundOpacity = percent(src.backgroundOpacity, 5, 70, 35);
+    out.cardBlur = percent(src.cardBlur, 0, 20, 8);
+  }
+  return out;
 }
 
 // Mise en page : ordre et largeur (1 à 12 colonnes) des widgets et des catégories
@@ -307,6 +347,7 @@ function sanitizeConfig(input, previous) {
     display: sanitizeDisplay(input.display ?? previous?.display),
     // Absente ou invalide (ancienne interface, script) : inchangée.
     tileSize: [input.tileSize, previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
+    appearance: sanitizeAppearance(input.appearance ?? previous?.appearance),
     searchEngine: sanitizeSearchEngine(input.searchEngine ?? previous?.searchEngine),
     widgets: sanitizeWidgets(input.widgets, previous?.widgets),
     notify: sanitizeNotify(input.notify, previous?.notify),
@@ -321,6 +362,7 @@ function sanitizeConfig(input, previous) {
       // Icône facultative (mêmes valeurs que les tuiles) ; repliée par défaut (#92).
       ...(str(c.icon, 2000) ? { icon: str(c.icon, 2000) } : {}),
       ...(c.collapsed === true ? { collapsed: true } : {}),
+      ...(CATEGORY_STYLES.includes(c.style) ? { style: c.style } : {}),
       apps: (Array.isArray(c.apps) ? c.apps : []).map(item).map((a) => {
         return {
           id: uniqueId(appIds, a.id, 'app'),

@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.28.0] - 2026-11-05
+
+### Ajouté
+- **Favoris** (#93) : une catégorie peut s’afficher en liens compacts, avec l’icône et le nom, ou les icônes seules. Pas de statut ni de notification ; la recherche les trouve aussi. Réglage : modifier la catégorie > Affichage.
+- **Chiffres au choix et seuils de couleur** (#96) : le formulaire d’un widget à blocs de chiffres liste ceux qu’il affiche. On peut en masquer et choisir à partir de quelle valeur ils passent en orange ou en rouge.
+- **Couleur d’accent et image de fond** (#95) : six couleurs, et une image par adresse ou par fichier envoyé, avec sa visibilité et le flou des cartes. Mode édition > Affichage.
+- **Application installable** (#95) : un manifeste et des icônes, pour ajouter le dashboard à l’écran d’accueil d’un téléphone.
+
 ## [0.27.2] - 2026-11-05
 
 ### Corrigé
@@ -323,7 +331,9 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.2...v0.28.0
+[0.27.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.25.1...v0.26.0

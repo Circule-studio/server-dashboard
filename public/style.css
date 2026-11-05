@@ -6,7 +6,12 @@
   --border: rgba(255, 255, 255, 0.08);
   --text: #e5e7eb;
   --muted: #8b95a7;
-  --accent: #7c9cff;
+  /* Couleur d'accent (#95) : une valeur par thème, voir [data-accent] en fin de fichier. */
+  --accent-dark: #7c9cff;
+  --accent-dark-hover: #95afff;
+  --accent-light: #3f5fd6;
+  --accent-light-hover: #3550b8;
+  --accent: var(--accent-dark);
   --ok: #34d399;
   --warn: #fbbf24;
   --bad: #f87171;
@@ -17,8 +22,8 @@
   --track: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
   --on-accent: #0b0f17;
-  --accent-hover: #95afff;
-  --glow-1: rgba(124, 156, 255, 0.14);
+  --accent-hover: var(--accent-dark-hover);
+  --glow-1: color-mix(in srgb, var(--accent) 14%, transparent);
   --glow-2: rgba(52, 211, 153, 0.08);
   --editbar-bg: rgba(17, 24, 39, 0.92);
   --backdrop: rgba(0, 0, 0, 0.6);
@@ -35,7 +40,7 @@
     --border: rgba(15, 23, 42, 0.1);
     --text: #111827;
     --muted: #5b6475;
-    --accent: #3f5fd6;
+    --accent: var(--accent-light);
     --ok: #059669;
     --warn: #b45309;
     --bad: #dc2626;
@@ -44,8 +49,8 @@
     --track: rgba(15, 23, 42, 0.09);
     --border-strong: rgba(15, 23, 42, 0.2);
     --on-accent: #ffffff;
-    --accent-hover: #3550b8;
-    --glow-1: rgba(63, 95, 214, 0.1);
+    --accent-hover: var(--accent-light-hover);
+    --glow-1: color-mix(in srgb, var(--accent) 10%, transparent);
     --glow-2: rgba(5, 150, 105, 0.06);
     --editbar-bg: rgba(255, 255, 255, 0.92);
     --backdrop: rgba(15, 23, 42, 0.35);
@@ -60,7 +65,7 @@
   --border: rgba(15, 23, 42, 0.1);
   --text: #111827;
   --muted: #5b6475;
-  --accent: #3f5fd6;
+  --accent: var(--accent-light);
   --ok: #059669;
   --warn: #b45309;
   --bad: #dc2626;
@@ -69,8 +74,8 @@
   --track: rgba(15, 23, 42, 0.09);
   --border-strong: rgba(15, 23, 42, 0.2);
   --on-accent: #ffffff;
-  --accent-hover: #3550b8;
-  --glow-1: rgba(63, 95, 214, 0.1);
+  --accent-hover: var(--accent-light-hover);
+  --glow-1: color-mix(in srgb, var(--accent) 10%, transparent);
   --glow-2: rgba(5, 150, 105, 0.06);
   --editbar-bg: rgba(255, 255, 255, 0.92);
   --backdrop: rgba(15, 23, 42, 0.35);
@@ -158,7 +163,7 @@ a.version-update:hover { text-decoration: underline; }
   position: sticky; top: 8px; z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   padding: 10px 14px; margin-bottom: 20px;
-  border: 1px solid rgba(124, 156, 255, 0.4); border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius);
   background: var(--editbar-bg); backdrop-filter: blur(8px);
   font-size: 0.9rem;
 }
@@ -228,7 +233,7 @@ a.version-update:hover { text-decoration: underline; }
 .drop-after { box-shadow: 3px 0 0 var(--accent); }
 [data-axis="y"].drop-before { box-shadow: 0 -3px 0 var(--accent); }
 [data-axis="y"].drop-after { box-shadow: 0 3px 0 var(--accent); }
-.grid.drop-into { border-color: var(--accent); background: rgba(124, 156, 255, 0.06); }
+.grid.drop-into { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .category.drop-into { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 8px; }
 .editing [data-drag-key]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -694,3 +699,45 @@ dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; 
 .widget-speedtest .speedtest-when { margin: 0 0 4px; font-size: 0.8rem; }
 .speedtest-bars { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 8px; }
 .speedtest-bars i { flex: 1; min-width: 4px; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.75; }
+
+/* ---------- Favoris (#93) : des liens compacts, sans statut ---------- */
+#board .cat-links > .grid { gap: 6px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+#board .cat-links .tile { gap: 8px; padding: 6px 10px; border-radius: 10px; }
+#board .cat-links .tile-icon { width: 24px; height: 24px; border-radius: 6px; font-size: 0.75rem; }
+#board .cat-links .tile-icon img { width: 18px; height: 18px; }
+#board .cat-links .tile-name { font-size: 0.88rem; font-weight: 500; }
+#board .cat-icons > .grid { display: flex; flex-wrap: wrap; gap: 8px; }
+#board .cat-icons .tile { padding: 8px; border-radius: 10px; }
+#board .cat-icons .tile-icon { width: 32px; height: 32px; border-radius: 8px; font-size: 0.95rem; }
+#board .cat-icons .tile-icon img { width: 24px; height: 24px; }
+/* Le nom reste lu par les lecteurs d'écran et la recherche. */
+#board .cat-icons .tile-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* ---------- Chiffres d'un widget (#96) : formulaire ---------- */
+.stat-rule { display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px; gap: 8px; align-items: center; margin: 4px 0; }
+.stat-rule-head { font-size: 0.75rem; }
+dialog fieldset.sections .stat-rule .check { margin: 0; }
+.stat-rule input[type="number"] { width: 100%; min-width: 0; margin: 0; }
+
+/* ---------- Apparence (#95) ---------- */
+.accent-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 2px 10px; }
+.swatch { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--swatch); }
+:root[data-accent="green"] { --accent-dark: #34d399; --accent-dark-hover: #6ee7b7; --accent-light: #047857; --accent-light-hover: #065f46; }
+:root[data-accent="violet"] { --accent-dark: #b197fc; --accent-dark-hover: #c9b8fd; --accent-light: #6d28d9; --accent-light-hover: #5b21b6; }
+:root[data-accent="orange"] { --accent-dark: #fb923c; --accent-dark-hover: #fdba74; --accent-light: #c2410c; --accent-light-hover: #9a3412; }
+:root[data-accent="pink"] { --accent-dark: #f472b6; --accent-dark-hover: #f9a8d4; --accent-light: #be185d; --accent-light-hover: #9d174d; }
+:root[data-accent="teal"] { --accent-dark: #22d3ee; --accent-dark-hover: #67e8f9; --accent-light: #0e7490; --accent-light-hover: #155e75; }
+
+/* Image de fond : sous tout le contenu, et des cartes assez opaques pour garder le texte lisible. */
+.has-bg body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--bg-image) center / cover no-repeat; opacity: var(--bg-opacity, 0.35);
+}
+:root.has-bg {
+  --card: color-mix(in srgb, var(--bg-2) 78%, transparent);
+  --card-hover: color-mix(in srgb, var(--bg-2) 90%, transparent);
+}
+.has-bg :is(.widget, .tile, .stat) { backdrop-filter: blur(var(--card-blur, 8px)); }
+dialog [data-background-upload] { align-self: flex-start; margin-bottom: 14px; }
+/* Titres posés directement sur l'image : un halo de la couleur du fond les détache. */
+.has-bg :is(.category-head h2, #host, .clock, .version) { color: var(--text); text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg); }

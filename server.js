@@ -214,9 +214,12 @@ function invalidateCaches() {
   linksCache = null;
 }
 
+// Les favoris (#93) sont de simples liens : ni statut, ni charge liée, ni notification.
+const watchedApps = (cfg) => cfg.categories.filter((c) => !c.style).flatMap((c) => c.apps);
+
 async function computeStatuses() {
   const cfg = await readConfig();
-  const apps = cfg.categories.flatMap((c) => c.apps);
+  const apps = watchedApps(cfg);
   const results = await Promise.all(apps.map(async (a) => [a.id, await checkApp(a)]));
   // Tuile sans vérification (« aucune ») : pas de statut, ni pastille ni notification.
   return Object.fromEntries(results.filter(([, s]) => s));
@@ -291,6 +294,53 @@ app.post('/api/logout', (req, res) => {
   }
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
   res.json({ ok: true });
+});
+
+// Application installable (#95). Le navigateur le demande avec le cookie (crossorigin dans index.html),
+// indispensable derrière une protection comme Cloudflare Access. Le titre reste réservé à qui peut voir le tableau.
+app.get('/manifest.webmanifest', async (req, res) => {
+  const name = !REQUIRE_LOGIN || isAuthed(req) ? (await readConfig()).title : 'Server Dashboard';
+  res.type('application/manifest+json').json({
+    name,
+    short_name: name,
+    start_url: './',
+    scope: './',
+    display: 'standalone',
+    background_color: '#0b0f17',
+    theme_color: '#0b0f17',
+    icons: [
+      { src: 'pwa/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: 'pwa/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: 'pwa/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  });
+});
+
+// Image de fond envoyée par l'admin (#95). Le type vient du contenu du fichier, jamais de ce que
+// déclare le navigateur ; pas de SVG, qui pourrait exécuter du code si on l'ouvre directement.
+const BACKGROUND_TYPES = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+function imageExtension(buf) {
+  if (!Buffer.isBuffer(buf)) return null;
+  if (buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (buf.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return 'jpg';
+  if (['GIF87a', 'GIF89a'].includes(buf.toString('latin1', 0, 6))) return 'gif';
+  if (buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+const backgroundFile = (ext) => path.join(DATA_DIR, `background.${ext}`);
+
+app.post('/api/background', requireAuth, express.raw({ type: () => true, limit: '8mb' }), async (req, res) => {
+  const ext = imageExtension(req.body);
+  if (!ext) return sendError(res, 400, fail('image_invalid', 'Image invalide (PNG, JPEG, WebP ou GIF)'));
+  await Promise.all(Object.keys(BACKGROUND_TYPES).filter((e) => e !== ext).map((e) => fsp.rm(backgroundFile(e), { force: true })));
+  await fsp.writeFile(backgroundFile(ext), req.body);
+  res.json({ url: `/api/background?v=${Date.now()}` });
+});
+
+app.get('/api/background', readAuth, (req, res) => {
+  const ext = Object.keys(BACKGROUND_TYPES).find((e) => fs.existsSync(backgroundFile(e)));
+  if (!ext) return notFound(res);
+  res.set('X-Content-Type-Options', 'nosniff').type(BACKGROUND_TYPES[ext]).sendFile(path.resolve(backgroundFile(ext)));
 });
 
 app.get('/api/config', readAuth, async (req, res) => {
@@ -550,7 +600,7 @@ const LINKS_CACHE_MS = 10_000;
 // { id d'app: { name, running, cpu, mem } | { missing: true } | { error: code } }
 async function computeLinks() {
   const cfg = await readConfig();
-  const apps = cfg.categories.flatMap((c) => c.apps).filter((a) => a.link);
+  const apps = watchedApps(cfg).filter((a) => a.link);
   // Une seule lecture par widget Proxmox (même cache que le widget) et une pour Docker.
   const pve = {};
   for (const a of apps.filter((x) => x.link.type === 'proxmox')) {
@@ -659,7 +709,7 @@ async function checkForNotifications() {
     // Statuts d'un visiteur réutilisés s'ils sont assez récents : pas de double ping.
     const [statuses, items] = await Promise.all([getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2)), widgetAlertItems(cfg)]);
     const events = [
-      ...monitor.update(cfg.categories.flatMap((c) => c.apps).filter((a) => a.url), statuses).map((event) => [monitor, event]),
+      ...monitor.update(watchedApps(cfg).filter((a) => a.url), statuses).map((event) => [monitor, event]),
       ...widgetMonitor.update(items, Object.fromEntries(items.map((i) => [i.id, i]))).map((event) => [widgetMonitor, event]),
     ];
     // En parallèle : un service lent ne retarde pas les autres alertes ; un échec repart au tour suivant.

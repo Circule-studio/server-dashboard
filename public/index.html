@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Server Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='35' height='35' rx='8' fill='%237c9cff'/><rect x='55' y='10' width='35' height='35' rx='8' fill='%2334d399'/><rect x='10' y='55' width='35' height='35' rx='8' fill='%2334d399'/><rect x='55' y='55' width='35' height='35' rx='8' fill='%237c9cff'/></svg>">
+  <link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+  <link rel="apple-touch-icon" href="pwa/apple-touch-icon.png">
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f3f5f9" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <script src="theme.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -96,7 +102,7 @@
         <small class="muted" data-i18n-html="app.iconHelp"></small>
       </label>
       <label><span data-i18n="app.description"></span><input name="description" maxlength="200"></label>
-      <label><span data-i18n="app.check"></span>
+      <label data-tile-only><span data-i18n="app.check"></span>
         <select name="checkMode">
           <option value="" data-i18n="app.checkSame"></option>
           <option value="url" data-i18n="app.checkUrl"></option>
@@ -109,7 +115,7 @@
         <small class="muted" data-check-target-help></small>
       </label>
       <label><span data-i18n="app.category"></span><select name="category"></select></label>
-      <label><span data-i18n="app.link"></span><select name="link"></select>
+      <label data-tile-only><span data-i18n="app.link"></span><select name="link"></select>
         <small class="muted" data-i18n="app.linkHelp"></small>
       </label>
       <div class="dialog-actions">
@@ -183,6 +189,11 @@
         <legend data-i18n="widget.sections"></legend>
         <div data-sections-list></div>
         <small class="muted" data-i18n="widget.sectionsHelp"></small>
+      </fieldset>
+      <fieldset class="sections" data-stats hidden>
+        <legend data-i18n="widget.stats"></legend>
+        <div data-stats-list></div>
+        <small class="muted" data-i18n="widget.statsHelp"></small>
       </fieldset>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
@@ -291,6 +302,28 @@
         <label class="check"><input type="radio" name="tileSize" value="normal"><span data-i18n="display.tileNormal"></span></label>
         <label class="check"><input type="radio" name="tileSize" value="large"><span data-i18n="display.tileLarge"></span></label>
       </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="display.accent"></legend>
+        <div class="accent-list">
+          <label class="check"><input type="radio" name="accent" value="blue"><i class="swatch" style="--swatch:#7c9cff"></i><span data-i18n="accent.blue"></span></label>
+          <label class="check"><input type="radio" name="accent" value="green"><i class="swatch" style="--swatch:#34d399"></i><span data-i18n="accent.green"></span></label>
+          <label class="check"><input type="radio" name="accent" value="violet"><i class="swatch" style="--swatch:#b197fc"></i><span data-i18n="accent.violet"></span></label>
+          <label class="check"><input type="radio" name="accent" value="orange"><i class="swatch" style="--swatch:#fb923c"></i><span data-i18n="accent.orange"></span></label>
+          <label class="check"><input type="radio" name="accent" value="pink"><i class="swatch" style="--swatch:#f472b6"></i><span data-i18n="accent.pink"></span></label>
+          <label class="check"><input type="radio" name="accent" value="teal"><i class="swatch" style="--swatch:#22d3ee"></i><span data-i18n="accent.teal"></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="sections">
+        <legend data-i18n="display.background"></legend>
+        <label><span data-i18n="display.backgroundUrl"></span>
+          <input name="background" maxlength="2000" autocomplete="off" spellcheck="false" placeholder="https://example.com/image.jpg">
+        </label>
+        <input type="file" name="backgroundFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        <button type="button" class="btn btn-sm" data-background-upload data-i18n="display.backgroundUpload"></button>
+        <label><span data-i18n="display.backgroundOpacity"></span><input type="range" name="backgroundOpacity" min="5" max="70" step="5"></label>
+        <label><span data-i18n="display.cardBlur"></span><input type="range" name="cardBlur" min="0" max="20" step="2"></label>
+        <small class="muted" data-i18n="display.backgroundHelp"></small>
+      </fieldset>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
@@ -306,6 +339,14 @@
         <small class="muted" data-i18n="category.iconHelp"></small>
       </label>
       <label class="check-inline"><input type="checkbox" name="collapsed"><span data-i18n="category.collapsed"></span></label>
+      <label><span data-i18n="category.style"></span>
+        <select name="style">
+          <option value="" data-i18n="category.styleTiles"></option>
+          <option value="links" data-i18n="category.styleLinks"></option>
+          <option value="icons" data-i18n="category.styleIcons"></option>
+        </select>
+        <small class="muted" data-i18n="category.styleHelp"></small>
+      </label>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close data-i18n="common.cancel"></button>
         <button class="btn btn-primary" data-i18n="common.ok"></button>
