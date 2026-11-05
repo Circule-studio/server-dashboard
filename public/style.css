@@ -229,6 +229,7 @@ a.version-update:hover { text-decoration: underline; }
 [data-axis="y"].drop-before { box-shadow: 0 -3px 0 var(--accent); }
 [data-axis="y"].drop-after { box-shadow: 0 3px 0 var(--accent); }
 .grid.drop-into { border-color: var(--accent); background: rgba(124, 156, 255, 0.06); }
+.category.drop-into { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 8px; }
 .editing [data-drag-key]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Hauteur fixe (#75) : l'en-tête reste en place, le reste défile à l'intérieur. */

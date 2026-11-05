@@ -456,9 +456,16 @@ function boardItem(el, item, index) {
     handle: el.querySelector('.widget-head, .category-head'),
     group: 'item',
     key: `item:${item.kind}:${item.id}`,
+    // Un widget déposé sur une catégorie, ailleurs que sur son titre, y est rangé (à la fin de ses widgets).
+    // Sur son titre, il se place avant ou après elle, comme les autres éléments.
+    canDropInto: item.kind === 'widget'
+      ? (target, ev) => target.matches('.category') && ev.clientY > target.querySelector('.category-head').getBoundingClientRect().bottom
+      : null,
     // Un widget déposé à côté d'un autre le rejoint : dans sa catégorie, ou dans la grille.
-    onDrop: (target, after) => {
-      if (item.kind === 'widget') setItemCategory(item, state.draft.layout[Number(target.dataset.index)]?.category || '');
+    onDrop: (target, after, into) => {
+      const targetItem = state.draft.layout[Number(target.dataset.index)];
+      if (into) return moveIntoCategory(item, index, targetItem.id);
+      if (item.kind === 'widget') setItemCategory(item, targetItem?.category || '');
       moveItem(index, Number(target.dataset.index) + (after ? 1 : 0));
     },
     // Au clavier : d'un cran parmi ses voisins visibles, pas dans la liste complète.
@@ -483,6 +490,14 @@ function setItemCategory(item, category) {
     const tab = activeTab(state.draft);
     if (tab) item.tab = tab;
   }
+}
+
+// Range un widget dans une catégorie, après ceux qui y sont déjà.
+function moveIntoCategory(item, index, category) {
+  const last = state.draft.layout.findLastIndex((x) => x.category === category);
+  setItemCategory(item, category);
+  if (last >= 0) moveItem(index, last + 1);
+  else render();
 }
 
 // Déplace l'élément `from` juste avant la position `to` (to = longueur : à la fin).
@@ -1013,7 +1028,8 @@ const DRAG_THRESHOLD = 6; // px parcourus avant qu'un appui devienne un glisser
 const EDGE_SCROLL = 60;   // px du bord de la fenêtre où la page défile toute seule
 let drag = null;          // glisser en cours
 
-function makeDraggable(el, { handle = el, group, key, onDrop, onStep, enabled = () => state.editing }) {
+// `canDropInto(cible, événement)` : déposer dans la cible plutôt qu'avant ou après elle ; onDrop(cible, après, dans).
+function makeDraggable(el, { handle = el, group, key, onDrop, onStep, canDropInto, enabled = () => state.editing }) {
   el.dataset.drop = group;
   el.dataset.dragKey = key;
   handle.classList.add('drag-handle');
@@ -1039,7 +1055,7 @@ function makeDraggable(el, { handle = el, group, key, onDrop, onStep, enabled = 
       if (!started) {
         if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < DRAG_THRESHOLD) return;
         started = true;
-        beginDrag(el, group, ev);
+        beginDrag(el, group, ev, canDropInto);
       }
       ev.preventDefault();
       updateDrag(ev);
@@ -1057,7 +1073,7 @@ function makeDraggable(el, { handle = el, group, key, onDrop, onStep, enabled = 
   });
 }
 
-function beginDrag(el, group, ev) {
+function beginDrag(el, group, ev, canDropInto) {
   const r = el.getBoundingClientRect();
   // Copie qui suit le pointeur ; l'original reste en place, estompé.
   const ghost = el.cloneNode(true);
@@ -1067,7 +1083,7 @@ function beginDrag(el, group, ev) {
   document.body.append(ghost);
   el.classList.add('dragging');
   document.body.classList.add('is-dragging');
-  drag = { el, group, ghost, dx: ev.clientX - r.left, dy: ev.clientY - r.top, target: null, after: false, y: ev.clientY };
+  drag = { el, group, ghost, canDropInto, dx: ev.clientX - r.left, dy: ev.clientY - r.top, target: null, after: false, into: false, y: ev.clientY };
   drag.scroller = setInterval(() => {
     if (drag.y < EDGE_SCROLL) scrollBy(0, -14);
     else if (drag.y > innerHeight - EDGE_SCROLL) scrollBy(0, 14);
@@ -1082,8 +1098,11 @@ function updateDrag(ev) {
   if (drag.target && drag.target !== target) drag.target.classList.remove('drop-before', 'drop-after', 'drop-into');
   drag.target = target;
   if (!target) return;
-  if (target.classList.contains('grid')) {
-    target.classList.add('drop-into');
+  // Une grille de tuiles reçoit toujours « dedans » ; une catégorie, selon canDropInto.
+  drag.into = target.classList.contains('grid') || !!drag.canDropInto?.(target, ev);
+  target.classList.toggle('drop-into', drag.into);
+  if (drag.into) {
+    target.classList.remove('drop-before', 'drop-after');
     return;
   }
   drag.after = dropAfter(ev, target);
@@ -1092,7 +1111,7 @@ function updateDrag(ev) {
 }
 
 function endDrag(onDrop) {
-  const { el, ghost, target, after, scroller } = drag;
+  const { el, ghost, target, after, into, scroller } = drag;
   clearInterval(scroller);
   ghost.remove();
   el.classList.remove('dragging');
@@ -1103,7 +1122,7 @@ function endDrag(onDrop) {
   const swallow = (e) => { e.preventDefault(); e.stopPropagation(); };
   window.addEventListener('click', swallow, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
-  if (onDrop && target) onDrop(target, after);
+  if (onDrop && target) onDrop(target, after, into);
 }
 
 // Déposé sur la seconde moitié : après l'élément. Un élément qui occupe presque
