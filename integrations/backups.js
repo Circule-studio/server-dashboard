@@ -5,9 +5,8 @@
 //   avec le jeton du widget, comme un agent (POST /api/agent/:id). Gardé sur disque : une sauvegarde
 //   hebdomadaire ne doit pas disparaître au redémarrage du dashboard.
 
-const fs = require('fs');
 const path = require('path');
-const { fail, join, getJson } = require('./lib');
+const { fail, join, getJson, readJsonFile, writeJsonFileSync } = require('./lib');
 
 // ---------- Proxmox VE ----------
 const MAX_TASKS = 30;
@@ -82,27 +81,10 @@ const MAX_HISTORY = 10;
 const LATE_MARGIN = 1.25; // une sauvegarde quotidienne un peu longue n'est pas « en retard »
 const MIN_GAP_MS = 2000;
 
-function load() {
-  try {
-    return new Map(Object.entries(JSON.parse(fs.readFileSync(FILE, 'utf8'))));
-  } catch (e) {
-    if (e.code !== 'ENOENT') console.warn(`[!] ${FILE} illisible, ignoré : ${e.message}`);
-    return new Map();
-  }
-}
-const reports = load();
+const reports = new Map(Object.entries(readJsonFile(FILE) || {}));
 
-// Écriture atomique ; en cas d'échec, le résultat reste en mémoire jusqu'au redémarrage.
-function save() {
-  const tmp = `${FILE}.${process.pid}.tmp`;
-  try {
-    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(reports)), { mode: 0o600 });
-    fs.renameSync(tmp, FILE);
-  } catch (e) {
-    console.error(`[!] Impossible d'enregistrer ${FILE} : ${e.message}`);
-    try { fs.unlinkSync(tmp); } catch { /* déjà absent */ }
-  }
-}
+// En cas d'échec d'écriture, le résultat reste en mémoire jusqu'au redémarrage.
+const save = () => writeJsonFileSync(FILE, Object.fromEntries(reports));
 
 const num = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(v, max) : null);
 const text = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');

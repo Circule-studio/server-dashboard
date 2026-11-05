@@ -1,34 +1,32 @@
 // Outils communs aux intégrations : requêtes HTTP bornées, erreurs traduisibles, sessions.
 
+const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 const { version } = require('../package.json');
 
 // Envoyé à chaque service, sauf si l'intégration en donne un autre. Sans en-tête User-Agent, ou avec
 // une valeur sans « nom/version », certaines API refusent la requête (CrowdSec répond 401 à la connexion).
 const USER_AGENT = `server-dashboard/${version}`;
 
-// Les erreurs réseau de Node (ECONNREFUSED…) n'ont souvent pas de message lisible.
-const NETWORK_ERRORS = {
-  ECONNREFUSED: 'Service injoignable (connexion refusée)',
-  ENOTFOUND: 'Adresse introuvable',
-  EHOSTUNREACH: 'Hôte injoignable',
-  ECONNRESET: 'Connexion interrompue',
-  ETIMEDOUT: 'Délai dépassé',
-};
-
 // Erreur avec un code traduisible par l'interface (`key`, voir err.* dans public/i18n.js).
 function fail(key, message, params) {
   return Object.assign(new Error(message), { key, params });
 }
 
-const NETWORK_KEYS = {
-  ECONNREFUSED: 'unreachable', ENOTFOUND: 'host_not_found', EHOSTUNREACH: 'host_unreachable',
-  ECONNRESET: 'connection_reset', ETIMEDOUT: 'timeout',
+// Les erreurs réseau de Node (ECONNREFUSED…) n'ont souvent pas de message lisible : code traduit et message.
+const NETWORK_ERRORS = {
+  ECONNREFUSED: ['unreachable', 'Service injoignable (connexion refusée)'],
+  ENOTFOUND: ['host_not_found', 'Adresse introuvable'],
+  EHOSTUNREACH: ['host_unreachable', 'Hôte injoignable'],
+  ECONNRESET: ['connection_reset', 'Connexion interrompue'],
+  ETIMEDOUT: ['timeout', 'Délai dépassé'],
 };
 
 function networkError(e) {
-  return fail(NETWORK_KEYS[e.code], NETWORK_ERRORS[e.code] || e.message || e.code || 'Erreur réseau');
+  const [key, message] = NETWORK_ERRORS[e.code] || [];
+  return fail(key, message || e.message || e.code || 'Erreur réseau');
 }
 
 // Taille maximale d'une réponse : au-delà, la requête est abandonnée. Sans limite, une URL
@@ -152,6 +150,31 @@ function sessionCache(login) {
   };
 }
 
+// ---------- Fichiers d'état dans data/ (sessions fermées, résultats des sauvegardes) ----------
+// Absent : null. Illisible : null aussi, avec un avertissement, sans jamais bloquer le démarrage.
+function readJsonFile(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.warn(`[!] ${file} illisible, ignoré : ${e.message}`);
+    return null;
+  }
+}
+
+// Écriture synchrone et atomique (fichier temporaire, puis renommage) : jamais de fichier à moitié écrit.
+function writeJsonFileSync(file, data) {
+  const tmp = `${file}.${crypto.randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data), { mode: 0o600 });
+    fs.renameSync(tmp, file);
+    return true;
+  } catch (e) {
+    console.error(`[!] Impossible d'enregistrer ${file} : ${e.message}`);
+    try { fs.unlinkSync(tmp); } catch { /* déjà absent */ }
+    return false;
+  }
+}
+
 // En-tête d'authentification HTTP Basic (AdGuard Home, Glances…).
 const basicAuth = (user, password) => ({ Authorization: `Basic ${Buffer.from(`${user || ''}:${password || ''}`).toString('base64')}` });
 
@@ -164,4 +187,5 @@ const diskAlerts = (w, disks, label = (d) => d.mount) => disks.filter((d) => d.s
 }));
 
 module.exports = {
-  parseMetrics, sumMetric, request, fail, join, pad, getJson, sessionCache, basicAuth, diskAlerts };
+  parseMetrics, sumMetric, request, fail, join, pad, getJson, sessionCache, basicAuth, diskAlerts, readJsonFile, writeJsonFileSync,
+};

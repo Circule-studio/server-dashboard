@@ -68,6 +68,11 @@ const fmtUptime = (s) => {
   return d ? `${d} ${t('unit.day')} ${hh} h` : hh ? `${hh} h ${m} min` : `${m} min`;
 };
 
+// Boutons « Modifier » et « Supprimer » d'un élément en mode édition.
+const editTools = (onEdit, onDelete, cls = 'tile-tools') => h('div', { class: cls },
+  h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: onEdit }, '✎'),
+  h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: onDelete }, '✕'));
+
 const uid = (p) => `${p}-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)}`;
 
 function iconUrl(icon) {
@@ -151,8 +156,7 @@ function render() {
     if (tab && !q && item.tab && item.tab !== tab) return;
     let el;
     if (item.kind === 'widget') {
-      const wi = cfg.widgets.findIndex((w) => w.id === item.id);
-      el = widgetCard(cfg.widgets[wi], wi);
+      el = widgetCardById(item.id);
     } else {
       const ci = cfg.categories.findIndex((c) => c.id === item.id);
       const result = categoryEl(cfg.categories[ci], ci, q, inCategory(item.id));
@@ -209,20 +213,16 @@ function categoryEl(cat, ci, q, widgets = []) {
     }, icon, h('span', {}, cat.name), h('span', { class: 'chevron', 'aria-hidden': 'true' }, '›')));
   const head = h('div', { class: 'category-head' }, title);
   if (state.editing) {
-    head.append(h('div', { class: 'category-tools' },
-      h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openCategoryDialog(ci) }, '✎'),
-      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteCategory(ci) }, '✕'),
-    ));
+    head.append(editTools(() => openCategoryDialog(ci), () => deleteCategory(ci), 'category-tools'));
   }
 
   // En édition, la grille accepte une tuile déposée hors des autres tuiles (à la fin).
   const grid = h('div', { class: 'grid', 'data-cat': ci, 'data-drop': state.editing ? 'tile' : null });
   apps.forEach(({ app, ai }) => grid.append(tileEl(app, ci, ai)));
   if (state.editing) grid.append(h('button', { class: 'add-tile', onclick: () => openAppDialog(ci) }, t('tile.add')));
-  const board = shown.length ? h('div', { class: 'board category-board' }, shown.map(({ item, index }) => {
-    const wi = current().widgets.findIndex((w) => w.id === item.id);
-    return boardItem(widgetCard(current().widgets[wi], wi), item, index);
-  })) : null;
+  const board = shown.length
+    ? h('div', { class: 'board category-board' }, shown.map(({ item, index }) => boardItem(widgetCardById(item.id), item, index)))
+    : null;
   // Sans tuile, pas de grille vide au-dessus des widgets (en édition, elle sert à en ajouter).
   const body = collapsed ? [] : [state.editing || apps.length ? grid : null, board];
   return { el: h('section', { class: `category${collapsed ? ' collapsed' : ''}` }, head, body), found: apps.length };
@@ -612,10 +612,7 @@ function tileEl(app, ci, ai) {
   }
 
   const tile = h('div', { class: 'tile', 'data-cat': ci, 'data-app': ai },
-    iconEl(app), text,
-    h('div', { class: 'tile-tools' },
-      h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openAppDialog(ci, ai) }, '✎'),
-      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteApp(ci, ai) }, '✕')));
+    iconEl(app), text, editTools(() => openAppDialog(ci, ai), () => deleteApp(ci, ai)));
 
   makeDraggable(tile, {
     group: 'tile',
@@ -682,10 +679,13 @@ function widgetCard(w, i) {
     return card;
   }
 
-  head.append(h('div', { class: 'tile-tools' },
-    h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: () => openWidgetDialog(i) }, '✎'),
-    h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteWidget(i) }, '✕')));
+  head.append(editTools(() => openWidgetDialog(i), () => deleteWidget(i)));
   return card;
+}
+
+function widgetCardById(id) {
+  const i = current().widgets.findIndex((w) => w.id === id);
+  return widgetCard(current().widgets[i], i);
 }
 
 function widgetBody(w) {
@@ -1486,7 +1486,7 @@ function setStat(id, value, sub, percent = 0) {
   const bar = el.querySelector('.bar i');
   if (bar) {
     bar.style.width = `${Math.min(100, percent)}%`;
-    bar.className = percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : '';
+    bar.className = levelOf(percent / 100);
   }
 }
 
@@ -1514,7 +1514,7 @@ function renderDisks(disks) {
     const error = d.errorCode ? errMsg({ code: d.errorCode }) : d.error;
     const card = h('div', { class: 'stat stat-disk', 'data-stat': `disk:${d.path}` },
       h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, error ? '–' : `${percent.toFixed(0)} %`)),
-      h('div', { class: 'bar' }, h('i', { class: percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : '', style: `width:${Math.min(100, percent)}%` })),
+      h('div', { class: 'bar' }, h('i', { class: levelOf(percent / 100), style: `width:${Math.min(100, percent)}%` })),
       h('small', { class: 'muted', title: d.path },
         error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`));
     makeStatDraggable(card);
@@ -1690,11 +1690,11 @@ async function importConfig(file) {
   // Notifications : URL présente dans le fichier (export avec secrets) = appliquées telles quelles.
   // Sinon on garde celles du dashboard si le service est le même, ou on les désactive (une URL
   // manquante empêcherait l'enregistrement) ; absentes du fichier (ancien config.json) = inchangées.
-  const current = state.draft.notify || { type: '' };
-  let notify = current;
+  const ours = state.draft.notify || { type: '' };
+  let notify = ours;
   if (cfg.notify && typeof cfg.notify === 'object') {
     if (!cfg.notify.type || cfg.notify.url) notify = cfg.notify;
-    else if (current.type === cfg.notify.type) notify = { ...current, lang: cfg.notify.lang || current.lang };
+    else if (ours.type === cfg.notify.type) notify = { ...ours, lang: cfg.notify.lang || ours.lang };
     else notify = { type: '' };
   }
   state.draft = { ...cfg, widgets, notify, revision: state.draft.revision };
@@ -1707,7 +1707,7 @@ async function importConfig(file) {
 function openDisplayDialog() {
   const form = $('#displayForm');
   const display = displayOptions(state.draft);
-  for (const key of ['search', 'theme', 'lang']) form.elements[key].checked = display[key];
+  for (const key of DISPLAY_TOGGLES) form.elements[key].checked = display[key];
   form.elements.statusStyle.value = display.statusStyle;
   form.elements.tileSize.value = state.draft.tileSize || 'normal';
   // Moteur de recherche : un des moteurs proposés, aucun, ou une adresse personnalisée.
@@ -1731,7 +1731,7 @@ function submitDisplay(e) {
   e.preventDefault();
   const form = e.target;
   state.draft.display = {
-    ...Object.fromEntries(['search', 'theme', 'lang'].map((k) => [k, form.elements[k].checked])),
+    ...Object.fromEntries(DISPLAY_TOGGLES.map((k) => [k, form.elements[k].checked])),
     statusStyle: form.elements.statusStyle.value || 'dot',
   };
   state.draft.tileSize = form.elements.tileSize.value;
@@ -1743,20 +1743,16 @@ function submitDisplay(e) {
 
 // ---------- Statut des services ----------
 // Charge des VM / conteneurs liés aux tuiles : seulement s'il y en a.
-async function refreshLinks() {
-  if (!state.config.categories.some((c) => c.apps.some((a) => a.link))) return;
+// Données des tuiles (statut, charge liée) : rangées dans state[key], tuiles mises à jour sur place.
+async function refreshTileData(key, path) {
   try {
-    state.links = await api('/api/links');
+    state[key] = await api(path);
     if (!state.editing) updateTiles();
-  } catch { /* ignoré */ }
+  } catch { /* serveur momentanément injoignable : prochain tour */ }
 }
 
-async function refreshStatus() {
-  try {
-    state.status = await api('/api/status');
-    if (!state.editing) updateTiles();
-  } catch { /* ignoré */ }
-}
+const refreshStatus = () => refreshTileData('status', '/api/status');
+const refreshLinks = () => state.config.categories.some((c) => c.apps.some((a) => a.link)) && refreshTileData('links', '/api/links');
 
 // ---------- Docker ----------
 async function refreshDocker() {
@@ -1841,7 +1837,9 @@ function renderThemeBtn() {
   btn.setAttribute('aria-label', btn.title);
 }
 
-// Éléments de la barre du haut que l'admin a choisi d'afficher (tous par défaut).
+// Éléments de la barre du haut que l'admin peut masquer (même liste que DISPLAY_OPTIONS dans config.js).
+const DISPLAY_TOGGLES = ['search', 'theme', 'lang'];
+// Ceux qu'il a choisi d'afficher (tous par défaut).
 const displayOptions = (cfg) => ({ search: true, theme: true, lang: true, statusStyle: 'dot', ...cfg.display });
 
 // ---------- Recherche rapide ----------
