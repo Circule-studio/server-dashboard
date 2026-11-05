@@ -116,6 +116,7 @@ function render() {
   $('#editBar').hidden = !state.editing;
   $('#editBtn').hidden = !state.authed || state.editing;
   $('#authBtn').textContent = state.authed ? t('btn.logout') : t('btn.login');
+  applyAppearance(cfg);
   const display = displayOptions(cfg);
   // Sans bouton de thème, le choix enregistré est ignoré : le CSS suit le système.
   if (display.theme && savedTheme()) document.documentElement.dataset.theme = savedTheme();
@@ -225,7 +226,9 @@ function categoryEl(cat, ci, q, widgets = []) {
     : null;
   // Sans tuile, pas de grille vide au-dessus des widgets (en édition, elle sert à en ajouter).
   const body = collapsed ? [] : [state.editing || apps.length ? grid : null, board];
-  return { el: h('section', { class: `category${collapsed ? ' collapsed' : ''}` }, head, body), found: apps.length };
+  // En édition, les icônes seules gardent leur nom : il faut voir ce qu'on modifie, et placer les outils.
+  const style = cat.style === 'icons' && state.editing ? 'links' : cat.style;
+  return { el: h('section', { class: `category${collapsed ? ' collapsed' : ''}${style ? ` cat-${style}` : ''}` }, head, body), found: apps.length };
 }
 
 // Catégories repliées ou dépliées par ce visiteur (navigateur) ; sinon le réglage de la catégorie.
@@ -616,14 +619,17 @@ function linkLine(app) {
 }
 
 function tileEl(app, ci, ai) {
+  // Un favori (#93) : l'icône et le nom. La description reste dans l'infobulle et la recherche.
+  const favorite = !!current().categories[ci]?.style;
   const text = h('div', { class: 'tile-text' },
     h('div', { class: 'tile-name' }, app.name),
-    app.description ? h('div', { class: 'tile-desc' }, app.description) : null,
-    state.editing ? null : linkLine(app));
+    app.description && !favorite ? h('div', { class: 'tile-desc' }, app.description) : null,
+    state.editing || favorite ? null : linkLine(app));
 
   if (!state.editing) {
-    return h('a', { class: 'tile', href: app.url, target: '_blank', rel: 'noopener', title: app.url },
-      iconEl(app), text, statusDot(app));
+    const title = favorite ? [app.name, app.description].filter(Boolean).join(' · ') : app.url;
+    return h('a', { class: 'tile', href: app.url, target: '_blank', rel: 'noopener', title },
+      iconEl(app), text, favorite ? null : statusDot(app));
   }
 
   const tile = h('div', { class: 'tile', 'data-cat': ci, 'data-app': ai },
@@ -713,7 +719,88 @@ function widgetBody(w) {
   else if (entry.error && entry.code === WIDGET_TYPES[w.type].waitingCode) content = h('p', { class: 'muted' }, `⏳ ${entry.error}`);
   else if (entry.error) content = h('p', { class: 'error' }, `⚠ ${entry.error}`);
   else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w);
-  return h('div', { class: 'widget-body' }, content);
+  const body = h('div', { class: 'widget-body' }, content);
+  applyStatRules(body, w.stats);
+  return body;
+}
+
+// ---------- Chiffres des widgets (#96) ----------
+// Chaque widget rend ses blocs de chiffres (.widget-stats) à sa façon. Ils sont reconnus ici par leur
+// libellé, ramené à sa clé de traduction : un réglage reste valable quand la langue change.
+const statCells = (root) => [...root.querySelectorAll('.widget-stats > div')].filter((el) => el.querySelector(':scope > b') && el.querySelector(':scope > span'));
+
+let statKeys = null; // texte traduit -> clé de traduction
+function statKey(cell) {
+  const label = cell.querySelector(':scope > span').textContent.trim();
+  statKeys ||= new Map(Object.entries(I18N[LANG]).reverse().map(([key, text]) => [text, key]));
+  return statKeys.get(label) || label; // libellé choisi par l'utilisateur (API personnalisée) : tel quel
+}
+
+// Le nombre affiché : « 2 904 », « 22 Go », « 3,8 Go », « 30 % ». Rien s'il ne commence pas par un nombre.
+function statNumber(cell) {
+  const raw = cell.querySelector(':scope > b').textContent.replace(/\s/g, '').match(/^[-+]?[\d.,]+/)?.[0];
+  if (!raw) return null;
+  const n = Number(LANG === 'fr' ? raw.replace(',', '.') : raw.replaceAll(',', ''));
+  return Number.isFinite(n) ? n : null;
+}
+
+function applyStatRules(body, rules) {
+  if (!rules) return;
+  for (const cell of statCells(body)) {
+    const key = statKey(cell);
+    const rule = Object.hasOwn(rules, key) ? rules[key] : null;
+    if (!rule) continue;
+    if (rule.hide) { cell.remove(); continue; }
+    const value = statNumber(cell);
+    if (value == null || (rule.warn == null && rule.bad == null)) continue;
+    // Un seuil choisi remplace la couleur prévue par le widget.
+    cell.className = [...cell.classList].filter((c) => !/^(stat|verdict)-/.test(c)).join(' ');
+    if (rule.bad != null && value >= rule.bad) cell.classList.add('stat-bad');
+    else if (rule.warn != null && value >= rule.warn) cell.classList.add('stat-warn');
+  }
+  // Bloc vidé : il disparaît, avec son sous-titre.
+  for (const box of body.querySelectorAll('.widget-stats:empty')) {
+    if (box.previousElementSibling?.matches('.widget-subhead')) box.previousElementSibling.remove();
+    box.remove();
+  }
+}
+
+// Formulaire du widget : une ligne par chiffre actuellement affiché par le widget.
+function fillStatRules(w) {
+  const form = $('#widgetForm');
+  const entry = state.widgetData[w.id];
+  const box = form.querySelector('[data-stats]');
+  const seen = new Set();
+  const cells = entry?.data ? statCells(h('div', {}, RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w))) : [];
+  const rows = cells.flatMap((cell) => {
+    const key = statKey(cell);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const rule = w.stats?.[key] || {};
+    const input = (field, label) => (statNumber(cell) == null ? h('span') : h('input', {
+      type: 'number', step: 'any', 'data-stat-field': field, 'aria-label': `${cell.querySelector(':scope > span').textContent} : ${label}`, value: rule[field] ?? '',
+    }));
+    return [h('div', { class: 'stat-rule', 'data-stat-key': key },
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', 'data-stat-show': '', checked: !rule.hide }), cell.querySelector(':scope > span').textContent),
+      input('warn', t('widget.statWarn')), input('bad', t('widget.statBad')))];
+  });
+  box.hidden = !rows.length;
+  form.querySelector('[data-stats-list]').replaceChildren(
+    h('div', { class: 'stat-rule stat-rule-head muted' }, h('span', {}, t('widget.statShown')), h('span', {}, t('widget.statWarn')), h('span', {}, t('widget.statBad'))),
+    ...rows);
+}
+
+// Les réglages lus dans le formulaire. Un chiffre absent pour l'instant (ex. téléchargements Immich
+// sans module dl-stats) garde les siens.
+function readStatRules(form, prev) {
+  const rules = { ...prev };
+  for (const row of form.querySelectorAll('[data-stat-key]')) {
+    const value = (field) => row.querySelector(`[data-stat-field="${field}"]`)?.value ?? '';
+    const rule = { hide: !row.querySelector('[data-stat-show]').checked || undefined, warn: value('warn') || undefined, bad: value('bad') || undefined };
+    if (rule.hide || rule.warn || rule.bad) rules[row.dataset.statKey] = rule;
+    else delete rules[row.dataset.statKey];
+  }
+  return Object.keys(rules).length ? rules : undefined;
 }
 
 function updateWidget(id) {
@@ -875,6 +962,10 @@ function updateWidgetFields() {
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', name: 'section', value: s, checked: chosen.includes(s) }),
       t(`${typeId}.sec.${s}`))));
+
+  // Chiffres affichés et seuils : d'après les données déjà chargées, donc pas avant d'avoir enregistré.
+  if (w.type === typeId) fillStatRules(w);
+  else form.querySelector('[data-stats]').hidden = true;
 }
 
 function regenerateAgentToken(id) {
@@ -999,6 +1090,7 @@ function submitWidget(e) {
     else w.password = f.password.value;
   }
   if (type.alerts) w.alert = f.alert.checked;
+  w.stats = readStatRules(e.target, prev?.type === typeId ? prev.stats : undefined);
   if (type.sections) {
     w.sections = [...e.target.querySelectorAll('input[name=section]:checked')].map((c) => c.value);
     if (!w.sections.length) {
@@ -1197,6 +1289,7 @@ function openCategoryDialog(ci) {
   f.name.value = cat.name || '';
   f.icon.value = cat.icon || '';
   f.collapsed.checked = !!cat.collapsed;
+  f.style.value = cat.style || '';
   $('#categoryDialog').showModal();
 }
 
@@ -1217,6 +1310,8 @@ function submitCategory(e) {
   else delete cat.icon;
   if (f.collapsed.checked) cat.collapsed = true;
   else delete cat.collapsed;
+  if (f.style.value) cat.style = f.style.value;
+  else delete cat.style;
   $('#categoryDialog').close();
   render();
 }
@@ -1342,7 +1437,7 @@ function openAppDialog(ci, ai) {
   fillLinkSelect(form.elements.link, app.link);
   form.elements.checkMode.value = app.check?.mode || '';
   form.elements.checkTarget.value = app.check?.target || '';
-  syncCheckTarget();
+  syncFavoriteFields();
   // Le catalogue ne sert qu'à créer une application.
   form.querySelector('[data-catalog]').hidden = ai != null;
   form.elements.catalog.value = '';
@@ -1372,12 +1467,21 @@ function fillLinkSelect(select, link) {
   select.value = key;
 }
 
+// Un favori n'a ni statut ni charge : leurs champs disparaissent selon la catégorie choisie.
+const isFavoriteTarget = () => !!state.draft.categories[Number($('#appForm').elements.category.value)]?.style;
+
+function syncFavoriteFields() {
+  const favorite = isFavoriteTarget();
+  $('#appForm').querySelectorAll('[data-tile-only]').forEach((el) => { el.hidden = favorite; });
+  syncCheckTarget();
+}
+
 // Vérification « autre adresse » ou « ping » : un champ de plus, avec son aide.
 function syncCheckTarget() {
   const form = $('#appForm');
   const mode = form.elements.checkMode.value;
   const box = form.querySelector('[data-check-target]');
-  box.hidden = mode !== 'url' && mode !== 'ping';
+  box.hidden = isFavoriteTarget() || (mode !== 'url' && mode !== 'ping');
   form.elements.checkTarget.required = !box.hidden;
   form.elements.checkTarget.placeholder = mode === 'ping' ? '192.168.1.10' : 'http://192.168.1.10:8080';
   form.querySelector('[data-check-target-label]').textContent = t(mode === 'ping' ? 'app.checkHost' : 'app.checkAddress');
@@ -1422,14 +1526,15 @@ function submitApp(e) {
   const form = e.target;
   const { ci, ai } = appDialogTarget;
   const cats = state.draft.categories;
+  const favorite = isFavoriteTarget();
   const app = {
     id: ai != null ? cats[ci].apps[ai].id : uid('app'),
     name: form.elements.name.value.trim(),
     url: form.elements.url.value.trim(),
     icon: form.elements.icon.value.trim(),
     description: form.elements.description.value.trim(),
-    link: linkFromKey(form.elements.link.value),
-    check: form.elements.checkMode.value
+    link: favorite ? undefined : linkFromKey(form.elements.link.value),
+    check: form.elements.checkMode.value && !favorite
       ? { mode: form.elements.checkMode.value, target: form.elements.checkTarget.value.trim() || undefined }
       : undefined,
   };
@@ -1722,6 +1827,39 @@ async function importConfig(file) {
   toast(t(data.secrets === false ? 'backup.importedNoSecrets' : 'backup.imported'));
 }
 
+// ---------- Apparence (#95) ----------
+// Couleur d'accent : data-accent (style.css), retenue pour l'appliquer dès l'ouverture (theme.js).
+function applyAppearance(cfg) {
+  const { accent, background, backgroundOpacity = 35, cardBlur = 8 } = cfg.appearance || {};
+  const root = document.documentElement;
+  if (accent) root.dataset.accent = accent;
+  else delete root.dataset.accent;
+  try {
+    if (accent) localStorage.setItem('sd-accent', accent);
+    else localStorage.removeItem('sd-accent');
+  } catch { /* stockage indisponible */ }
+  root.classList.toggle('has-bg', !!background);
+  if (!background) return;
+  // Guillemets et espaces encodés : l'adresse ne peut pas sortir de url("…").
+  root.style.setProperty('--bg-image', `url("${background.replace(/["\\\s]/g, (c) => encodeURIComponent(c))}")`);
+  root.style.setProperty('--bg-opacity', backgroundOpacity / 100);
+  root.style.setProperty('--card-blur', `${cardBlur}px`);
+}
+
+const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // même limite que server.js
+
+async function uploadBackground(file) {
+  if (file.size > BACKGROUND_MAX_BYTES) return toast(t('display.backgroundTooBig'), true);
+  try {
+    const res = await fetch('/api/background', { method: 'POST', body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || t('common.error', { status: res.status })), { code: data.code, params: data.params });
+    $('#displayForm').elements.background.value = data.url;
+  } catch (e) {
+    toast(errMsg(e), true);
+  }
+}
+
 // ---------- Options d'affichage (mode édition) ----------
 function openDisplayDialog() {
   const form = $('#displayForm');
@@ -1729,6 +1867,11 @@ function openDisplayDialog() {
   for (const key of DISPLAY_TOGGLES) form.elements[key].checked = display[key];
   form.elements.statusStyle.value = display.statusStyle;
   form.elements.tileSize.value = state.draft.tileSize || 'normal';
+  const look = state.draft.appearance || {};
+  form.elements.accent.value = look.accent || 'blue';
+  form.elements.background.value = look.background || '';
+  form.elements.backgroundOpacity.value = look.backgroundOpacity ?? 35;
+  form.elements.cardBlur.value = look.cardBlur ?? 8;
   // Moteur de recherche : un des moteurs proposés, aucun, ou une adresse personnalisée.
   const engine = state.draft.searchEngine || 'duckduckgo';
   const preset = engine in SEARCH_ENGINES || engine === 'none';
@@ -1754,6 +1897,12 @@ function submitDisplay(e) {
     statusStyle: form.elements.statusStyle.value || 'dot',
   };
   state.draft.tileSize = form.elements.tileSize.value;
+  // Bleu : la couleur par défaut, sans réglage. Sans image, ni visibilité ni flou.
+  const background = form.elements.background.value.trim();
+  state.draft.appearance = {
+    ...(form.elements.accent.value !== 'blue' ? { accent: form.elements.accent.value } : {}),
+    ...(background ? { background, backgroundOpacity: Number(form.elements.backgroundOpacity.value), cardBlur: Number(form.elements.cardBlur.value) } : {}),
+  };
   const engine = form.elements.searchEngine.value;
   state.draft.searchEngine = engine === 'custom' ? form.elements.searchUrl.value.trim() : engine;
   $('#displayDialog').close();
@@ -2012,9 +2161,17 @@ async function init() {
   $('#addWidgetBtn').addEventListener('click', () => openWidgetDialog());
   fillCatalogList();
   $('#appForm').elements.catalog.addEventListener('input', applyCatalog);
+  $('#appForm').elements.category.addEventListener('change', syncFavoriteFields);
   $('#disksBtn').addEventListener('click', openDisksDialog);
   $('#disksForm').addEventListener('submit', submitDisks);
   $('#displayBtn').addEventListener('click', openDisplayDialog);
+  const displayForm = $('#displayForm');
+  displayForm.querySelector('[data-background-upload]').addEventListener('click', () => displayForm.elements.backgroundFile.click());
+  displayForm.elements.backgroundFile.addEventListener('change', (e) => {
+    const [file] = e.target.files;
+    e.target.value = ''; // le même fichier pourra être rechoisi
+    if (file) uploadBackground(file);
+  });
   $('#backupBtn').addEventListener('click', openBackupDialog);
   $('#notifyBtn').addEventListener('click', openNotifyDialog);
   $('#notifyForm').elements.type.addEventListener('change', updateNotifyFields);

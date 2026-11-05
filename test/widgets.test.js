@@ -600,6 +600,94 @@ test('Erreurs : un code traduisible pour chaque cas', async () => {
   }
 });
 
+test('Favoris : ni statut ni notification, type de catégorie inconnu ignoré', async () => {
+  const { json: cfg } = await api('GET', '/api/config');
+  const saved = await api('PUT', '/api/config', {
+    ...cfg,
+    categories: [
+      { id: 'fav', name: 'Favoris', style: 'links', apps: [{ id: 'fav-app', name: 'Doc', url: 'http://localhost:9' }] },
+      { id: 'tuiles', name: 'Tuiles', style: 'n-importe-quoi', apps: [{ id: 'vraie-app', name: 'App', url: 'http://localhost:9' }] },
+    ],
+  });
+  assert.equal(saved.status, 200, saved.text);
+  assert.equal(saved.json.categories[0].style, 'links');
+  assert.equal('style' in saved.json.categories[1], false);
+  await new Promise((r) => { setTimeout(r, 2100); }); // statuts en cache
+  const { json: status } = await api('GET', '/api/status');
+  assert.equal('fav-app' in status, false, 'pas de statut pour un favori');
+  assert.equal('vraie-app' in status, true);
+  const restored = await api('PUT', '/api/config', { ...saved.json, categories: [] });
+  assert.equal(restored.status, 200, restored.text);
+});
+
+test('Chiffres d’un widget : réglages nettoyés et conservés', async () => {
+  const { json: cfg } = await api('GET', '/api/config');
+  const widgets = cfg.widgets.map((w) => (w.id === 'immich' ? {
+    ...w,
+    stats: { 'stat.photos': { hide: true }, 'stat.usage': { warn: '20', bad: 30.5 }, 'stat.vide': { warn: 'abc' }, __proto__: { hide: true }, 'stat.nul': null },
+  } : w));
+  const saved = await api('PUT', '/api/config', { ...cfg, widgets });
+  assert.equal(saved.status, 200, saved.text);
+  const { stats } = saved.json.widgets.find((w) => w.id === 'immich');
+  assert.deepEqual(stats, { 'stat.photos': { hide: true }, 'stat.usage': { warn: 20, bad: 30.5 } });
+  const again = await api('PUT', '/api/config', saved.json);
+  assert.deepEqual(again.json.widgets.find((w) => w.id === 'immich').stats, stats);
+  const restored = await api('PUT', '/api/config', { ...again.json, widgets: again.json.widgets.map(({ stats: _, ...w }) => w) });
+  assert.equal('stats' in restored.json.widgets.find((w) => w.id === 'immich'), false);
+});
+
+test('Apparence : couleur et fond validés, image envoyée vérifiée par son contenu', async () => {
+  const { json: cfg } = await api('GET', '/api/config');
+  const put = (appearance) => api('PUT', '/api/config', { ...cfg, revision: undefined, appearance });
+  let r = await put({ accent: 'green', background: 'https://example.com/a.jpg', backgroundOpacity: 999, cardBlur: '4' });
+  assert.equal(r.status, 200, r.text);
+  assert.deepEqual(r.json.appearance, { accent: 'green', background: 'https://example.com/a.jpg', backgroundOpacity: 70, cardBlur: 4 });
+  r = await put({ accent: 'rouge-sang', background: '' });
+  assert.deepEqual(r.json.appearance, {});
+  r = await put({ background: 'javascript:alert(1)' });
+  assert.equal(r.status, 400);
+  assert.equal(r.json.code, 'invalid_url');
+
+  const upload = (body, type = 'image/png', headers = { Cookie: cookie }) => fetch(`${BASE}/api/background`, { method: 'POST', headers: { 'Content-Type': type, ...headers }, body });
+  assert.equal((await upload(Buffer.from('x'), 'image/png', {})).status, 401, 'réservé à l’admin');
+  const svg = await upload(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), 'image/png');
+  assert.equal(svg.status, 400, 'un SVG déguisé en PNG est refusé');
+  assert.equal((await svg.json()).code, 'image_invalid');
+  assert.equal((await fetch(`${BASE}/api/background`)).status, 404, 'pas encore d’image');
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
+  const sent = await upload(png, 'text/html');
+  assert.equal(sent.status, 200);
+  const { url } = await sent.json();
+  assert.match(url, /^\/api\/background\?v=\d+$/);
+  r = await put({ background: url });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.appearance.background, url);
+  assert.equal(r.json.appearance.backgroundOpacity, 35);
+  const image = await fetch(BASE + url);
+  assert.equal(image.headers.get('content-type'), 'image/png', 'le type vient du contenu');
+  assert.equal(image.headers.get('x-content-type-options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await image.arrayBuffer()), png);
+  r = await put({});
+  assert.equal(r.status, 200, r.text);
+});
+
+test('Application installable : manifeste et icônes', async () => {
+  const res = await fetch(`${BASE}/manifest.webmanifest`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /application\/manifest\+json/);
+  const manifest = await res.json();
+  assert.equal(manifest.display, 'standalone');
+  assert.ok(manifest.name);
+  for (const icon of manifest.icons) {
+    const img = await fetch(`${BASE}/${icon.src}`);
+    assert.equal(img.status, 200, icon.src);
+    const buf = Buffer.from(await img.arrayBuffer());
+    const size = Number(icon.sizes.split('x')[0]);
+    assert.equal(buf.readUInt32BE(16), size, `${icon.src} : largeur`);
+    assert.equal(buf.readUInt32BE(20), size, `${icon.src} : hauteur`);
+  }
+});
+
 test('Connexion refusée : pas de nouvelle tentative à chaque rafraîchissement', async () => {
   const before = (await (await fetch('http://localhost:18971/__logins')).json()).count;
   for (let i = 0; i < 3; i++) {

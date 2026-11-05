@@ -17,3 +17,9 @@ function setTheme(theme) {
 }
 
 if (savedTheme()) document.documentElement.dataset.theme = savedTheme();
+
+// Couleur d'accent : la dernière connue, en attendant la config (pas de flash de bleu).
+try {
+  const accent = localStorage.getItem('sd-accent');
+  if (accent) document.documentElement.dataset.accent = accent;
+} catch { /* stockage indisponible */ }

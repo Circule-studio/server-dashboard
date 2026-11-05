@@ -55,6 +55,10 @@ Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux service
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
 - **Onglets** (ex. « Maison », « Serveur », « Médias ») pour répartir widgets et catégories sur plusieurs pages, avec un lien direct par onglet (`#medias`). La recherche parcourt tous les onglets.
 - **Bouton ⟳ sur chaque widget**, pour l'admin connecté : les données à l'instant, sans cache. Un agent répond tout de suite, et le widget Mises à jour relance la recherche sur chaque machine.
+- **Favoris** : une catégorie peut s’afficher en liens compacts (icône et nom, ou icônes seules), sans statut ni notification, pour la documentation, le routeur, etc. La recherche les trouve aussi.
+- **Chiffres au choix et seuils de couleur** : dans le formulaire d’un widget à blocs de chiffres, coche ceux à afficher et choisis à partir de quelle valeur ils passent en orange ou en rouge.
+- **Apparence** : couleur d’accent et image de fond (adresse ou fichier envoyé), avec le flou des cartes, dans Mode édition > Affichage.
+- **Application installable** : « Ajouter à l’écran d’accueil » sur téléphone ouvre le dashboard en plein écran, avec son nom et son icône (HTTPS requis sur Android pour l’installation complète).
 - **Widgets dans les catégories** : en mode édition, chaque widget a un menu pour le ranger dans une catégorie, sous ses tuiles. Il suit alors son onglet et se replie avec elle.
 - **Catégories repliables** d’un clic sur leur titre (état mémorisé dans le navigateur, ou repliées par défaut), avec une icône facultative.
 - **Mises à jour** : un badge « 7 mises à jour en attente », cliquable pour le détail par machine : paquets apt (dont ceux de sécurité) et images Docker dont le tag a changé. Pour le serveur du dashboard et chaque machine avec un agent. Affichage seulement, rien n’est installé. Les visiteurs non connectés ne voient que les nombres ; voir [agent/README.md](agent/README.md#mises-à-jour-en-attente).
