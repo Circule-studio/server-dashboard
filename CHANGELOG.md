@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.27.2] - 2026-11-05
+
+### Corrigé
+- Mode édition : un widget glissé sur une catégorie n’y était pas rangé, il se plaçait seulement avant ou après elle. Impossible, du coup, de mettre un widget dans une catégorie qui n’en avait encore aucun sans passer par le menu. Déposé sur une catégorie (ses tuiles ou ses widgets), il y est maintenant rangé, à la fin ; déposé sur son titre, il se place toujours avant ou après elle.
+
+### Modifié
+- Code du serveur réorganisé : `config.js` (validation de la config) et `system.js` (CPU, mémoire, disques, Docker) sortis de `server.js`, doublons retirés côté serveur et interface. Aucun changement de comportement.
+
 ## [0.27.1] - 2026-11-05
 
 ### Corrigé

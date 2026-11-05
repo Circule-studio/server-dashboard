@@ -31,7 +31,7 @@ const I18N = {
 
     'banner.defaultPassword': '⚠ Tu utilises le mot de passe par défaut <b>admin</b>. Change-le : variable <code>ADMIN_PASSWORD</code> dans <code>.env</code> (Docker ou en local) ou dans <code>/etc/server-dashboard/server-dashboard.env</code> (installation sans Docker), puis redémarre le dashboard.',
 
-    'edit.hint': 'Mode édition : glisse les tuiles, les widgets, les catégories (par leur titre) et les cartes de stats pour les réorganiser ; le coin en bas à droite règle la taille.',
+    'edit.hint': 'Mode édition : glisse les tuiles, les widgets, les catégories (par leur titre) et les cartes de stats pour les réorganiser ; un widget déposé sur une catégorie y est rangé ; le coin en bas à droite règle la taille.',
     'edit.renameBoard': 'Renommer le tableau',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disques',
@@ -872,7 +872,7 @@ const I18N = {
 
     'banner.defaultPassword': '⚠ You are using the default password <b>admin</b>. Change it: set <code>ADMIN_PASSWORD</code> in <code>.env</code> (Docker or local) or in <code>/etc/server-dashboard/server-dashboard.env</code> (install without Docker), then restart the dashboard.',
 
-    'edit.hint': 'Edit mode: drag tiles, widgets, categories (by their title) and stat cards to rearrange them; the bottom-right corner sets the size.',
+    'edit.hint': 'Edit mode: drag tiles, widgets, categories (by their title) and stat cards to rearrange them; drop a widget on a category to put it inside; the bottom-right corner sets the size.',
     'edit.renameBoard': 'Rename dashboard',
     'edit.addWidget': '+ Widget',
     'edit.disks': 'Disks',
