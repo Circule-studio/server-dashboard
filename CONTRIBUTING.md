@@ -27,7 +27,9 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 | `public/catalog.js` | Catalogue d'applications connues (nom, icône, port par défaut) : un objet par application, facile à compléter ; `node dev/check-icons.js` vérifie les noms d'icônes (lancé aussi par la CI) |
 | `agent/server-dashboard-agent.js` | Agent à lancer sur une autre machine : il envoie ses ressources au dashboard (widget Agent) |
 | `notify.js` | Notifications : envoi vers ntfy, Gotify, Discord ou un webhook, et suivi des changements d'état des applications |
-| `server.js` | API Express : config, auth, statut, stats système, Docker |
+| `server.js` | API Express : lecture et écriture de la config, auth, statut des tuiles, routes |
+| `config.js` | Validation de la config reçue du navigateur (`sanitizeConfig`) et version publique, sans secret (`publicConfig`) |
+| `system.js` | Ressources de la machine du dashboard (CPU, mémoire, disques) et API Docker |
 | `integrations/<service>.js` | Appels à un service et normalisation des données ; `integrations/index.js` les rassemble, `integrations/lib.js` contient les outils communs (requêtes, erreurs, sessions) |
 | `dev/mocks/<service>.js` | Un faux service pour le développement ; `dev/mocks.js` les lance tous (identifiants en tête du fichier) |
 | `test/widgets.test.js` | Tests de bout en bout des widgets avec les faux services (`npm test`) |

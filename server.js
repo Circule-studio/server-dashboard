@@ -6,11 +6,14 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const os = require('os');
-const http = require('http');
 const crypto = require('crypto');
+const { version: APP_VERSION } = require('./package.json');
 const { INTEGRATIONS, fetchWidget, refreshWidget, resetIntegrations, request, orStale } = require('./integrations');
-const { NOTIFY_TYPES, sendNotification, createMonitor } = require('./notify');
-const { sanitizeCheck, checkApp } = require('./checks');
+const { fail, readJsonFile, writeJsonFileSync } = require('./integrations/lib');
+const { SECRET_FIELDS, sanitizeConfig, sanitizeNotify, publicConfig } = require('./config');
+const { cpuUsage, memInfo, diskInfo, disksOf, detectDisks, docker, dockerUsage } = require('./system');
+const { sendNotification, createMonitor } = require('./notify');
+const { checkApp } = require('./checks');
 
 // En local (npm start), lit le fichier .env s'il existe. Les variables déjà définies
 // (Docker, systemd) restent prioritaires.
@@ -20,9 +23,6 @@ const PORT = Number(process.env.PORT) || 7575;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
-const DISK_PATH = process.env.DISK_PATH || (process.platform === 'win32' ? 'C:\\' : '/');
-const DOCKER_SOCKET = process.env.DOCKER_SOCKET ||
-  (process.platform === 'win32' ? '\\\\.\\pipe\\docker_engine' : '/var/run/docker.sock');
 // true : tout le dashboard (lecture comprise) exige d'être connecté.
 const REQUIRE_LOGIN = process.env.REQUIRE_LOGIN === 'true';
 const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
@@ -88,11 +88,7 @@ async function readConfig() {
   cfg.categories ||= [];
   cfg.revision = Number.isInteger(cfg.revision) ? cfg.revision : 0;
   // Modifié à la main : URL ou identifiants ont pu changer, comme après un enregistrement.
-  if (configCache) {
-    resetIntegrations();
-    statusCache = null;
-    linksCache = null;
-  }
+  if (configCache) invalidateCaches();
   configCache = { stamp: stampOf(stat), cfg };
   return cfg;
 }
@@ -122,339 +118,6 @@ function writeConfig(cfg) {
   return result;
 }
 
-// Erreur avec un code traduisible par l'interface (err.* dans public/i18n.js).
-const fail = (key, message, params) => Object.assign(new Error(message), { key, params });
-
-const str = (v, max = 500) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
-
-const SECRET_FIELDS = ['apiKey', 'password'];
-
-function checkUrl(url) {
-  if (url && !/^https?:\/\//i.test(url)) throw fail('invalid_url', `URL invalide : ${url}`, { url });
-  return url;
-}
-
-// Dépôt GitHub : « propriétaire/dépôt », ou une adresse copiée (https://github.com/propriétaire/dépôt/issues,
-// github.com/propriétaire/dépôt, git@github.com:propriétaire/dépôt.git…), ramenée à « propriétaire/dépôt ».
-function githubRepo(value) {
-  const path = value
-    .replace(/^[a-z+]+:\/\/[^/]+/i, '') // https://github.com, ssh://git@github.com
-    .replace(/^git@[^:/]+:/i, '')
-    .replace(/^\/+/, '')
-    .replace(/^[^/]*\.[^/]*\//, ''); // hôte sans « https:// » : un propriétaire GitHub n'a pas de point
-  const [owner = '', name = ''] = path.split(/[/?#]/);
-  const repo = `${owner}/${name.replace(/\.git$/i, '')}`;
-  // Noms autorisés par GitHub ; « . » et « .. » sont exclus (ils changeraient le chemin de l'API).
-  if (!/^(?!\.+\/)[\w.-]+\/(?!\.+$)[\w.-]+$/.test(repo)) throw fail('github_repo_invalid', `Dépôt invalide : ${value}`, { repo: value });
-  return repo;
-}
-
-// Page de statut Uptime Kuma : son nom (slug), ou l'adresse de la page collée dans l'URL
-// (http://IP:3001/status/maison, aussi derrière un chemin de reverse proxy) dont on tire l'URL et le nom.
-function statusPage(url, slug) {
-  const pasted = url.match(/^(https?:\/\/.+?)\/status\/([^/?#]+)\/?(?:[?#].*)?$/i);
-  const out = { url: pasted ? pasted[1] : url, slug: slug || (pasted ? pasted[2] : '') };
-  if (!/^[a-z0-9-]{1,100}$/i.test(out.slug)) throw fail('kuma_slug_invalid', `Page de statut invalide : ${out.slug}`, { slug: out.slug });
-  return out;
-}
-
-// Entités Home Assistant : « domaine.nom » (sensor.salon_temperature), une par ligne ou séparées
-// par des virgules dans le formulaire. Sans doublon, 30 au plus.
-const MAX_ENTITIES = 30;
-
-function sanitizeEntities(list) {
-  const raw = Array.isArray(list) ? list : String(list || '').split(/[\s,;]+/);
-  const entities = [...new Set(raw.map((e) => str(e, 255).toLowerCase()).filter(Boolean))];
-  const invalid = entities.find((e) => !/^[a-z0-9_]+\.[a-z0-9_]+$/.test(e));
-  if (invalid) throw fail('ha_entity_invalid', `Entité invalide : ${invalid}`, { entity: invalid });
-  if (!entities.length) throw fail('ha_entities_missing', 'Aucune entité choisie');
-  if (entities.length > MAX_ENTITIES) throw fail('ha_too_many', `${MAX_ENTITIES} entités au plus`, { max: MAX_ENTITIES });
-  return entities;
-}
-
-// Adresses de flux (RSS / Atom) : une par ligne, http(s), sans doublon.
-const MAX_FEEDS = 10;
-function sanitizeFeeds(list) {
-  const raw = Array.isArray(list) ? list : String(list || '').split(/\s+/);
-  const feeds = [...new Set(raw.map((u) => str(u, 2000)).filter(Boolean))].map(checkUrl);
-  if (!feeds.length) throw fail('feeds_missing', 'Aucun flux');
-  if (feeds.length > MAX_FEEDS) throw fail('feeds_too_many', `${MAX_FEEDS} flux au plus`, { max: MAX_FEEDS });
-  return feeds;
-}
-
-// API personnalisée : valeurs à afficher, une par ligne « chemin | libellé | format » (texte saisi)
-// ou objets { path, label, format } (config enregistrée, import).
-const MAX_MAPPINGS = 12;
-const MAPPING_FORMATS = {
-  text: 'text', texte: 'text', number: 'number', nombre: 'number', percent: 'percent', pourcentage: 'percent',
-  bytes: 'bytes', octets: 'bytes', rate: 'rate', debit: 'rate', 'débit': 'rate', date: 'date',
-};
-
-function sanitizeMappings(input) {
-  const lines = Array.isArray(input) ? input : String(input || '').split('\n');
-  const out = [];
-  lines.forEach((line, i) => {
-    const [path, label, format] = typeof line === 'string'
-      ? line.split('|').map((x) => x.trim())
-      : [line?.path, line?.label, line?.format].map((x) => str(x, 100));
-    if (!path) return; // ligne vide
-    const fmt = format ? MAPPING_FORMATS[format.toLowerCase()] : 'text';
-    if (!/^[\w$-]+(\.[\w$-]+)*$/.test(path) || path.length > 200 || !fmt) {
-      throw fail('mapping_invalid', `Ligne ${i + 1} invalide`, { line: i + 1 });
-    }
-    out.push({ path, label: str(label, 60), format: fmt });
-  });
-  if (!out.length) throw fail('mappings_missing', 'Aucune valeur à afficher');
-  if (out.length > MAX_MAPPINGS) throw fail('mappings_too_many', `${MAX_MAPPINGS} valeurs au plus`, { max: MAX_MAPPINGS });
-  return out;
-}
-
-// Élément d'une liste de la config : un null, un nombre ou un tableau est refusé proprement
-// (avant, l'erreur JavaScript brute était renvoyée au navigateur).
-function item(v) {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) throw fail('bad_request', 'Élément invalide dans la configuration');
-  return v;
-}
-
-// Identifiant unique dans la liste : absent ou déjà vu, il est remplacé. Les données des
-// widgets et le statut des apps sont rangés par identifiant : un doublon mélangeait les deux.
-function uniqueId(seen, raw, prefix) {
-  let id = str(raw, 64);
-  if (!id || seen.has(id)) id = `${prefix}-${crypto.randomUUID()}`;
-  seen.add(id);
-  return id;
-}
-
-// `previous` sert à conserver les secrets : le navigateur ne les reçoit jamais,
-// donc un champ vide signifie « inchangé ».
-function sanitizeWidgets(list, previous = []) {
-  const seen = new Set();
-  const occurrences = new Map(); // identifiant reçu -> nombre de fois déjà vu
-  return (Array.isArray(list) ? list : []).map(item).map((w) => {
-    const type = str(w.type, 32);
-    if (!INTEGRATIONS[type]) throw fail('bad_request', `Type de widget inconnu : ${type}`);
-    const raw = str(w.id, 64);
-    const id = uniqueId(seen, raw, 'wid');
-    // Doublon venu d'un config.json modifié à la main : le n-ième garde les secrets du n-ième.
-    const n = occurrences.get(raw) || 0;
-    occurrences.set(raw, n + 1);
-    // Même type seulement : la clé d'un ancien widget Sonarr ne doit pas partir vers un Radarr.
-    const old = (raw && previous.filter((p) => p.id === raw)[n]) || {};
-    if (old.type && old.type !== type) for (const f of SECRET_FIELDS) delete old[f];
-    const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
-    // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
-    if (INTEGRATIONS[type].fields.includes('username')) {
-      out.username = typeof w.username === 'string' ? str(w.username, 200) : old.username || '';
-      if (INTEGRATIONS[type].userRequired && !out.username) throw fail('username_required', `Utilisateur obligatoire (${type})`, { type });
-    }
-    // Case « M'alerter » : notifications sur l'état signalé par le widget (ex. VM Proxmox arrêtée).
-    if (INTEGRATIONS[type].alerts) out.alert = w.alert === true;
-    // Lieu de la météo : nom de ville ou coordonnées.
-    if (INTEGRATIONS[type].fields.includes('location')) out.location = str(w.location, 200);
-    // Deuxième adresse facultative (indexer Wazuh).
-    if (INTEGRATIONS[type].fields.includes('indexerUrl')) out.indexerUrl = checkUrl(str(w.indexerUrl, 2000));
-    if (INTEGRATIONS[type].fields.includes('query')) out.query = str(w.query, 500); // sélecteur LogQL
-    if (INTEGRATIONS[type].fields.includes('entities')) out.entities = sanitizeEntities(w.entities);
-    if (INTEGRATIONS[type].fields.includes('feeds')) out.feeds = sanitizeFeeds(w.feeds);
-    if (INTEGRATIONS[type].fields.includes('mappings')) out.mappings = sanitizeMappings(w.mappings);
-    if (INTEGRATIONS[type].fields.includes('slug')) Object.assign(out, statusPage(out.url, str(w.slug, 100)));
-    if (INTEGRATIONS[type].fields.includes('repo')) {
-      out.repo = githubRepo(str(w.repo, 300));
-      // Nom par défaut : le dépôt normalisé (le navigateur affiche le type en attendant l'enregistrement).
-      if (!str(w.name, 100)) out.name = out.repo;
-    }
-    // Blocs à afficher, pour les intégrations qui en proposent (ex. Pulse).
-    const allowed = INTEGRATIONS[type].sections;
-    if (allowed) {
-      const chosen = (Array.isArray(w.sections) ? w.sections : []).filter((s) => allowed.includes(s));
-      out.sections = chosen.length ? [...new Set(chosen)] : [...allowed];
-    }
-    for (const k of INTEGRATIONS[type].keep || []) if (old[k]) out[k] = old[k];
-    // Jeton créé par le serveur (agent) : jamais saisi, gardé d'un enregistrement à l'autre.
-    // regenerateKey : nouveau jeton demandé (l'ancien cesse de marcher).
-    if (INTEGRATIONS[type].generatedKey) {
-      out.apiKey = (w.regenerateKey !== true && old.apiKey) || crypto.randomBytes(24).toString('base64url');
-    }
-    for (const f of SECRET_FIELDS) {
-      if (!INTEGRATIONS[type].fields.includes(f)) continue;
-      // Vide = inchangé ; clearApiKey / clearPassword = effacer (ex. Pi-hole sans mot de passe).
-      const clear = w[`clear${f[0].toUpperCase()}${f.slice(1)}`] === true;
-      out[f] = clear ? '' : str(w[f], 2000) || old[f] || ''; // 2000 : plusieurs adresses iCal secrètes
-    }
-    return out;
-  });
-}
-
-// Version envoyée au navigateur : jamais de clés API ni de mots de passe,
-// et les noms d'utilisateur seulement pour un admin connecté.
-function publicConfig(cfg, authed) {
-  const { notify, ...rest } = cfg;
-  return {
-    ...rest,
-    // Notifications : réglage visible des admins seulement, sans l'URL ni le jeton.
-    ...(authed && notify ? { notify: { type: notify.type, lang: notify.lang, hasUrl: !!notify.url, hasToken: !!notify.token } } : {}),
-    widgets: cfg.widgets.map((w) => {
-      const pub = { ...w };
-      for (const f of SECRET_FIELDS) {
-        if (f in pub) { pub['has' + f[0].toUpperCase() + f.slice(1)] = !!pub[f]; delete pub[f]; }
-      }
-      if (!authed) delete pub.username;
-      return pub;
-    }),
-  };
-}
-
-// Éléments de la barre du haut que l'admin peut masquer (tous visibles par défaut).
-const DISPLAY_OPTIONS = ['search', 'theme', 'lang'];
-
-// Notifications. `url` et `token` sont des secrets : vides = inchangés (si le type ne change pas),
-// clearToken = effacer le jeton. Sans type : désactivées.
-function sanitizeNotify(input, previous) {
-  if (input === undefined) return previous || { type: '' }; // ancienne interface : inchangées
-  const src = input && typeof input === 'object' ? input : {};
-  const type = NOTIFY_TYPES.includes(src.type) ? src.type : '';
-  if (!type) return { type: '' };
-  const same = previous?.type === type ? previous : {};
-  const out = {
-    type,
-    lang: src.lang === 'en' ? 'en' : 'fr',
-    url: checkUrl(str(src.url, 2000)) || same.url || '',
-    token: src.clearToken === true ? '' : str(src.token, 500) || same.token || '',
-  };
-  if (!out.url) throw fail('notify_url_missing', 'URL de notification manquante');
-  // ntfy : l'adresse du sujet (https://ntfy.sh/mon-sujet), pas seulement celle du serveur.
-  let pathname;
-  try { ({ pathname } = new URL(out.url)); } catch { throw fail('invalid_url', `URL invalide : ${out.url}`, { url: out.url }); }
-  if (type === 'ntfy' && pathname.replace(/\/+$/, '') === '') throw fail('notify_topic_missing', 'Sujet ntfy manquant');
-  if (type === 'gotify' && !out.token) throw fail('notify_token_missing', 'Jeton Gotify manquant');
-  return out;
-}
-
-// Taille des tuiles d'apps (réglage global).
-const TILE_SIZES = ['compact', 'normal', 'large'];
-// Recherche web de la recherche rapide (#91) : un moteur proposé, « none », ou une adresse
-// personnalisée (avec %s à la place des mots cherchés, ou qui se termine par ?q=).
-const SEARCH_ENGINES = ['duckduckgo', 'google', 'bing', 'brave', 'qwant', 'ecosia', 'none'];
-const sanitizeSearchEngine = (v) => {
-  const s = str(v, 500);
-  return SEARCH_ENGINES.includes(s) ? s : s ? checkUrl(s) : 'duckduckgo';
-};
-
-// Style du statut des tuiles (#94) : pastille seule, pastille et temps de réponse, ou texte.
-const STATUS_STYLES = ['dot', 'ms', 'text'];
-
-function sanitizeDisplay(display) {
-  const src = display && typeof display === 'object' ? display : {};
-  return {
-    ...Object.fromEntries(DISPLAY_OPTIONS.map((k) => [k, src[k] !== false])),
-    statusStyle: STATUS_STYLES.includes(src.statusStyle) ? src.statusStyle : 'dot',
-  };
-}
-
-// Mise en page : ordre et largeur (1 à 12 colonnes) des widgets et des catégories
-// dans la grille. Seuls les éléments qui existent sont gardés ; ceux qui manquent
-// sont placés par l'interface (largeur par défaut, à la fin).
-const LAYOUT_KINDS = { widget: 'widgets', category: 'categories' };
-const MAX_TABS = 20;
-
-function sanitizeTabs(tabs) {
-  const ids = new Set();
-  return (Array.isArray(tabs) ? tabs : []).slice(0, MAX_TABS)
-    .filter((t) => t && typeof t === 'object' && !Array.isArray(t))
-    .map((t) => ({ id: uniqueId(ids, t.id, 'tab'), name: str(t.name, 50) || 'Onglet' }));
-}
-
-function sanitizeLayout(layout, cfg) {
-  const seen = new Set();
-  return (Array.isArray(layout) ? layout : []).slice(0, 1000).flatMap((it) => {
-    const kind = it && LAYOUT_KINDS[it.kind] ? it.kind : null;
-    const id = str(it?.id, 64);
-    const key = `${kind}:${id}`;
-    if (!kind || seen.has(key) || !cfg[LAYOUT_KINDS[kind]].some((x) => x.id === id)) return [];
-    seen.add(key);
-    const w = Math.round(Number(it.w));
-    const out = { kind, id, w: Number.isFinite(w) ? Math.min(12, Math.max(1, w)) : 12 };
-    // Hauteur fixe en pixels (#75), facultative : sans elle, la hauteur suit le contenu.
-    const h = Math.round(Number(it.h));
-    if (it.h != null && Number.isFinite(h)) out.h = Math.min(3000, Math.max(60, h));
-    // Onglet de l'élément (#92) ; sans onglet (ou onglet supprimé) : affiché dans tous.
-    if (cfg.tabs.some((t) => t.id === it.tab)) out.tab = it.tab;
-    // Widget rangé dans une catégorie ; catégorie supprimée : il revient dans la grille.
-    if (kind === 'widget' && cfg.categories.some((c) => c.id === it.category)) out.category = it.category;
-    return [out];
-  });
-}
-
-// Tuile liée à une VM / un LXC d'un widget Proxmox VE, ou à un conteneur Docker (#89) :
-// sa charge s'affiche sur la tuile. Le lien réutilise la connexion existante, sans secret.
-function sanitizeLink(l) {
-  if (l?.type === 'proxmox') {
-    const widget = str(l.widget, 64);
-    const vmid = Number(l.vmid);
-    return widget && Number.isInteger(vmid) && vmid > 0 && vmid < 1e9 ? { type: 'proxmox', widget, vmid } : undefined;
-  }
-  if (l?.type === 'docker') {
-    const container = str(l.container, 128);
-    return /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(container) ? { type: 'docker', container } : undefined;
-  }
-  return undefined;
-}
-
-// Ordre des cartes de stats : cpu, mem, up et disk:<chemin>.
-function sanitizeStatsOrder(order) {
-  const keys = (Array.isArray(order) ? order : []).map((k) => str(k, 520))
-    .filter((k) => ['cpu', 'mem', 'up'].includes(k) || /^disk:./.test(k));
-  return [...new Set(keys)].slice(0, 50);
-}
-
-function sanitizeConfig(input, previous) {
-  if (!input || !Array.isArray(input.categories)) throw fail('bad_request', 'categories manquant');
-  const catIds = new Set();
-  const appIds = new Set(); // uniques sur tout le tableau : /api/status les range par identifiant
-  const cfg = {
-    revision: (previous?.revision || 0) + 1,
-    title: str(input.title, 100) || 'Mon serveur',
-    // Absent de la requête (ancienne interface) = inchangé.
-    display: sanitizeDisplay(input.display ?? previous?.display),
-    // Absente ou invalide (ancienne interface, script) : inchangée.
-    tileSize: [input.tileSize, previous?.tileSize].find((s) => TILE_SIZES.includes(s)) || 'normal',
-    searchEngine: sanitizeSearchEngine(input.searchEngine ?? previous?.searchEngine),
-    widgets: sanitizeWidgets(input.widgets, previous?.widgets),
-    notify: sanitizeNotify(input.notify, previous?.notify),
-    disks: (Array.isArray(input.disks) ? input.disks : []).slice(0, 20)
-      .map((d) => ({ path: str(d?.path, 500), label: str(d?.label, 50) }))
-      .filter((d) => d.path),
-    // Onglets (#92) : absents de la requête (ancienne interface) = inchangés.
-    tabs: sanitizeTabs(input.tabs ?? previous?.tabs),
-    categories: input.categories.map(item).map((c) => ({
-      id: uniqueId(catIds, c.id, 'cat'),
-      name: str(c.name, 100) || 'Sans nom',
-      // Icône facultative (mêmes valeurs que les tuiles) ; repliée par défaut (#92).
-      ...(str(c.icon, 2000) ? { icon: str(c.icon, 2000) } : {}),
-      ...(c.collapsed === true ? { collapsed: true } : {}),
-      apps: (Array.isArray(c.apps) ? c.apps : []).map(item).map((a) => {
-        return {
-          id: uniqueId(appIds, a.id, 'app'),
-          name: str(a.name, 100) || 'App',
-          url: checkUrl(str(a.url, 2000)),
-          icon: str(a.icon, 2000),
-          description: str(a.description, 200),
-          link: sanitizeLink(a.link),
-          check: sanitizeCheck(a.check),
-        };
-      }),
-    })),
-  };
-  // Un lien vers un widget Proxmox supprimé (ou d'un autre type) disparaît avec lui.
-  const pveWidgets = new Set(cfg.widgets.filter((w) => w.type === 'proxmox').map((w) => w.id));
-  for (const a of cfg.categories.flatMap((c) => c.apps)) {
-    if (a.link?.type === 'proxmox' && !pveWidgets.has(a.link.widget)) delete a.link;
-  }
-  // Absentes de la requête (ancienne interface) = inchangées.
-  cfg.layout = sanitizeLayout(input.layout ?? previous?.layout, cfg);
-  cfg.statsOrder = sanitizeStatsOrder(input.statsOrder ?? previous?.statsOrder);
-  return cfg;
-}
 
 // ---------- Auth (cookie signé HMAC) ----------
 // La clé de signature dépend du mot de passe : le changer invalide toutes les sessions.
@@ -463,29 +126,11 @@ const SIGNING_KEY = crypto.createHmac('sha256', SECRET).update(ADMIN_PASSWORD).d
 // Enregistrées sur disque : sans cela, un redémarrage rendait valides les cookies déconnectés.
 const REVOKED_FILE = path.join(DATA_DIR, '.revoked-sessions.json');
 
-function loadRevoked() {
-  try {
-    const saved = JSON.parse(fs.readFileSync(REVOKED_FILE, 'utf8'));
-    return Object.entries(saved).filter(([id, exp]) => typeof id === 'string' && Number(exp) > Date.now());
-  } catch (e) {
-    if (e.code !== 'ENOENT') console.warn(`[!] ${REVOKED_FILE} illisible, ignoré : ${e.message}`);
-    return [];
-  }
-}
+const revokedSessions = new Map(Object.entries(readJsonFile(REVOKED_FILE) || {})
+  .filter(([, exp]) => Number(exp) > Date.now()));
 
-const revokedSessions = new Map(loadRevoked());
-
-// Écriture synchrone et atomique : rare (déconnexion, nettoyage) et doit survivre à un arrêt brutal.
-function saveRevoked() {
-  const tmp = `${REVOKED_FILE}.${crypto.randomUUID()}.tmp`;
-  try {
-    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(revokedSessions)), { mode: 0o600 });
-    fs.renameSync(tmp, REVOKED_FILE);
-  } catch (e) {
-    console.error(`[!] Impossible d'enregistrer les sessions fermées : ${e.message}`);
-    try { fs.unlinkSync(tmp); } catch { /* déjà absent */ }
-  }
-}
+// Écriture synchrone : rare (déconnexion, nettoyage) et doit survivre à un arrêt brutal.
+const saveRevoked = () => writeJsonFileSync(REVOKED_FILE, Object.fromEntries(revokedSessions));
 
 function sign(value) {
   return crypto.createHmac('sha256', SIGNING_KEY).update(value).digest('hex');
@@ -562,6 +207,13 @@ setInterval(() => {
 let statusCache = null; // { t, promise }
 let linksCache = null; // tuiles liées : { t, promise } (voir getLinks)
 
+// Config changée (enregistrée ou modifiée à la main) : URL ou identifiants ont pu changer.
+function invalidateCaches() {
+  resetIntegrations();
+  statusCache = null;
+  linksCache = null;
+}
+
 async function computeStatuses() {
   const cfg = await readConfig();
   const apps = cfg.categories.flatMap((c) => c.apps);
@@ -584,130 +236,6 @@ function getStatuses(maxAge = STATUS_CACHE_MS, { stale = false } = {}) {
   return statusCache.promise;
 }
 
-// ---------- Stats système ----------
-let lastCpu = os.cpus();
-
-function cpuUsage() {
-  const now = os.cpus();
-  let idle = 0, total = 0;
-  now.forEach((c, i) => {
-    const prev = lastCpu[i] ? lastCpu[i].times : { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 };
-    const t = c.times;
-    idle += t.idle - prev.idle;
-    total += (t.user - prev.user) + (t.nice - prev.nice) + (t.sys - prev.sys) + (t.idle - prev.idle) + (t.irq - prev.irq);
-  });
-  lastCpu = now;
-  return total > 0 ? Math.round((1 - idle / total) * 1000) / 10 : 0;
-}
-
-async function memInfo() {
-  // Sous Linux, MemAvailable est plus juste que os.freemem() (qui ignore le cache).
-  if (process.platform === 'linux') {
-    try {
-      const txt = await fsp.readFile('/proc/meminfo', 'utf8');
-      const get = (k) => Number((txt.match(new RegExp(`^${k}:\\s+(\\d+)`, 'm')) || [])[1]) * 1024;
-      const total = get('MemTotal'), avail = get('MemAvailable');
-      if (total && avail) return { total, used: total - avail };
-    } catch { /* repli sur os */ }
-  }
-  return { total: os.totalmem(), used: os.totalmem() - os.freemem() };
-}
-
-// ---------- Disques ----------
-// Systèmes de fichiers « réels » sous Linux (on ignore proc, tmpfs, overlay, cgroup…).
-const LINUX_FS = new Set(['ext2', 'ext3', 'ext4', 'xfs', 'btrfs', 'zfs', 'f2fs', 'jfs', 'ntfs', 'ntfs3', 'fuseblk',
-  'vfat', 'exfat', 'nfs', 'nfs4', 'cifs', 'smb3', 'fuse.mergerfs', 'fuse.shfs']);
-const SKIP_MOUNTS = /^\/(proc|sys|dev|run|snap|boot\/efi|var\/lib\/docker)(\/|$)/;
-
-async function statDisk(diskPath) {
-  const s = await fsp.statfs(diskPath);
-  const total = s.blocks * s.bsize;
-  return { total, used: total - s.bavail * s.bsize };
-}
-
-async function diskInfo(d) {
-  try {
-    return { ...d, ...(await statDisk(d.path)) };
-  } catch (e) {
-    return { ...d, error: e.code === 'ENOENT' ? 'Chemin introuvable' : e.message, errorCode: e.code === 'ENOENT' ? 'path_not_found' : undefined };
-  }
-}
-
-// Disques affichés : ceux choisis en mode édition, sinon DISK_PATH.
-const disksOf = (cfg) => (cfg.disks?.length ? cfg.disks : [{ path: DISK_PATH, label: '' }]);
-
-// Disques présents sur la machine, proposés dans le mode édition.
-async function detectDisks() {
-  if (process.platform === 'win32') {
-    const found = [];
-    for (const letter of 'CDEFGHIJKLMNOPQRSTUVWXYZ') {
-      const diskPath = `${letter}:\\`;
-      try { found.push({ path: diskPath, ...(await statDisk(diskPath)) }); } catch { /* lecteur absent */ }
-    }
-    return found.filter((d) => d.total > 0);
-  }
-  let mounts;
-  try {
-    mounts = await fsp.readFile('/proc/mounts', 'utf8');
-  } catch {
-    return [await diskInfo({ path: '/' })];
-  }
-  // Un même périphérique peut être monté plusieurs fois : on garde DISK_PATH, sinon le chemin le plus court.
-  const byDevice = new Map();
-  for (const line of mounts.split('\n')) {
-    const [device, rawPath, type] = line.split(' ');
-    if (!rawPath || !LINUX_FS.has(type)) continue;
-    const diskPath = rawPath.replace(/\\040/g, ' ');
-    if (SKIP_MOUNTS.test(diskPath)) continue;
-    const prev = byDevice.get(device);
-    if (prev && (prev.path === DISK_PATH || (diskPath !== DISK_PATH && prev.path.length <= diskPath.length))) continue;
-    byDevice.set(device, { path: diskPath, type });
-  }
-  const found = await Promise.all([...byDevice.values()].map(diskInfo));
-  return found.filter((d) => !d.error && d.total > 0).sort((a, b) => a.path.localeCompare(b.path));
-}
-
-// ---------- Docker (API Engine via socket unix / named pipe) ----------
-// Comme request() dans integrations.js : taille et durée totale bornées, une seule issue.
-const DOCKER_MAX_BYTES = 20 * 1024 * 1024;
-
-function docker(method, apiPath) {
-  return new Promise((resolve, reject) => {
-    let done = false;
-    let timer;
-    const finish = (fn, value) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      fn(value);
-    };
-    const req = http.request({ socketPath: DOCKER_SOCKET, path: apiPath, method, timeout: 5000 }, (res) => {
-      const chunks = [];
-      let size = 0;
-      res.on('error', (e) => finish(reject, e));
-      res.on('data', (d) => {
-        size += d.length;
-        if (size > DOCKER_MAX_BYTES) {
-          finish(reject, new Error('Docker : réponse trop volumineuse'));
-          req.destroy();
-          return;
-        }
-        chunks.push(d);
-      });
-      res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8');
-        if (res.statusCode >= 400) return finish(reject, new Error(`Docker ${res.statusCode}: ${body.slice(0, 500)}`));
-        let data = null;
-        try { data = body ? JSON.parse(body) : null; } catch { /* pas du JSON */ }
-        finish(resolve, data);
-      });
-    });
-    timer = setTimeout(() => req.destroy(new Error('timeout')), 15_000);
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', (e) => finish(reject, e));
-    req.end();
-  });
-}
 
 // ---------- App ----------
 const app = express();
@@ -720,8 +248,10 @@ const agentBody = express.json({ limit: '64kb' });
 app.use((req, res, next) => (req.path.startsWith('/api/agent/') ? agentBody : jsonBody)(req, res, next));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Express 4 ne capture pas les erreurs des handlers async : on les renvoie à next().
-const route = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+// Réponses d'erreur. `e.key` est le code traduit par l'interface (err.* dans public/i18n.js).
+const sendError = (res, status, e) => res.status(status).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+const notFound = (res) => res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+const findWidget = (cfg, id) => cfg.widgets.find((w) => w.id === id);
 
 app.get('/api/me', (req, res) => {
   const authenticated = isAuthed(req);
@@ -763,17 +293,16 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/config', readAuth, route(async (req, res) => {
+app.get('/api/config', readAuth, async (req, res) => {
   res.json(publicConfig(await readConfig(), isAuthed(req)));
-}));
+});
 
 // Export de la config (mode édition > Sauvegarde), admin seulement. Sans ?secrets=1, les clés API
 // et mots de passe sont retirés : le fichier peut être partagé. L'import se fait dans le navigateur,
 // puis passe par PUT /api/config comme un enregistrement normal.
 const EXPORT_FORMAT = 'server-dashboard-config';
-const { version: APP_VERSION } = require('./package.json');
 
-app.get('/api/config/export', requireAuth, route(async (req, res) => {
+app.get('/api/config/export', requireAuth, async (req, res) => {
   const { revision, ...cfg } = await readConfig();
   const secrets = req.query.secrets === '1';
   const config = secrets ? cfg : {
@@ -787,9 +316,9 @@ app.get('/api/config/export', requireAuth, route(async (req, res) => {
     'Cache-Control': 'no-store',
   });
   res.json({ format: EXPORT_FORMAT, version: APP_VERSION, exportedAt: new Date().toISOString(), secrets, config });
-}));
+});
 
-app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(async () => {
+app.put('/api/config', requireAuth, async (req, res) => withConfigLock(async () => {
   const previous = await readConfig();
   // Verrouillage optimiste : on refuse d'écraser une config modifiée depuis que le
   // navigateur l'a chargée (autre onglet, autre appareil). Sans `revision`
@@ -811,33 +340,31 @@ app.put('/api/config', requireAuth, route(async (req, res) => withConfigLock(asy
       : { error: 'Requête invalide', code: 'bad_request' });
   }
   await writeConfig(cfg);
-  resetIntegrations();
-  statusCache = null;
-  linksCache = null;
+  invalidateCaches();
   res.json(publicConfig(cfg, true));
-})));
+}));
 
-app.get('/api/widgets/:id', readAuth, route(async (req, res) => {
+app.get('/api/widgets/:id', readAuth, async (req, res) => {
   const cfg = await readConfig();
-  const widget = cfg.widgets.find((w) => w.id === req.params.id);
-  if (!widget) return res.status(404).json({ error: 'Widget introuvable', code: 'not_found' });
+  const widget = findWidget(cfg, req.params.id);
+  if (!widget) return notFound(res);
   try {
     const data = await fetchWidget(widget, cfg.widgets);
     const { publicData } = INTEGRATIONS[widget.type];
     res.json(publicData && !isAuthed(req) ? publicData(data) : data);
   } catch (e) {
-    res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+    sendError(res, 502, e);
   }
-}));
+});
 
 // Bouton ⟳ : admin seulement, pour qu'un visiteur ne puisse pas épuiser les limites d'un service.
 const REFRESH_GAP_MS = 2000;
 const lastRefresh = new Map(); // id du widget -> date
 
-app.post('/api/widgets/:id/refresh', requireAuth, route(async (req, res) => {
+app.post('/api/widgets/:id/refresh', requireAuth, async (req, res) => {
   const cfg = await readConfig();
-  const widget = cfg.widgets.find((w) => w.id === req.params.id);
-  if (!widget) return res.status(404).json({ error: 'Widget introuvable', code: 'not_found' });
+  const widget = findWidget(cfg, req.params.id);
+  if (!widget) return notFound(res);
   if (Date.now() - (lastRefresh.get(widget.id) || 0) < REFRESH_GAP_MS) {
     return res.status(429).json({ error: 'Rafraîchi à l\'instant : réessaie dans un moment', code: 'refresh_too_soon' });
   }
@@ -845,38 +372,38 @@ app.post('/api/widgets/:id/refresh', requireAuth, route(async (req, res) => {
   try {
     res.json(await refreshWidget(widget, cfg.widgets));
   } catch (e) {
-    res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+    sendError(res, 502, e);
   }
-}));
+});
 
 // Connexion d'un widget à un compte (Spotify). Le jeton obtenu est enregistré sans changer la révision de la
 // config : un formulaire ouvert en même temps reste enregistrable, et son « vide = inchangé » garde le jeton.
 async function oauthWidget(req, res) {
-  const widget = (await readConfig()).widgets.find((w) => w.id === req.params.id);
+  const widget = findWidget(await readConfig(), req.params.id);
   const oauth = widget && INTEGRATIONS[widget.type].oauth;
-  if (!oauth) res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  if (!oauth) notFound(res);
   return { widget, oauth };
 }
 
-app.get('/api/widgets/:id/oauth', requireAuth, route(async (req, res) => {
+app.get('/api/widgets/:id/oauth', requireAuth, async (req, res) => {
   const { widget, oauth } = await oauthWidget(req, res);
   if (!oauth) return;
   res.set('Cache-Control', 'no-store');
   res.json({ url: oauth.start(widget), redirectUri: oauth.redirectUri });
-}));
+});
 
-app.post('/api/widgets/:id/oauth', requireAuth, route(async (req, res) => {
+app.post('/api/widgets/:id/oauth', requireAuth, async (req, res) => {
   const { widget, oauth } = await oauthWidget(req, res);
   if (!oauth) return;
   let token;
   try {
     token = await oauth.finish(widget, String(req.body?.url || '').slice(0, 4000));
   } catch (e) {
-    return res.status(400).json({ error: e.message, code: e.key, params: e.params });
+    return sendError(res, 400, e);
   }
   await withConfigLock(async () => {
     const cfg = structuredClone(await readConfig());
-    const w = cfg.widgets.find((x) => x.id === widget.id);
+    const w = findWidget(cfg, widget.id);
     if (!w) return;
     w.apiKey = token;
     w.authorizedAt = new Date().toISOString();
@@ -884,35 +411,35 @@ app.post('/api/widgets/:id/oauth', requireAuth, route(async (req, res) => {
   });
   resetIntegrations();
   res.json({ ok: true });
-}));
+});
 
 // Images d'un widget (miniatures des événements Frigate) : passent par le dashboard, avec les
 // mêmes droits que ses données (REQUIRE_LOGIN), pour ne jamais exposer le service lui-même.
-app.get('/api/widgets/:id/thumbnail/:key', readAuth, route(async (req, res) => {
+app.get('/api/widgets/:id/thumbnail/:key', readAuth, async (req, res) => {
   const cfg = await readConfig();
-  const widget = cfg.widgets.find((w) => w.id === req.params.id);
+  const widget = findWidget(cfg, req.params.id);
   const thumbnail = widget && INTEGRATIONS[widget.type].thumbnail;
-  if (!thumbnail) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  if (!thumbnail) return notFound(res);
   let image;
   try {
     image = await thumbnail(widget, req.params.key);
   } catch (e) {
-    return res.status(502).json({ error: e.message || 'Erreur inconnue', code: e.key, params: e.params });
+    return sendError(res, 502, e);
   }
-  if (!image) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  if (!image) return notFound(res);
   // Gardée par le navigateur (jamais par un proxy partagé). Événement en cours (?live) : Frigate
   // remplace la miniature quand il trouve une meilleure image, elle n'est donc gardée que 10 s.
   const maxAge = 'live' in req.query ? 10 : 86400;
   res.set({ 'Content-Type': image.type, 'Cache-Control': `private, max-age=${maxAge}`, 'X-Content-Type-Options': 'nosniff' });
   res.send(image.body);
-}));
+});
 
 // ---------- Agents (machines qui envoient elles-mêmes leurs ressources) ----------
 // Authentifiés par le jeton de leur widget, pas par le cookie : REQUIRE_LOGIN ne s'applique pas.
 const AGENT_SCRIPT = path.join(__dirname, 'agent', 'server-dashboard-agent.js');
 
 function agentWidget(cfg, id) {
-  const w = cfg.widgets.find((x) => x.id === id);
+  const w = findWidget(cfg, id);
   return w && INTEGRATIONS[w.type]?.receive ? w : null;
 }
 
@@ -920,7 +447,7 @@ function agentWidget(cfg, id) {
 async function agentFromToken(req, res) {
   const w = agentWidget(await readConfig(), req.params.id);
   if (!w) {
-    res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+    notFound(res);
     return null;
   }
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -932,31 +459,31 @@ async function agentFromToken(req, res) {
 }
 
 // Demande ouverte de l'agent : le bouton ⟳ y répond tout de suite (voir integrations/agent.js).
-app.get('/api/agent/:id/wait', route(async (req, res) => {
+app.get('/api/agent/:id/wait', async (req, res) => {
   const w = await agentFromToken(req, res);
   if (!w) return;
-  if (!INTEGRATIONS[w.type].waitCommand) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  if (!INTEGRATIONS[w.type].waitCommand) return notFound(res);
   const { promise, cancel } = INTEGRATIONS[w.type].waitCommand(w);
   req.on('close', cancel); // agent arrêté : la demande disparaît avec lui
   res.set('Cache-Control', 'no-store');
   res.json(await promise);
-}));
+});
 
-app.post('/api/agent/:id', route(async (req, res) => {
+app.post('/api/agent/:id', async (req, res) => {
   const w = await agentFromToken(req, res);
   if (!w) return;
   if (!INTEGRATIONS[w.type].receive(w, req.body)) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
   res.json({ ok: true });
-}));
+});
 
 // Identifiant et jeton de l'agent, pour sa commande d'installation : admin seulement. L'adresse du
 // dashboard est celle du navigateur de l'admin (juste même derrière un reverse proxy HTTPS).
-app.get('/api/agent/:id/setup', requireAuth, route(async (req, res) => {
+app.get('/api/agent/:id/setup', requireAuth, async (req, res) => {
   const w = agentWidget(await readConfig(), req.params.id);
-  if (!w) return res.status(404).json({ error: 'Introuvable', code: 'not_found' });
+  if (!w) return notFound(res);
   res.set('Cache-Control', 'no-store');
   res.json({ id: w.id, token: w.apiKey });
-}));
+});
 
 app.get('/agent/server-dashboard-agent.js', (req, res) => res.type('application/javascript').sendFile(AGENT_SCRIPT));
 app.get('/agent/install.sh', (req, res) => res.type('text/plain').sendFile(path.join(__dirname, 'agent', 'install.sh')));
@@ -993,15 +520,15 @@ function isNewer(latest, current) {
   return false;
 }
 
-app.get('/api/version', requireAuth, route(async (req, res) => {
+app.get('/api/version', requireAuth, async (req, res) => {
   const { latest, url } = await latestRelease();
   const update = isNewer(latest, APP_VERSION);
   res.json({ version: APP_VERSION, latest: update ? latest : null, url: update ? url : null });
-}));
+});
 
-app.get('/api/status', readAuth, route(async (req, res) => res.json(await getStatuses(STATUS_CACHE_MS, { stale: true }))));
+app.get('/api/status', readAuth, async (req, res) => res.json(await getStatuses(STATUS_CACHE_MS, { stale: true })));
 
-app.get('/api/system', readAuth, route(async (req, res) => {
+app.get('/api/system', readAuth, async (req, res) => {
   const disks = await Promise.all(disksOf(await readConfig()).map(diskInfo));
   res.json({
     hostname: process.env.SERVER_NAME || os.hostname(),
@@ -1012,36 +539,13 @@ app.get('/api/system', readAuth, route(async (req, res) => {
     disks,
     disk: disks[0], // compatibilité avec les anciennes versions de l'interface
   });
-}));
+});
 
-app.get('/api/disks', requireAuth, route(async (req, res) => res.json(await detectDisks())));
+app.get('/api/disks', requireAuth, async (req, res) => res.json(await detectDisks()));
 
 // ---------- Tuiles liées à une VM / un LXC ou à un conteneur (#89) ----------
 const LINKS_CACHE_MS = 10_000;
 
-// CPU et mémoire de conteneurs Docker, par nom. CPU : part de la machine entière (comme pour
-// une VM Proxmox, part de ses cœurs). stream=false : Docker attend une seconde mesure (~1 s).
-async function dockerUsage(names) {
-  const list = await docker('GET', '/containers/json?all=1');
-  const out = {};
-  await Promise.all([...new Set(names)].map(async (name) => {
-    const c = list.find((x) => (x.Names || []).some((n) => n.replace(/^\//, '') === name));
-    if (!c) return;
-    const base = { name: `Docker · ${name}`, running: c.State === 'running' };
-    out[name] = base;
-    if (!base.running) return;
-    try {
-      const s = await docker('GET', `/containers/${c.Id}/stats?stream=false`);
-      const cpu = (s.cpu_stats?.cpu_usage?.total_usage ?? 0) - (s.precpu_stats?.cpu_usage?.total_usage ?? 0);
-      const system = (s.cpu_stats?.system_cpu_usage ?? 0) - (s.precpu_stats?.system_cpu_usage ?? 0);
-      const m = s.memory_stats || {};
-      // Comme `docker stats` : le cache de fichiers inactif ne compte pas.
-      const used = (m.usage || 0) - (m.stats?.inactive_file ?? m.stats?.total_inactive_file ?? 0);
-      out[name] = { ...base, cpu: system > 0 && cpu > 0 ? Math.min(1, cpu / system) : 0, mem: m.limit ? Math.max(0, used) / m.limit : 0 };
-    } catch { /* conteneur arrêté entre-temps : état seul */ }
-  }));
-  return out;
-}
 
 // { id d'app: { name, running, cpu, mem } | { missing: true } | { error: code } }
 async function computeLinks() {
@@ -1050,7 +554,7 @@ async function computeLinks() {
   // Une seule lecture par widget Proxmox (même cache que le widget) et une pour Docker.
   const pve = {};
   for (const a of apps.filter((x) => x.link.type === 'proxmox')) {
-    const w = cfg.widgets.find((x) => x.id === a.link.widget);
+    const w = findWidget(cfg, a.link.widget);
     pve[a.link.widget] ??= fetchWidget(w).catch((e) => ({ error: e.key || 'unreachable' }));
   }
   const names = apps.filter((a) => a.link.type === 'docker').map((a) => a.link.container);
@@ -1080,9 +584,9 @@ function getLinks() {
   return linksCache.promise;
 }
 
-app.get('/api/links', readAuth, route(async (req, res) => res.json(await getLinks())));
+app.get('/api/links', readAuth, async (req, res) => res.json(await getLinks()));
 
-app.get('/api/docker/containers', readAuth, route(async (req, res) => {
+app.get('/api/docker/containers', readAuth, async (req, res) => {
   try {
     const list = await docker('GET', '/containers/json?all=1');
     res.json({
@@ -1098,9 +602,9 @@ app.get('/api/docker/containers', readAuth, route(async (req, res) => {
   } catch (e) {
     res.json({ available: false, error: e.message });
   }
-}));
+});
 
-app.post('/api/docker/containers/:id/:action', requireAuth, route(async (req, res) => {
+app.post('/api/docker/containers/:id/:action', requireAuth, async (req, res) => {
   const { id, action } = req.params;
   if (!/^[a-f0-9]{12,64}$/.test(id) || !['start', 'stop', 'restart'].includes(action)) {
     return res.status(400).json({ error: 'Requête invalide', code: 'bad_request' });
@@ -1109,9 +613,9 @@ app.post('/api/docker/containers/:id/:action', requireAuth, route(async (req, re
     await docker('POST', `/containers/${id}/${action}`);
     res.json({ ok: true });
   } catch (e) {
-    res.status(502).json({ error: e.message });
+    sendError(res, 502, e);
   }
-}));
+});
 
 // Dernier filet : toute erreur non gérée devient une réponse JSON au lieu de faire tomber le serveur.
 app.use((err, req, res, next) => {
@@ -1173,22 +677,22 @@ setInterval(checkForNotifications, NOTIFY_INTERVAL_MS).unref();
 
 // Bouton « Envoyer un test » : réglages du formulaire, même pas encore enregistrés (URL et jeton
 // vides = ceux enregistrés).
-app.post('/api/notify/test', requireAuth, route(async (req, res) => {
+app.post('/api/notify/test', requireAuth, async (req, res) => {
   const cfg = await readConfig();
   let notify;
   try {
     notify = sanitizeNotify(req.body || {}, cfg.notify);
     if (!notify.type) throw fail('notify_missing', 'Notifications non configurées');
   } catch (e) {
-    return res.status(400).json({ error: e.message, code: e.key || 'bad_request', params: e.params });
+    return sendError(res, 400, { message: e.message, key: e.key || 'bad_request', params: e.params });
   }
   try {
     await sendNotification(notify, { kind: 'test', board: cfg.title });
   } catch (e) {
-    return res.status(502).json({ error: e.message, code: e.key, params: e.params });
+    return sendError(res, 502, e);
   }
   res.json({ ok: true });
-}));
+});
 
 // Express 5 passe l'erreur d'écoute (port déjà pris…) au rappel : sans ce contrôle, le dashboard
 // annonçait démarrer puis s'arrêtait avec le code 0, que systemd (Restart=on-failure) ne relance pas.
