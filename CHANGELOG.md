@@ -4,6 +4,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Modifié
+- README et site refaits pour présenter le projet : atouts, 40 widgets par famille, roadmap courte et captures à jour. Le détail passe dans `docs/GUIDE.md` et `docs/WIDGETS.md`, disponibles aussi en anglais avec les widgets qui y manquaient.
+
 ## [0.28.0] - 2026-11-05
 
 ### Ajouté

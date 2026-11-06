@@ -4,10 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Server Dashboard · open source homelab dashboard</title>
-  <meta name="description" content="Self-hosted, open source web dashboard for your server: app tiles, system stats, Docker containers and Proxmox, Pulse, Jellyfin, Plex, qBittorrent, Sonarr, Radarr widgets.">
+  <meta name="description" content="Self-hosted, open source web dashboard for your homelab: app tiles, system stats, Docker, alerts, pending updates and 40 widgets, including Proxmox, Jellyfin, Immich and CrowdSec.">
+  <link rel="canonical" href="https://circule-studio.github.io/server-dashboard/en/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Server Dashboard">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://circule-studio.github.io/server-dashboard/en/">
   <meta property="og:title" content="Server Dashboard">
-  <meta property="og:description" content="The open source dashboard for your homelab: services, stats, Docker and widgets on one page.">
-  <meta property="og:image" content="../screenshots/dashboard-en.png">
+  <meta property="og:description" content="Your services, your machines, Docker and 40 widgets on one page, self-hosted.">
+  <meta property="og:image" content="https://circule-studio.github.io/server-dashboard/screenshots/social-en.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#0b0f17">
   <link rel="alternate" hreflang="fr" href="https://circule-studio.github.io/server-dashboard/">
   <link rel="alternate" hreflang="en" href="https://circule-studio.github.io/server-dashboard/en/">
@@ -85,7 +93,7 @@
     h2 { font-size: clamp(1.6rem, 4vw, 2.3rem); letter-spacing: -0.02em; margin: 0 0 12px; }
     .section-lead { color: var(--muted); max-width: 60ch; margin: 0 0 36px; }
 
-    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
     .card { padding: 22px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--border); }
     .card .ico {
       width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px;
@@ -97,21 +105,23 @@
 
     /* Widgets */
     .split { display: grid; gap: 40px; grid-template-columns: 1.1fr 0.9fr; align-items: center; }
-    .integrations { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
+    .family { margin: 0 0 20px; }
+    .family h3 { margin: 0 0 10px; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+    .integrations { display: flex; flex-wrap: wrap; gap: 8px; }
     .integrations span {
-      display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px;
-      background: var(--card); border: 1px solid var(--border); font-size: 0.92rem;
+      display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px;
+      background: var(--card); border: 1px solid var(--border); font-size: 0.88rem;
     }
-    .integrations img { width: 20px; height: 20px; }
+    .integrations img { width: 18px; height: 18px; }
     .phone {
       justify-self: center; width: min(300px, 100%); aspect-ratio: 9 / 19; border-radius: 32px; overflow: hidden;
       border: 8px solid #1f2937; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5);
     }
     .phone img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-    ul.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
-    ul.checks li { padding-left: 28px; position: relative; color: var(--muted); }
-    ul.checks li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
-    ul.checks b { color: var(--text); font-weight: 600; }
+    .more-link { display: inline-block; margin-top: 4px; font-weight: 600; text-decoration: none; }
+    .more-link:hover { text-decoration: underline; }
+    figure.shot { margin-top: 40px; background: var(--bg-2); }
+    figcaption { padding: 12px 18px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
 
     /* Installation */
     .steps { display: grid; gap: 16px; counter-reset: step; }
@@ -167,6 +177,7 @@
     .phase li { display: flex; gap: 10px; color: var(--muted); font-size: 0.93rem; line-height: 1.45; }
     .phase li::before { content: "○"; flex: none; color: var(--muted); }
     .phase-done li::before { content: "✓"; color: var(--ok); font-weight: 700; }
+    .phase-link { display: inline-block; margin-top: 14px; font-size: 0.9rem; }
     .phase li a { color: var(--text); text-decoration: none; }
     .phase li a:hover { color: var(--accent); }
     .phase li a span { color: var(--muted); font-size: 0.85em; }
@@ -184,6 +195,7 @@
       </a>
       <div class="nav-links">
         <a href="#features">Features</a>
+        <a href="#widgets">Widgets</a>
         <a href="#installation">Install</a>
         <a href="#roadmap">Roadmap</a>
         <a href="#contribute">Contribute</a>
@@ -198,14 +210,13 @@
     <header class="hero">
       <span class="pill">Open source · MIT license · Self-hosted</span>
       <h1>Your whole <span>homelab</span> on a single page</h1>
-      <p class="lead">Server Dashboard brings your services, your server's health, your Docker containers and your media together in a lightweight dashboard you host yourself. One Docker command is all it takes.</p>
+      <p class="lead">Server Dashboard brings your services, the state of your machines, your Docker containers and 40 widgets together in a lightweight dashboard you host yourself. One command is all it takes to install.</p>
       <div class="cta">
         <a class="btn btn-primary" href="#installation">Install in 2 minutes</a>
         <a class="btn" href="https://github.com/Circule-studio/server-dashboard">View the code on GitHub</a>
       </div>
       <div class="shot">
-        <img src="../screenshots/dashboard-en.png" width="1440" height="1780"
-             alt="The dashboard: CPU, memory and disk stats, app tiles, Proxmox VE, Pulse, Weather, Immich, qBittorrent, Jellyfin, Sonarr, Radarr and Uptime Kuma widgets, and the Docker container list">
+        <img src="../screenshots/dashboard-en.png" width="1440" height="1000" alt="The dashboard: tabs, server stats, app tiles, and Proxmox VE, Jellyfin, Weather, Immich and qBittorrent widgets">
       </div>
     </header>
   </div>
@@ -213,81 +224,135 @@
   <section id="features">
     <div class="wrap">
       <h2>What it does</h2>
-      <p class="section-lead">The essentials of a homelab dashboard, with no database and no build step. A single Docker image.</p>
+      <p class="section-lead">The essentials of a homelab dashboard, with no database and no build step.</p>
       <div class="grid">
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
-          <h3>App tiles</h3>
-          <p>Your services grouped by category, with their icons and an online / offline indicator checked by the server.</p>
+          <h3>Everything in one place</h3>
+          <p>App tiles, tabs, bookmarks and keyboard search. Status is checked by the server, so LAN-only services work too.</p>
         </article>
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
-          <h3>Server stats</h3>
-          <p>Live CPU, memory, disks and uptime, color-coded as soon as a resource runs low.</p>
+          <h3>Your machines at a glance</h3>
+          <p>Server stats, Proxmox VE, Glances, or an agent that needs no open port.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+          <h3>Alerts, even with the page closed</h3>
+          <p>ntfy, Gotify, Discord or a webhook when an app goes down, a VM stops or a disk fills up.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></div>
+          <h3>Pending updates</h3>
+          <p>apt packages and Docker images, machine by machine. The dashboard shows them and installs nothing.</p>
         </article>
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div>
-          <h3>Docker control</h3>
-          <p>Your containers and their state. Start, stop or restart them in one click once logged in.</p>
+          <h3>Docker at your fingertips</h3>
+          <p>The state of your containers, with start, stop and restart once logged in.</p>
         </article>
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
-          <h3>No config files to edit</h3>
-          <p>Add, edit and reorder your apps with drag and drop, right in the password-protected interface.</p>
+          <h3>Everything set in the interface</h3>
+          <p>Drag and drop, light or dark theme, accent color, background image and alert thresholds, with no file to edit.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+          <h3>On your phone</h3>
+          <p>The interface adapts to the screen and installs like an app.</p>
         </article>
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
-          <h3>Secrets stay server-side</h3>
+          <h3>Secrets stay on the server</h3>
           <p>Your API keys and passwords stay on the server: they are never sent to the browser.</p>
         </article>
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
           <h3>Light and readable</h3>
-          <p>Node.js + Express and framework-free HTML/CSS/JS. Easy to read, change and extend.</p>
+          <p>Node.js with a single dependency (Express) and plain HTML/CSS/JS. Easy to read and change.</p>
         </article>
       </div>
+      <figure class="shot">
+        <img src="../screenshots/servers-en.png" width="1440" height="1000" loading="lazy" alt="The Servers tab: Pulse, two machines tracked with Glances, Scrutiny, backups and pending updates">
+        <figcaption>One tab per topic: here, your servers. Made-up data, from the project’s fake services.</figcaption>
+      </figure>
     </div>
   </section>
 
   <section id="widgets">
     <div class="wrap split">
       <div>
-        <h2>Widgets for your services</h2>
-        <p class="section-lead">Connect your apps and keep an eye on what's happening without opening ten tabs.</p>
-        <div class="integrations">
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/proxmox.svg" alt="" loading="lazy">Proxmox VE</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pulse.svg" alt="" loading="lazy">Pulse</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/jellyfin.svg" alt="" loading="lazy">Jellyfin</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg" alt="" loading="lazy">Plex</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/qbittorrent.svg" alt="" loading="lazy">qBittorrent</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sonarr.svg" alt="" loading="lazy">Sonarr</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/radarr.svg" alt="" loading="lazy">Radarr</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/immich.svg" alt="" loading="lazy">Immich</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pi-hole.svg" alt="" loading="lazy">Pi-hole</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/adguard-home.svg" alt="" loading="lazy">AdGuard Home</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/home-assistant.svg" alt="" loading="lazy">Home Assistant</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/uptime-kuma.svg" alt="" loading="lazy">Uptime Kuma</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/frigate.svg" alt="" loading="lazy">Frigate</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/crowdsec.svg" alt="" loading="lazy">CrowdSec</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/wazuh.svg" alt="" loading="lazy">Wazuh</span>
-          <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/traefik.svg" alt="" loading="lazy">Traefik</span>
+        <h2>40 widgets for your services</h2>
+        <p class="section-lead">Connect your apps and follow what’s going on without opening ten tabs.</p>
+        <div class="family">
+          <h3>Servers and backups</h3>
+          <div class="integrations">
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/proxmox.svg" alt="" loading="lazy">Proxmox VE</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/proxmox.svg" alt="" loading="lazy">Proxmox Backup Server</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI5NWE3IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iNCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE2IiByeD0iMiIvPjxwYXRoIGQ9Ik0zIDE1aDE4Ii8+PHBhdGggZD0iTTEyIDd2NW0tMi41LTIuNUwxMiAxMmwyLjUtMi41Ii8+PHBhdGggZD0iTTcgMThoLjAxIi8+PC9zdmc+Cg==" alt="" loading="lazy">Proxmox backups</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI5NWE3IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iNCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE2IiByeD0iMiIvPjxwYXRoIGQ9Ik0zIDE1aDE4Ii8+PHBhdGggZD0iTTEyIDd2NW0tMi41LTIuNUwxMiAxMmwyLjUtMi41Ii8+PHBhdGggZD0iTTcgMThoLjAxIi8+PC9zdmc+Cg==" alt="" loading="lazy">Script backup</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pulse.svg" alt="" loading="lazy">Pulse</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/glances.svg" alt="" loading="lazy">Glances</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI5NWE3IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMiIgeT0iMyIgd2lkdGg9IjIwIiBoZWlnaHQ9IjEzIiByeD0iMiIvPjxwYXRoIGQ9Ik04IDIxaDhNMTIgMTZ2NSIvPjxwYXRoIGQ9Ik0xNSA4bDMgMS41TDE1IDExTTkgOEw2IDkuNSA5IDExIi8+PC9zdmc+Cg==" alt="" loading="lazy">Agent</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI5NWE3IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIxIDEyYTkgOSAwIDEgMS0yLjYtNi40Ii8+PHBhdGggZD0iTTIxIDN2NWgtNSIvPjxwYXRoIGQ9Ik0xMiA4djVsMyAyIi8+PC9zdmc+Cg==" alt="" loading="lazy">Updates</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/scrutiny.svg" alt="" loading="lazy">Scrutiny</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/watchtower.svg" alt="" loading="lazy">Watchtower</span>
+          </div>
         </div>
-        <ul class="checks">
-          <li><b>Proxmox VE:</b> host CPU, RAM and disk, and the state of every VM and LXC container.</li>
-          <li><b>Pulse:</b> overall health, active alerts, nodes / VMs / LXC, as blocks you can place anywhere.</li>
-          <li><b>Jellyfin and Plex:</b> who is watching what, on which device, with progress.</li>
-          <li><b>qBittorrent:</b> speeds, active torrents and time left.</li>
-          <li><b>Sonarr and Radarr:</b> upcoming episodes and movies, download queue.</li>
-          <li><b>Pi-hole and AdGuard Home:</b> DNS queries, blocked queries and protection status.</li>
-          <li><b>Immich:</b> photos, videos and storage, per user with quotas.</li>
-          <li><b>Weather:</b> current conditions and a 5-day forecast, no API key (Open-Meteo).</li>
-          <li><b>Home Assistant and Frigate:</b> your sensors and entities, cameras and the latest events.</li>
-          <li><b>Security with CrowdSec, Wazuh and Traefik:</b> attacks and banned addresses, agents and security alerts, failing routers.</li>
-          <li><b>And over 30 widgets in all:</b> Uptime Kuma, Nginx Proxy Manager, Speedtest, Scrutiny, RSS feeds, calendar… and the widget you suggest.</li>
-        </ul>
+        <div class="family">
+          <h3>Media</h3>
+          <div class="integrations">
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/jellyfin.svg" alt="" loading="lazy">Jellyfin</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg" alt="" loading="lazy">Plex</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/qbittorrent.svg" alt="" loading="lazy">qBittorrent</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sonarr.svg" alt="" loading="lazy">Sonarr</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/radarr.svg" alt="" loading="lazy">Radarr</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/lidarr.svg" alt="" loading="lazy">Lidarr</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/readarr.svg" alt="" loading="lazy">Readarr</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/prowlarr.svg" alt="" loading="lazy">Prowlarr</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bazarr.svg" alt="" loading="lazy">Bazarr</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/spotify.svg" alt="" loading="lazy">Spotify</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/immich.svg" alt="" loading="lazy">Immich</span>
+          </div>
+        </div>
+        <div class="family">
+          <h3>Network and security</h3>
+          <div class="integrations">
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pi-hole.svg" alt="" loading="lazy">Pi-hole</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/adguard-home.svg" alt="" loading="lazy">AdGuard Home</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/crowdsec.svg" alt="" loading="lazy">CrowdSec</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/wazuh.svg" alt="" loading="lazy">Wazuh</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/authelia.svg" alt="" loading="lazy">Authelia</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/traefik.svg" alt="" loading="lazy">Traefik</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/nginx-proxy-manager.svg" alt="" loading="lazy">Nginx Proxy Manager</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/uptime-kuma.svg" alt="" loading="lazy">Uptime Kuma</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/speedtest-tracker.png" alt="" loading="lazy">Speedtest Tracker</span>
+          </div>
+        </div>
+        <div class="family">
+          <h3>Home and daily life</h3>
+          <div class="integrations">
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/home-assistant.svg" alt="" loading="lazy">Home Assistant</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/frigate.svg" alt="" loading="lazy">Frigate</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMTAiIGZpbGw9IiNmYmJmMjQiLz48ZyBzdHJva2U9IiNmYmJmMjQiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNMjQgNHY1TTI0IDM5djVNNCAyNGg1TTM5IDI0aDVNOS45IDkuOWwzLjUgMy41TTM0LjYgMzQuNmwzLjUgMy41TTkuOSAzOC4xbDMuNS0zLjVNMzQuNiAxMy40bDMuNS0zLjUiLz48L2c+PHBhdGggZmlsbD0iIzllYzVmZiIgZD0iTTIyIDU2YTEwIDEwIDAgMCAxLTEtMTkuOUExNCAxNCAwIDAgMSA0Ny42IDMyIDExIDExIDAgMCAxIDQ5IDU2eiIvPjwvc3ZnPgo=" alt="" loading="lazy">Weather</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI5NWE3IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iNCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE3IiByeD0iMiIvPjxwYXRoIGQ9Ik0zIDloMThNOCAydjRNMTYgMnY0Ii8+PHBhdGggZD0iTTggMTNoMk0xNCAxM2gyTTggMTdoMiIvPjwvc3ZnPgo=" alt="" loading="lazy">iCal calendar</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjU5ZTBiIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTFhOSA5IDAgMCAxIDkgOSIvPjxwYXRoIGQ9Ik00IDRhMTYgMTYgMCAwIDEgMTYgMTYiLz48Y2lyY2xlIGN4PSI1IiBjeT0iMTkiIHI9IjEiLz48L3N2Zz4K" alt="" loading="lazy">RSS / Atom feeds</span>
+          </div>
+        </div>
+        <div class="family">
+          <h3>Web and development</h3>
+          <div class="integrations">
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/loki.svg" alt="" loading="lazy">Loki / Grafana</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/goaccess.svg" alt="" loading="lazy">GoAccess</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI5NWE3IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOSIvPjxwYXRoIGQ9Ik0zIDEyaDE4Ii8+PHBhdGggZD0iTTEyIDNhMTQgMTQgMCAwIDEgMCAxOE0xMiAzYTE0IDE0IDAgMCAwIDAgMTgiLz48L3N2Zz4K" alt="" loading="lazy">Alwaysdata</span>
+            <span><img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/github.svg" alt="" loading="lazy">GitHub</span>
+            <span><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjN2M5Y2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTggM0g3YTIgMiAwIDAgMC0yIDJ2NWEyIDIgMCAwIDEtMiAyIDIgMiAwIDAgMSAyIDJ2NWEyIDIgMCAwIDAgMiAyaDEiLz48cGF0aCBkPSJNMTYgMjFoMWEyIDIgMCAwIDAgMi0ydi01YTIgMiAwIDAgMSAyLTIgMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMC0yLTJoLTEiLz48L3N2Zz4K" alt="" loading="lazy">Custom API</span>
+          </div>
+        </div>
+        <a class="more-link" href="https://github.com/Circule-studio/server-dashboard/blob/main/docs/WIDGETS.en.md">Details of each widget →</a>
       </div>
       <div class="phone">
-        <img src="../screenshots/mobile-en.png" width="780" height="2480" loading="lazy" alt="The dashboard on a phone: server stats and app tiles">
+        <img src="../screenshots/mobile-en.png" width="780" height="1688" loading="lazy" alt="The dashboard on a phone: tabs, server stats and app tiles">
       </div>
     </div>
   </section>
@@ -331,63 +396,31 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
   <section id="roadmap">
     <div class="wrap">
       <h2>Roadmap</h2>
-      <p class="section-lead">Where the project stands and what's coming. Each item is a GitHub issue: pick one and dive in!</p>
+      <p class="section-lead">What’s ready and what’s coming. Each upcoming item is a GitHub issue open to contributions.</p>
       <div class="roadmap">
         <article class="phase phase-done">
-          <div class="phase-head"><h3>Versions 0.1 – 0.27</h3><span class="tag tag-done">Available</span></div>
+          <div class="phase-head"><h3>Available today</h3><span class="tag tag-done">Available</span></div>
           <ul>
-            <li>App tiles with online status</li>
-            <li>CPU, memory, uptime and multiple disks</li>
-            <li>Docker panel</li>
-            <li>Proxmox VE and Pulse widgets</li>
-            <li>Jellyfin, Plex, qBittorrent, Sonarr, Radarr widgets</li>
-            <li>Weather, Immich, Pi-hole and AdGuard Home widgets</li>
-            <li>Light theme and quick search (/ key)</li>
-            <li>Layout grid and drag and drop, touch included</li>
-            <li>Phone-friendly interface</li>
-            <li>GitHub, Uptime Kuma, Home Assistant, Frigate and Nginx Proxy Manager widgets</li>
-            <li>GoAccess, Alwaysdata, RSS / Atom feed and iCal calendar widgets</li>
-            <li>Proxmox Backup Server, Scrutiny, Speedtest Tracker, Lidarr, Readarr, Prowlarr, Bazarr and custom API widgets</li>
-            <li>CrowdSec, Wazuh and Traefik security widgets</li>
-            <li>Loki / Grafana, Authelia, Watchtower and backup (Proxmox or script) widgets</li>
-            <li>Spotify widget</li>
-            <li>Bookmarks: compact links with no status</li>
-            <li>Choose widget numbers and color thresholds</li>
-            <li>Background image, accent color and an installable phone app</li>
-            <li>Widgets inside categories and a refresh button</li>
-            <li>Tile status from another address or a ping, with the response time</li>
-            <li>Tabs and collapsible categories</li>
-            <li>Updates widget: pending apt packages and Docker images, per machine</li>
-            <li>Tiles linked to a VM, LXC or container (CPU and RAM)</li>
-            <li>Several machines on the same dashboard (Glances or agent)</li>
-            <li>ntfy, Gotify, Discord or webhook notifications when an app goes down, a VM stops, a disk fills up or an attack is detected</li>
-            <li>Catalog of well-known apps and tile sizes</li>
-            <li>Configuration export and import</li>
-            <li>Docker (amd64 / arm64 image) or systemd install</li>
-            <li>Welcome screen on first launch</li>
-            <li>Interface and website in English and French</li>
+            <li>40 widgets and a custom API</li>
+            <li>System stats and Docker control</li>
+            <li>Tabs, categories, bookmarks and search</li>
+            <li>Alerts to ntfy, Gotify, Discord or a webhook</li>
+            <li>Several machines and pending updates</li>
+            <li>Docker or systemd, English and French, phone app</li>
           </ul>
+          <a class="phase-link" href="https://github.com/Circule-studio/server-dashboard/blob/main/CHANGELOG.md">Full history in the changelog (in French) →</a>
         </article>
         <article class="phase">
-          <div class="phase-head"><h3>Organization and customization</h3><span class="tag tag-next">Up next</span></div>
+          <div class="phase-head"><h3>In progress</h3><span class="tag tag-next">In progress</span></div>
           <ul>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/93">Bookmarks: compact lists of links <span>#93</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/95">Background image, accent color and installable app <span>#95</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/96">Per-widget settings: shown figures and color thresholds <span>#96</span></a></li>
-          </ul>
-        </article>
-        <article class="phase">
-          <div class="phase-head"><h3>Real-world testing</h3><span class="tag tag-next">Up next</span></div>
-          <ul>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/68">Test the widgets against real services <span>#68</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/68">Test the widgets and notifications with real services <span>#68</span></a></li>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/69">Test the Proxmox script on a real Proxmox <span>#69</span></a></li>
           </ul>
         </article>
         <article class="phase">
-          <div class="phase-head"><h3>Further out</h3><span class="tag tag-later">Being explored</span></div>
+          <div class="phase-head"><h3>Further out</h3><span class="tag tag-later">Exploring</span></div>
           <ul>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/15">One-click install via community-scripts (Proxmox) <span>#15</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/105">Honeypot: see who is attacking the server in real time <span>#105</span></a></li>
+            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/15">One-click install through community-scripts (Proxmox) <span>#15</span></a></li>
           </ul>
         </article>
       </div>
@@ -398,10 +431,10 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
   <section id="contribute">
     <div class="wrap">
       <div class="contribute">
-        <h2>Let's build it together</h2>
-        <p>The project is young and looking for contributors, especially on the interface: light theme, mobile layout, new widgets. Fake services (<code>npm run mocks</code>) let you test everything without installing anything.</p>
+        <h2>Let’s build it together</h2>
+        <p>The project is young and open to contributions: new widgets, interface, translations. Feedback from real services is also very useful. Fake services (<code>npm run mocks</code>) let you test everything without installing anything.</p>
         <div class="cta">
-          <a class="btn btn-primary" href="https://github.com/Circule-studio/server-dashboard/contribute">See the "good first issues"</a>
+          <a class="btn btn-primary" href="https://github.com/Circule-studio/server-dashboard/issues">See the issues</a>
           <a class="btn" href="https://github.com/Circule-studio/server-dashboard/blob/main/README.en.md#contributing">How to contribute</a>
         </div>
       </div>
@@ -411,7 +444,9 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
   <footer>
     <div class="wrap">
       Server Dashboard · open source under the MIT license ·
-      <a href="https://github.com/Circule-studio/server-dashboard">github.com/Circule-studio/server-dashboard</a>
+      <a href="https://github.com/Circule-studio/server-dashboard">GitHub</a> ·
+      <a href="https://github.com/Circule-studio/server-dashboard/blob/main/docs/GUIDE.en.md">Guide</a> ·
+      <a href="https://github.com/Circule-studio/server-dashboard/blob/main/CHANGELOG.md">Changelog</a>
     </div>
   </footer>
 
