@@ -7,7 +7,7 @@ Merci de ton aide ! Le projet cherche surtout des contributions sur **l'interfac
 Il faut Node.js 20 ou plus récent.
 
 ```bash
-git clone <url-du-dépôt>
+git clone https://github.com/Circule-studio/server-dashboard.git
 cd server-dashboard
 npm install
 npm run dev      # dashboard sur http://localhost:7575 (mot de passe : admin)
@@ -69,6 +69,10 @@ Pour la première PR d’un nouveau contributeur, un mainteneur doit autoriser l
 1. Ouvre une *issue* pour discuter de l'idée si c'est un gros changement.
 2. Fais un fork, crée une branche à partir de `preprod` (`git checkout -b ma-fonctionnalite origin/preprod`), commite, puis ouvre une *pull request* **vers `preprod`**.
 3. Pour un changement visuel, ajoute une capture d'écran avant / après dans la PR.
+
+## Publier une version
+
+Mets à jour `version` dans `package.json` et `CHANGELOG.md`, fusionne dans `main`, puis pousse un tag `vX.Y.Z`. Le workflow `release.yml` crée la release.
 
 ## Sécurité
 

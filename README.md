@@ -1,244 +1,96 @@
 # Server Dashboard
 
-🇬🇧 [English version](README.en.md)
+**Your whole homelab on one page.** Your services, your machines, Docker and 40 widgets, in a lightweight dashboard you host yourself.
 
-Dashboard web auto-hébergé, dans l'esprit de Homarr, pour accéder aux services de ton serveur depuis une seule page. Interface en **français et en anglais** (bouton EN / FR).
+[![Latest release](https://img.shields.io/github/v/release/Circule-studio/server-dashboard?label=release)](https://github.com/Circule-studio/server-dashboard/releases)
+[![CI](https://github.com/Circule-studio/server-dashboard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Circule-studio/server-dashboard/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/github/license/Circule-studio/server-dashboard)](LICENSE)
 
-![Vue d'ensemble du dashboard : stats du serveur, tuiles d'applications, widgets Proxmox VE, Pulse, Météo, Immich, qBittorrent, Jellyfin, Sonarr, Radarr, Uptime Kuma et conteneurs Docker](docs/screenshots/dashboard.png)
+🌐 [Project website](https://circule-studio.github.io/server-dashboard/en/) · 🇫🇷 [Version française](README.fr.md) · 📖 [Guide](docs/GUIDE.md) · 🧩 [Widgets](docs/WIDGETS.md)
+
+![The dashboard: tabs, server stats, app tiles, and Proxmox VE, Jellyfin, Weather, Immich and qBittorrent widgets](docs/screenshots/dashboard-en.png)
 
 <details>
-<summary>Version mobile</summary>
+<summary>More screenshots</summary>
 
-<img src="docs/screenshots/mobile.png" alt="Le dashboard sur un écran de téléphone" width="320">
+![The Servers tab: Pulse, two machines tracked with Glances, Scrutiny, backups and pending updates](docs/screenshots/servers-en.png)
+
+<img src="docs/screenshots/mobile-en.png" alt="The dashboard on a phone screen" width="320">
 
 </details>
 
-*Captures réalisées avec les faux services de `npm run mocks`.*
+*Screenshots taken with the fake services from `npm run mocks`: the data is made up.*
 
-- **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local. Une tuile peut être **liée à sa VM, son LXC Proxmox ou son conteneur Docker** pour afficher leur CPU et leur RAM.
-- **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
-- **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
-- **Recherche rapide** : commence à taper n’importe où. Elle filtre les tuiles et propose, au clavier, la tuile à ouvrir, l’adresse tapée (`nas.maison:8080`) ou une recherche web (DuckDuckGo, Google, Qwant…, ou une adresse personnalisée, réglable dans Affichage).
-- **Widgets d'intégration** :
-  - **Jellyfin / Plex** : lectures en cours (utilisateur, progression, pause) et taille de la bibliothèque.
-  - **qBittorrent** : débits, torrents actifs, progression et temps restant.
-  - **Sonarr / Radarr / Lidarr / Readarr** : épisodes, films, albums et livres à venir, file de téléchargement.
-  - **Prowlarr** : indexeurs actifs et en pause, requêtes et téléchargements récupérés. **Bazarr** : épisodes et films sans sous-titres.
-  - **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
-  - **Proxmox Backup Server** : sauvegardes réussies et en échec des dernières 24 h, occupation des datastores.
-  - **Scrutiny** : santé SMART des disques, ceux en échec en premier, avec leur température.
-  - **Speedtest Tracker** : dernier test de débit, moyenne sur 7 jours et derniers tests.
-  - **Uptime Kuma** : sondes d’une page de statut, celles en panne en premier, avec le temps de réponse et la disponibilité sur 24 h.
-  - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
-  - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
-  - **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
-  - **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas. Si un compteur de téléchargements `dl-stats` est placé devant Immich, ses totaux (téléchargements, photos téléchargées, visiteurs) s’affichent aussi.
-  - **GoAccess** : visiteurs uniques d’un site (total, aujourd’hui, 7 derniers jours), requêtes et trafic, lus dans un rapport JSON de GoAccess.
-  - **Alwaysdata** : les sites d’un compte d’hébergement, chacun testé par le dashboard (en ligne, en panne, temps de réponse), ceux en panne en premier.
-  - **Calendrier** : les événements des 7 prochains jours d’un ou plusieurs agendas iCal (Nextcloud, Google Agenda, Proton…), récurrents compris, groupés par jour.
-  - **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date.
-  - **CrowdSec** : les attaques détectées sur ton serveur dans les dernières 24 h (adresse, pays, opérateur, scénario), les plus actifs, et les adresses bannies ; alerte en cas de pic.
-  - **Wazuh** : les agents actifs et déconnectés, et, avec l’indexer, les alertes de sécurité des 24 h par gravité ; alerte quand un agent se déconnecte ou en cas d’alerte critique.
-  - **Spotify** : ce qui joue en ce moment (titre, pochette, progression, appareil) et les dernières écoutes, cachées aux visiteurs non connectés.
-  - **Loki / Grafana** : volume de logs et erreurs des dernières 24 h, avec les dernières lignes d’erreur et les sources les plus bavardes.
-  - **Authelia** : connexions réussies, refusées et bloquées, double authentification, accès autorisés et refusés.
-  - **Watchtower** : conteneurs vérifiés, à mettre à jour et en échec lors du dernier passage.
-  - **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines dans aucune sauvegarde planifiée, stockage et prochaine sauvegarde ; alerte en cas d’échec.
-  - **Sauvegarde par script** : le résultat d’un script maison (rsync vers un disque USB…) : date, taille, succès ou échec, historique ; alerte en cas d’échec ou de retard.
-  - **Traefik** : routeurs, services et middlewares, avec ceux en erreur ou en alerte ; alerte quand un routeur tombe en erreur.
-  - **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
-  - **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
-  - **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
-  - **Nginx Proxy Manager** : hôtes actifs et désactivés, certificats SSL triés par date d’expiration, ceux qui expirent dans les 14 jours mis en évidence.
-  - **GitHub** : suivre un dépôt, avec sa dernière version, les commits non publiés depuis, les issues et les pull requests ouvertes.
-  - **API personnalisée** : n’importe quelle API JSON (service sans widget, script maison) : on choisit les valeurs à afficher par leur chemin dans la réponse, avec un format (nombre, pourcentage, octets, débit, date).
-- **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
-- **Onglets** (ex. « Maison », « Serveur », « Médias ») pour répartir widgets et catégories sur plusieurs pages, avec un lien direct par onglet (`#medias`). La recherche parcourt tous les onglets.
-- **Bouton ⟳ sur chaque widget**, pour l'admin connecté : les données à l'instant, sans cache. Un agent répond tout de suite, et le widget Mises à jour relance la recherche sur chaque machine.
-- **Favoris** : une catégorie peut s’afficher en liens compacts (icône et nom, ou icônes seules), sans statut ni notification, pour la documentation, le routeur, etc. La recherche les trouve aussi.
-- **Chiffres au choix et seuils de couleur** : dans le formulaire d’un widget à blocs de chiffres, coche ceux à afficher et choisis à partir de quelle valeur ils passent en orange ou en rouge.
-- **Apparence** : couleur d’accent et image de fond (adresse ou fichier envoyé), avec le flou des cartes, dans Mode édition > Affichage.
-- **Application installable** : « Ajouter à l’écran d’accueil » sur téléphone ouvre le dashboard en plein écran, avec son nom et son icône (HTTPS requis sur Android pour l’installation complète).
-- **Widgets dans les catégories** : en mode édition, chaque widget a un menu pour le ranger dans une catégorie, sous ses tuiles. Il suit alors son onglet et se replie avec elle.
-- **Catégories repliables** d’un clic sur leur titre (état mémorisé dans le navigateur, ou repliées par défaut), avec une icône facultative.
-- **Mises à jour** : un badge « 7 mises à jour en attente », cliquable pour le détail par machine : paquets apt (dont ceux de sécurité) et images Docker dont le tag a changé. Pour le serveur du dashboard et chaque machine avec un agent. Affichage seulement, rien n’est installé. Les visiteurs non connectés ne voient que les nombres ; voir [agent/README.md](agent/README.md#mises-à-jour-en-attente).
-- **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](agent/README.md).
-- **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé. Avec la case « M’alerter » d’un widget, aussi pour ce qu’il surveille : VM, conteneur ou nœud Proxmox arrêté, disque à plus de 90 % (Proxmox, Glances, Agent), machine Glances ou Agent hors ligne, certificat Nginx Proxy Manager qui expire dans 7 jours, sonde Uptime Kuma hors ligne, caméra Frigate coupée.
-- **Sauvegarde** : export de la configuration en un fichier (avec ou sans les clés API), et import pour la restaurer ou la recopier sur une autre machine.
+## Why Server Dashboard
 
-Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
+- **Everything in one place**: app tiles, tabs, bookmarks and keyboard search. Status is checked by the server, so LAN-only services work too.
+- **Your machines at a glance**: server stats, Proxmox VE, Glances, or an agent that needs no open port.
+- **Alerts, even with the page closed**: ntfy, Gotify, Discord or a webhook when an app goes down, a VM stops or a disk fills up.
+- **Pending updates**: apt packages and Docker images, machine by machine. The dashboard shows them and installs nothing.
+- **Docker at your fingertips**: the state of your containers, with start, stop and restart once logged in.
+- **Everything is set in the interface**: drag and drop, light or dark theme, accent color, background image and alert thresholds, with no file to edit.
+- **On your phone**: the interface adapts and installs like an app.
+- **Light and readable**: Node.js with a single dependency (Express), no database and no build step. Your API keys stay on the server.
 
-## Déploiement sur le serveur (Docker)
+## 40 widgets
 
-L'image est publiée à chaque version sur `ghcr.io/circule-studio/server-dashboard` (amd64 et arm64, donc Raspberry Pi compris) : pas besoin de cloner le dépôt.
+| Family | Services |
+|---|---|
+| **Servers and backups** | Proxmox VE, Proxmox Backup Server, Proxmox backups, script backup, Pulse, Glances, Agent, Updates, Scrutiny, Watchtower |
+| **Media** | Jellyfin, Plex, qBittorrent, Sonarr, Radarr, Lidarr, Readarr, Prowlarr, Bazarr, Spotify, Immich |
+| **Network and security** | Pi-hole, AdGuard Home, CrowdSec, Wazuh, Authelia, Traefik, Nginx Proxy Manager, Uptime Kuma, Speedtest Tracker |
+| **Home and daily life** | Home Assistant, Frigate, Weather, iCal calendar, RSS / Atom feeds |
+| **Web and development** | Loki / Grafana, GoAccess, Alwaysdata, GitHub, a custom API widget for everything else |
 
-1. Récupère les deux fichiers de configuration :
+What each widget shows and where to find its credentials: [docs/WIDGETS.md](docs/WIDGETS.md).
 
-   ```bash
-   mkdir server-dashboard && cd server-dashboard
-   curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
-   curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
-   ```
+## Installation
 
-2. Ouvre `.env` et remplace `change-moi` par un vrai mot de passe. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `compose.yaml`.
-3. Lance :
+### Without Docker, in one command
 
-   ```bash
-   docker compose up -d
-   ```
-
-4. Ouvre `http://IP-DU-SERVEUR:7575` : un écran d'accueil te guide (Connexion, puis Éditer).
-
-**Mettre à jour** : `docker compose pull && docker compose up -d`. La config reste dans `./data`.
-
-**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `compose.yaml` par `build: .`, puis `docker compose up -d --build`.
-
-## Installation sans Docker (Debian / Ubuntu, LXC Proxmox)
-
-Une commande, en root, sur Debian 12+ ou Ubuntu 22.04+ avec systemd. Ça marche aussi dans un conteneur LXC Proxmox ou sur un Raspberry Pi :
+As root, on Debian 12+ or Ubuntu 22.04+ with systemd. It also works in a Proxmox LXC container or on a Raspberry Pi:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/packaging/install.sh | sudo bash
 ```
 
-Le script :
-- installe Node.js 22 si besoin ;
-- télécharge la dernière release dans `/opt/server-dashboard` ;
-- crée un utilisateur système `server-dashboard` et un service systemd du même nom ;
-- génère un mot de passe admin et l'affiche une seule fois.
+The script installs Node.js if needed, creates a systemd service and prints the generated admin password once. Run the same command again to update.
 
-| Quoi | Où |
-|---|---|
-| Réglages (mot de passe, port, `REQUIRE_LOGIN`…) | `/etc/server-dashboard/server-dashboard.env`, puis `sudo systemctl restart server-dashboard` |
-| Config du dashboard (tuiles, widgets) | `/var/lib/server-dashboard/` |
-| Logs | `journalctl -u server-dashboard -f` |
+### With Docker
 
-- **Mettre à jour** : relance la même commande. La config et les réglages sont conservés.
-- **Choisir une version, un port ou un mot de passe** à la première installation : `… | sudo SD_VERSION=v0.1.0 SD_PORT=8080 SD_ADMIN_PASSWORD=… bash`
-- **Désinstaller** : `… | sudo bash -s -- --uninstall` (ajoute `--purge` pour effacer aussi la config).
-- **Panneau Docker** : si Docker est installé sur la machine, le service est ajouté au groupe `docker`. Sinon, le panneau est simplement masqué.
-
-## Développement en local
+The image is published for amd64 and arm64 (Raspberry Pi included):
 
 ```bash
-npm install
-npm run dev
+mkdir server-dashboard && cd server-dashboard
+curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/compose.yaml
+curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
 ```
 
-Puis ouvre http://localhost:7575. Le mot de passe est celui de ton fichier `.env` s'il existe (attention aux majuscules), sinon `admin`.
-
-Pour travailler sur les widgets sans avoir les vrais services, lance un faux service pour chaque widget (Jellyfin, Plex, Proxmox, Home Assistant, GitHub…) et un faux Docker dans un second terminal :
+Open `.env`, replace `change-moi` with a real password, then run:
 
 ```bash
-npm run mocks
+docker compose up -d
 ```
 
-Les URL et clés de test à saisir sont en tête de [dev/mocks.js](dev/mocks.js).
+Either way, open `http://SERVER-IP:7575`: a welcome screen guides you. To update with Docker: `docker compose pull && docker compose up -d`.
 
-## Plusieurs disques
+### Before exposing it to the internet
 
-En mode édition, le bouton **Disques** liste les disques détectés sur la machine (`C:\`, `D:\`… sous Windows, les partitions réelles comme `/` ou `/mnt/data` sous Linux). Coche ceux à afficher et donne-leur un nom (« Films », « Sauvegardes »…) : chacun a sa carte dans les stats. Tu peux aussi saisir un chemin à la main (partage réseau monté, dossier…).
+By default, the dashboard can be read without logging in: only editing is protected. To open it to the outside, set `REQUIRE_LOGIN=true` and put it behind an HTTPS reverse proxy or a VPN. The Docker panel gives root-equivalent access to the host. Details: [Security](docs/GUIDE.md#security).
 
-**Avec Docker**, le conteneur ne voit que ce qui est monté. `compose.yaml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
+## Documentation
 
-```yaml
-    volumes:
-      - /srv/films:/host/srv/films:ro
-```
+- [Guide](docs/GUIDE.md): features in detail, installation, disks, environment variables, security, API and development.
+- [Widgets](docs/WIDGETS.md): what each widget shows and where to find its credentials.
+- [Agent](agent/README.md) (in French): track a machine behind NAT or without an open port.
+- [Changelog](CHANGELOG.md) (in French) and [published releases](https://github.com/Circule-studio/server-dashboard/releases).
 
-**Dans un conteneur LXC Proxmox**, le dashboard ne voit que le disque du conteneur : utilise plutôt le widget Proxmox VE pour les stockages de l'hôte.
+## Contributing
 
-## Widgets : où trouver les identifiants
+The project is young and open to contributions: new widgets, interface, translations. Feedback from real services is also very useful ([#68](https://github.com/Circule-studio/server-dashboard/issues/68)). `npm run mocks` starts a fake service for each widget, so you can test everything without installing anything. Pull requests target the **`preprod`** branch. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
-| Service | Champs | Où les trouver |
-|---|---|---|
-| Jellyfin | URL + clé API | Tableau de bord > Clés API > « + » |
-| Plex | URL + token | Valeur `X-Plex-Token` ([doc Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) |
-| qBittorrent | URL + utilisateur / mot de passe de la WebUI | Options > Interface web |
-| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + clé API | Settings > General > API Key |
-| Bazarr | URL (`http://IP:6767`) + clé API | Settings > General > Security > API Key |
-| Pulse | URL (`http://IP:7655`) + jeton d’API | Pulse > Paramètres > API Access, scope `monitoring:read` |
-| Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
-| Proxmox Backup Server | URL (`https://IP:8007`) + identifiant et secret d’un jeton d’API | Configuration > Access Control > API Token, avec le rôle **Audit** sur `/` pour le jeton (lecture seule) |
-| Scrutiny | URL de l’interface (`http://IP:8080`) | Aucune clé |
-| Speedtest Tracker | URL + jeton d’API facultatif | v1 : Settings > API Tokens (lecture). Sans jeton : ancienne API publique (v0) |
-| Pi-hole (v6) | URL (`http://IP`) + mot de passe | Celui de l’interface web. Avec la 2FA : mot de passe d’application (Paramètres > Web interface / API, mode Expert, « Configure app password »). Vide si Pi-hole n’a pas de mot de passe |
-| AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
-| Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
-| Calendrier | Adresse(s) `.ics` + identifiant / mot de passe facultatifs | Nextcloud : ⋯ > Copier le lien privé ; Google Agenda : Paramètres > Adresse secrète au format iCal. Plusieurs agendas : adresses séparées par un espace. L’adresse est gardée sur le serveur comme une clé |
-| GoAccess | URL du rapport JSON (`goaccess … -o rapport.json`) | Aucune clé. Pour ne rien exposer de sensible, génère un rapport limité au panneau des visiteurs (`--ignore-panel` pour tous les autres, dont `HOSTS`) : il ne contient aucune adresse IP |
-| Alwaysdata | Jeton d’API + nom du compte (facultatif) | Alwaysdata > Profil > Gestion des jetons. Le compte n’est utile que si le jeton en gère plusieurs. Le widget lit seulement la liste des sites, puis teste lui-même leur première adresse (HTTPS, sinon HTTP) |
-| Wazuh | URL de l’API du manager (`https://IP:55000`) + utilisateur et mot de passe de l’API ; facultatif : URL de l’indexer (`https://IP:9200`) et `utilisateur:mot de passe` de l’indexer | Compte de l’API Wazuh (idéalement avec le rôle `readonly`). Sans l’indexer, seuls les agents s’affichent. Certificats auto-signés acceptés |
-| Spotify | Client ID + Client Secret d’une application créée sur [developer.spotify.com](https://developer.spotify.com/dashboard), puis connexion du compte dans le widget | Son propriétaire doit avoir **Spotify Premium** (règle de Spotify). Enregistre le widget, rouvre-le et suis les trois étapes. Le dashboard n’étant pas en https, la page de retour ne s’affiche pas : recopie son adresse. La connexion est à refaire tous les 6 mois |
-| Loki / Grafana | URL de Loki (`http://IP:3100`) ; identifiant et mot de passe si un reverse proxy la protège ; ou URL de Grafana avec le chemin de la source (`https://grafana/api/datasources/proxy/uid/UID`) et un jeton de compte de service (rôle Viewer) | Sélecteur LogQL facultatif, ex. `{job="varlogs"}`. Les lignes d’erreur ne sont montrées qu’aux admins |
-| Authelia | URL des métriques (`http://IP:9959`) | Dans sa configuration : `telemetry: { metrics: { enabled: true } }`. Compteurs depuis son démarrage. Authelia ne publie pas le nombre de sessions actives |
-| Watchtower | URL de l’API (`http://IP:8080`) + jeton | Lancer avec `WATCHTOWER_HTTP_API_METRICS=true` et `WATCHTOWER_HTTP_API_TOKEN`. Ses métriques ne donnent ni le nom des conteneurs ni la date du passage : le dashboard note quand il voit un nouveau passage. Pour les noms, voir le widget Mises à jour. Watchtower n’est plus maintenu depuis 2025 |
-| Sauvegardes Proxmox | Comme Proxmox VE : URL, identifiant et secret du jeton (rôle PVEAuditor) | Lit les tâches `vzdump` et les stockages de sauvegarde, y compris un disque USB monté dans Proxmox |
-| Sauvegarde par script | Rien : le jeton est généré | Enregistre le widget, rouvre-le, et colle les lignes affichées à la fin de ton script. Adapte le chemin et `everyHours` (heures entre deux sauvegardes, pour détecter un retard) |
-| Traefik | URL de l’API (`http://IP:8080` ou le routeur qui publie `api@internal`) ; utilisateur et mot de passe si un middleware basicAuth la protège | Activer `api.dashboard` (ou `api.insecure` sur un réseau privé) dans la configuration statique de Traefik |
-| CrowdSec | URL de l’API locale (`http://IP:8080`) + compte machine **ou** clé de bouncer | Sur la machine CrowdSec : `cscli machines add dashboard --password …` (attaques détaillées : pays, opérateur, scénario) ou `cscli bouncers add dashboard` (lecture seule : adresses bannies). La liste communautaire n’est pas comptée comme une attaque |
-| Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
-| Uptime Kuma | URL (`http://IP:3001`) + nom de la page de statut, ou l’adresse complète de la page | Aucune clé : les pages de statut sont publiques (Uptime Kuma > Pages de statut) |
-| Glances | URL (`http://IP:61208`) + mot de passe facultatif | Lance `glances -w` sur la machine (avec `--password` pour en exiger un ; utilisateur `glances` par défaut) |
-| Frigate | URL (`http://IP:5000`), ou `https://IP:8971` + utilisateur / mot de passe | Port 5000 : rien à saisir. Port 8971 (Frigate 0.14+) : un compte Frigate, idéalement avec le rôle « viewer ». Les miniatures passent par le dashboard et suivent `REQUIRE_LOGIN` |
-| Home Assistant | URL (`http://IP:8123`) + jeton + entités (une par ligne) | Ton profil > Sécurité > Jetons d’accès longue durée. Les identifiants d’entités (`sensor.salon_temperature`) sont dans Paramètres > Appareils et services > Entités |
-| Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / mot de passe | Le compte de l’interface d’administration. Un compte dédié avec la permission « Proxy Hosts » en lecture suffit |
-| GitHub | Dépôt (`propriétaire/dépôt` ou son adresse) + jeton facultatif | Jeton obligatoire pour un dépôt privé : Settings > Developer settings > *Fine-grained tokens*, en lecture seule (Contents, Issues, Pull requests, Metadata). Sans jeton, GitHub limite à 60 requêtes par heure : rafraîchi toutes les 15 min (2 min avec un jeton), ce qui permet 4 à 5 widgets. Si la limite est atteinte, les dernières données restent affichées. L’URL de l’API ne sert que pour GitHub Enterprise |
-| API personnalisée | URL qui renvoie du JSON + valeurs (une par ligne : `chemin \| libellé \| format`) + authentification facultative | Chemin avec des points : `data.users.count`, `items.0.name`, `liste.length`. Formats : texte, nombre, pourcentage, octets, débit, date. Authentification : un en-tête (`X-Api-Key: …`, ou une valeur seule envoyée en `Authorization: Bearer …`) ou identifiant / mot de passe (Basic) |
+Found a vulnerability? Please report it privately, see [SECURITY.md](SECURITY.md).
 
-**Pulse** : coche les blocs à afficher (Santé, Alertes, Nœuds / VM / LXC). Pour les placer librement, ajoute plusieurs widgets Pulse avec chacun un bloc, puis déplace-les par glisser-déposer.
+## License
 
-**Proxmox VE** : le widget affiche les stats de l’hôte (CPU, RAM, disque), l’état de toutes les VM et conteneurs LXC, et les stockages. C’est la façon de voir la machine complète quand le dashboard tourne lui-même dans un LXC, qui ne voit que ses propres limites. Crée un jeton en **lecture seule** dans le shell de l’hôte Proxmox :
-
-```bash
-pveum user token add root@pam dashboard --privsep 1
-pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor
-```
-
-La première commande affiche le secret (une seule fois). Dans le widget : identifiant `root@pam!dashboard`, secret = la valeur `value` affichée.
-
-Les URL doivent être joignables **depuis le serveur du dashboard** (par exemple `http://jellyfin:8096` si les deux sont dans le même réseau Docker). Les clés et mots de passe restent sur le serveur : ils ne sont jamais renvoyés au navigateur.
-
-## Versions
-
-Les versions stables sont publiées dans les [Releases](https://github.com/Circule-studio/server-dashboard/releases), et le détail des changements est dans le [CHANGELOG](CHANGELOG.md). Pour publier une version : mettre à jour `version` dans `package.json` et `CHANGELOG.md`, fusionner dans `main`, puis pousser un tag `vX.Y.Z`. Le workflow `release.yml` crée la release.
-
-## Contribuer
-
-Les contributions sont bienvenues, en particulier sur l'interface. Voir [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Variables d'environnement
-
-| Variable | Défaut | Rôle |
-|---|---|---|
-| `PORT` | `7575` | Port HTTP |
-| `ADMIN_PASSWORD` | `admin` | Mot de passe du mode édition |
-| `DATA_DIR` | `./data` | Dossier de la config et du secret de session |
-| `SERVER_NAME` | nom de la machine | Nom affiché à côté du titre (utile en Docker) |
-| `DISK_PATH` | `/` (`C:\` sous Windows) | Disque affiché par défaut, tant qu'aucun disque n'est choisi en mode édition |
-| `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
-| `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
-| `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |
-| `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
-| `NOTIFY_INTERVAL_MS` | `60000` | Intervalle de vérification des applications pour les notifications (en millisecondes) |
-| `UPDATE_CHECK` | `true` | `false` : ne pas vérifier sur GitHub si une nouvelle version existe (la version installée reste affichée à l’admin) |
-
-## Sécurité
-
-- Les tentatives de connexion sont limitées à 10 par IP toutes les 15 minutes. Changer `ADMIN_PASSWORD` déconnecte toutes les sessions ouvertes.
-- Par défaut, le dashboard est lisible sans connexion (seule la modification est protégée). Si tu l’exposes en dehors de ton réseau, mets `REQUIRE_LOGIN=true`.
-- Monter `/var/run/docker.sock` donne au conteneur un accès équivalent à root sur l'hôte. Les actions Docker exigent d'être connecté, mais n'expose pas le dashboard directement sur Internet : place-le derrière un reverse proxy en HTTPS (Nginx Proxy Manager, Caddy, Traefik) ou derrière un VPN (WireGuard, Tailscale).
-- Pour un panneau Docker en lecture seule, utilise un proxy de socket comme `tecnativa/docker-socket-proxy` et pointe `DOCKER_SOCKET` dessus (ou retire simplement le volume).
-
-## API
-
-| Méthode | Route | Auth |
-|---|---|---|
-| GET | `/api/config` | – |
-| PUT | `/api/config` | ✔ |
-| GET | `/api/status` | – |
-| GET | `/api/system` | – |
-| GET | `/api/widgets/:id` | – |
-| GET | `/api/docker/containers` | – |
-| POST | `/api/docker/containers/:id/(start\|stop\|restart)` | ✔ |
-| POST | `/api/login`, `/api/logout` · GET `/api/me` | – |
+[MIT](LICENSE)
