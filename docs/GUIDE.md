@@ -1,106 +1,102 @@
 # Guide
 
-🇬🇧 [English version](GUIDE.en.md) · [Retour au README](../README.md) · [Widgets](WIDGETS.md)
+🇫🇷 [Version française](GUIDE.fr.md) · [Back to the README](../README.md) · [Widgets](WIDGETS.md)
 
-- [Fonctionnalités en détail](#fonctionnalités-en-détail)
-- [Installation en détail](#installation-en-détail)
-- [Plusieurs disques](#plusieurs-disques)
-- [Variables d'environnement](#variables-denvironnement)
-- [Sécurité](#sécurité)
+- [Features in detail](#features-in-detail)
+- [Installation details](#installation-details)
+- [Several disks](#several-disks)
+- [Environment variables](#environment-variables)
+- [Security](#security)
 - [API](#api)
-- [Développement en local](#développement-en-local)
+- [Local development](#local-development)
 
-## Fonctionnalités en détail
+## Features in detail
 
-- **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local. Une tuile peut être **liée à sa VM, son LXC Proxmox ou son conteneur Docker** pour afficher leur CPU et leur RAM.
-- **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
-- **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
-- **Recherche rapide** : commence à taper n’importe où. Elle filtre les tuiles et propose, au clavier, la tuile à ouvrir, l’adresse tapée (`nas.maison:8080`) ou une recherche web (DuckDuckGo, Google, Qwant…, ou une adresse personnalisée, réglable dans Affichage).
-- **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
-- **Onglets** (ex. « Maison », « Serveur », « Médias ») pour répartir widgets et catégories sur plusieurs pages, avec un lien direct par onglet (`#medias`). La recherche parcourt tous les onglets.
-- **Bouton ⟳ sur chaque widget**, pour l'admin connecté : les données à l'instant, sans cache. Un agent répond tout de suite, et le widget Mises à jour relance la recherche sur chaque machine.
-- **Favoris** : une catégorie peut s’afficher en liens compacts (icône et nom, ou icônes seules), sans statut ni notification, pour la documentation, le routeur, etc. La recherche les trouve aussi.
-- **Chiffres au choix et seuils de couleur** : dans le formulaire d’un widget à blocs de chiffres, coche ceux à afficher et choisis à partir de quelle valeur ils passent en orange ou en rouge.
-- **Apparence** : couleur d’accent et image de fond (adresse ou fichier envoyé), avec le flou des cartes, dans Mode édition > Affichage.
-- **Application installable** : « Ajouter à l’écran d’accueil » sur téléphone ouvre le dashboard en plein écran, avec son nom et son icône (HTTPS requis sur Android pour l’installation complète).
-- **Widgets dans les catégories** : en mode édition, chaque widget a un menu pour le ranger dans une catégorie, sous ses tuiles. Il suit alors son onglet et se replie avec elle.
-- **Catégories repliables** d’un clic sur leur titre (état mémorisé dans le navigateur, ou repliées par défaut), avec une icône facultative.
-- **Mises à jour** : un badge « 7 mises à jour en attente », cliquable pour le détail par machine : paquets apt (dont ceux de sécurité) et images Docker dont le tag a changé. Pour le serveur du dashboard et chaque machine avec un agent. Affichage seulement, rien n’est installé. Les visiteurs non connectés ne voient que les nombres ; voir [agent/README.md](../agent/README.md#mises-à-jour-en-attente).
-- **Agent** pour les machines derrière un NAT ou sans port ouvert : un petit script (Node.js, sans dépendance) envoie lui-même CPU, mémoire, disques et température au dashboard ; voir [agent/README.md](../agent/README.md).
-- **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé. Avec la case « M’alerter » d’un widget, aussi pour ce qu’il surveille : VM, conteneur ou nœud Proxmox arrêté, disque à plus de 90 % (Proxmox, Glances, Agent), machine Glances ou Agent hors ligne, certificat Nginx Proxy Manager qui expire dans 7 jours, sonde Uptime Kuma hors ligne, caméra Frigate coupée.
-- **Sauvegarde** : export de la configuration en un fichier (avec ou sans les clés API), et import pour la restaurer ou la recopier sur une autre machine.
+- **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator. The check is done by the server, so it also works for LAN-only services. A tile can be **linked to its Proxmox VM or LXC, or to its Docker container**, to show their CPU and RAM.
+- **Server stats**: CPU, memory, disks and uptime, refreshed every 5 seconds.
+- **Docker panel**: containers and their state, with start, stop and restart.
+- **Quick search**: just start typing anywhere. It filters the tiles and offers, from the keyboard, the tile to open, the typed address (`nas.home:8080`) or a web search (DuckDuckGo, Google, Qwant…, or a custom address, set in Display).
+- **Edit mode**, password protected: add, change or remove apps and categories, and reorder them by drag and drop. A welcome screen guides you on first launch.
+- **Tabs** (for example "Home", "Servers", "Media") to spread widgets and categories over several pages, with a direct link per tab (`#media`). Search covers all tabs.
+- **⟳ button on each widget**, for the logged-in admin: fresh data, without the cache. An agent answers immediately, and the Updates widget restarts the search on each machine.
+- **Bookmarks**: a category can be shown as compact links (icon and name, or icons only), with no status or notifications, for documentation, your router and so on. Search finds them too.
+- **Choose numbers and color thresholds**: in the form of a widget with number blocks, check the ones to show and pick the value at which they turn orange or red.
+- **Appearance**: accent color and background image (address or uploaded file), with card blur, in Edit mode > Display.
+- **Installable app**: "Add to Home Screen" on a phone opens the dashboard full screen, with its name and icon (Android needs HTTPS for a full install).
+- **Widgets in categories**: in edit mode, each widget has a menu to place it in a category, below its tiles. It then follows its tab and collapses with it.
+- **Collapsible categories**: click their title (the state is remembered in the browser, or they can be collapsed by default), with an optional icon.
+- **Updates**: a "7 updates pending" badge, clickable for the details per machine: apt packages (including security ones) and Docker images whose tag has changed. For the dashboard server and each machine with an agent. Display only, nothing is installed. Visitors who are not logged in only see the numbers; see [agent/README.md](../agent/README.md#mises-à-jour-en-attente) (in French).
+- **Agent** for machines behind NAT or without an open port: a small script (Node.js, no dependency) pushes CPU, memory, disks and temperature to the dashboard itself; see [agent/README.md](../agent/README.md) (in French).
+- **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With a widget's "Alert me" box, also for what it monitors: stopped Proxmox VM, container or node, disk over 90% (Proxmox, Glances, Agent), Glances or Agent machine offline, Nginx Proxy Manager certificate expiring within 7 days, Uptime Kuma monitor down, Frigate camera off.
+- **Backup**: export the configuration to a file (with or without API keys), and import it to restore it or copy it to another machine.
 
-Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
+Stack: Node.js + Express on the server, HTML / CSS / JS with no build step on the client. The configuration is stored in `data/config.json`.
 
-## Installation en détail
+## Installation details
 
 ### Docker
 
-L'image est publiée sur `ghcr.io/circule-studio/server-dashboard`. `.env` ne doit jamais être publié : ne mets pas de mot de passe directement dans `compose.yaml`. La config reste dans `./data` lors des mises à jour.
+The image is published at `ghcr.io/circule-studio/server-dashboard`. `.env` must never be published: don't put a password directly in `compose.yaml`. The configuration stays in `./data` across updates.
 
-**Depuis le code source** (développement) : clone le dépôt, remplace la ligne `image:` de `compose.yaml` par `build: .`, puis `docker compose up -d --build`.
+**From the source code** (development): clone the repository, replace the `image:` line of `compose.yaml` with `build: .`, then run `docker compose up -d --build`.
 
-### Sans Docker
+### Without Docker
 
-Le script :
-- installe Node.js 22 si besoin ;
-- télécharge la dernière release dans `/opt/server-dashboard` ;
-- crée un utilisateur système `server-dashboard` et un service systemd du même nom ;
-- génère un mot de passe admin et l'affiche une seule fois.
+The script installs Node.js 22 if needed, downloads the latest release to `/opt/server-dashboard`, creates a `server-dashboard` system user and a systemd service of the same name, and prints a generated admin password once.
 
-| Quoi | Où |
+| What | Where |
 |---|---|
-| Réglages (mot de passe, port, `REQUIRE_LOGIN`…) | `/etc/server-dashboard/server-dashboard.env`, puis `sudo systemctl restart server-dashboard` |
-| Config du dashboard (tuiles, widgets) | `/var/lib/server-dashboard/` |
+| Settings (password, port, `REQUIRE_LOGIN`…) | `/etc/server-dashboard/server-dashboard.env`, then `sudo systemctl restart server-dashboard` |
+| Dashboard config (tiles, widgets) | `/var/lib/server-dashboard/` |
 | Logs | `journalctl -u server-dashboard -f` |
 
-- **Mettre à jour** : relance la même commande. La config et les réglages sont conservés.
-- **Choisir une version, un port ou un mot de passe** à la première installation : `… | sudo SD_VERSION=v0.1.0 SD_PORT=8080 SD_ADMIN_PASSWORD=… bash`
-- **Désinstaller** : `… | sudo bash -s -- --uninstall` (ajoute `--purge` pour effacer aussi la config).
-- **Panneau Docker** : si Docker est installé sur la machine, le service est ajouté au groupe `docker`. Sinon, le panneau est simplement masqué.
+- **Update**: run the same command again. The config and settings are kept.
+- **Choose a version, a port or a password** on first install: `… | sudo SD_VERSION=v0.1.0 SD_PORT=8080 SD_ADMIN_PASSWORD=… bash`
+- **Uninstall**: `… | sudo bash -s -- --uninstall` (add `--purge` to erase the config too).
+- **Docker panel**: if Docker is installed on the machine, the service is added to the `docker` group. Otherwise, the panel is simply hidden.
 
-## Plusieurs disques
+## Several disks
 
-En mode édition, le bouton **Disques** liste les disques détectés sur la machine (`C:\`, `D:\`… sous Windows, les partitions réelles comme `/` ou `/mnt/data` sous Linux). Coche ceux à afficher et donne-leur un nom (« Films », « Sauvegardes »…) : chacun a sa carte dans les stats. Tu peux aussi saisir un chemin à la main (partage réseau monté, dossier…).
+In edit mode, the **Disks** button lists the disks found on the machine (`C:\`, `D:\`… on Windows, real partitions such as `/` or `/mnt/data` on Linux). Check the ones to show and give them a name ("Movies", "Backups"…): each gets its own card in the stats. You can also type a path by hand (mounted network share, folder…).
 
-**Avec Docker**, le conteneur ne voit que ce qui est monté. `compose.yaml` monte déjà la racine de l'hôte en lecture seule (`/:/host:ro`) : les autres disques de l'hôte apparaissent sous `/host/…` (ex. `/host/mnt/data`). Un disque monté ailleurs peut être ajouté explicitement :
+**With Docker**, the container only sees what is mounted. `compose.yaml` already mounts the host root read-only (`/:/host:ro`): the host's other disks appear under `/host/…` (for example `/host/mnt/data`). A disk mounted elsewhere can be added explicitly:
 
 ```yaml
     volumes:
-      - /srv/films:/host/srv/films:ro
+      - /srv/movies:/host/srv/movies:ro
 ```
 
-**Dans un conteneur LXC Proxmox**, le dashboard ne voit que le disque du conteneur : utilise plutôt le widget Proxmox VE pour les stockages de l'hôte.
+**In a Proxmox LXC container**, the dashboard only sees the container's disk: use the Proxmox VE widget instead for the host's storage.
 
-## Variables d'environnement
+## Environment variables
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `7575` | Port HTTP |
-| `ADMIN_PASSWORD` | `admin` | Mot de passe du mode édition |
-| `DATA_DIR` | `./data` | Dossier de la config et du secret de session |
-| `SERVER_NAME` | nom de la machine | Nom affiché à côté du titre (utile en Docker) |
-| `DISK_PATH` | `/` (`C:\` sous Windows) | Disque affiché par défaut, tant qu'aucun disque n'est choisi en mode édition |
-| `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
-| `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
-| `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` pour que la limite de tentatives de connexion voie la vraie IP des visiteurs |
-| `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
-| `NOTIFY_INTERVAL_MS` | `60000` | Intervalle de vérification des applications pour les notifications (en millisecondes) |
-| `UPDATE_CHECK` | `true` | `false` : ne pas vérifier sur GitHub si une nouvelle version existe (la version installée reste affichée à l’admin) |
+| `PORT` | `7575` | HTTP port |
+| `ADMIN_PASSWORD` | `admin` | Edit-mode password |
+| `DATA_DIR` | `./data` | Config and session secret folder |
+| `SERVER_NAME` | machine name | Name shown next to the title (useful with Docker) |
+| `DISK_PATH` | `/` (`C:\` on Windows) | Disk shown by default, until disks are chosen in edit mode |
+| `DOCKER_SOCKET` | `/var/run/docker.sock` | Docker API socket |
+| `REQUIRE_LOGIN` | `false` | `true`: the whole dashboard, reading included, requires logging in |
+| `TRUST_PROXY` | – | Behind a reverse proxy, set to `1` so login rate limiting sees real client IPs |
+| `SESSION_SECRET` | generated in `data/.secret` | Session cookie signing key |
+| `NOTIFY_INTERVAL_MS` | `60000` | Interval between app checks for notifications (in milliseconds) |
+| `UPDATE_CHECK` | `true` | `false`: don't check GitHub for a new version (the installed version is still shown to the admin) |
 
-## Sécurité
+## Security
 
-- Les tentatives de connexion sont limitées à 10 par IP toutes les 15 minutes. Changer `ADMIN_PASSWORD` déconnecte toutes les sessions ouvertes.
-- Par défaut, le dashboard est lisible sans connexion (seule la modification est protégée). Si tu l’exposes en dehors de ton réseau, mets `REQUIRE_LOGIN=true`.
-- Monter `/var/run/docker.sock` donne au conteneur un accès équivalent à root sur l'hôte. Les actions Docker exigent d'être connecté, mais n'expose pas le dashboard directement sur Internet : place-le derrière un reverse proxy en HTTPS (Nginx Proxy Manager, Caddy, Traefik) ou derrière un VPN (WireGuard, Tailscale).
-- Pour un panneau Docker en lecture seule, utilise un proxy de socket comme `tecnativa/docker-socket-proxy` et pointe `DOCKER_SOCKET` dessus (ou retire simplement le volume).
-- Les clés API et les mots de passe restent sur le serveur : ils ne sont jamais envoyés au navigateur.
+- Login attempts are limited to 10 per IP every 15 minutes. Changing `ADMIN_PASSWORD` logs out every open session.
+- By default, the dashboard can be read without logging in (only editing is protected). If you expose it outside your network, set `REQUIRE_LOGIN=true`.
+- Mounting `/var/run/docker.sock` gives the container root-equivalent access to the host. Docker actions require logging in, but don't expose the dashboard directly to the internet: put it behind an HTTPS reverse proxy (Nginx Proxy Manager, Caddy, Traefik) or a VPN (WireGuard, Tailscale).
+- For a read-only Docker panel, use a socket proxy such as `tecnativa/docker-socket-proxy` and point `DOCKER_SOCKET` at it (or simply remove the volume).
+- API keys and passwords stay on the server: they are never sent to the browser.
 
 ## API
 
-Principales routes. « – » : publique, sauf si `REQUIRE_LOGIN=true`.
+Main routes. "–" means public, unless `REQUIRE_LOGIN=true`.
 
-| Méthode | Route | Connexion |
+| Method | Route | Login |
 |---|---|---|
 | GET | `/api/config` | – |
 | PUT | `/api/config` | ✔ |
@@ -118,19 +114,19 @@ Principales routes. « – » : publique, sauf si `REQUIRE_LOGIN=true`.
 | GET | `/api/version` | ✔ |
 | POST | `/api/login`, `/api/logout` · GET `/api/me` | – |
 
-## Développement en local
+## Local development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Puis ouvre http://localhost:7575. Le mot de passe est celui de ton fichier `.env` s'il existe (attention aux majuscules), sinon `admin`.
+Then open http://localhost:7575. The password is the one in your `.env` file if it exists (mind the capitals), otherwise `admin`.
 
-Pour travailler sur les widgets sans avoir les vrais services, lance un faux service pour chaque widget (Jellyfin, Plex, Proxmox, Home Assistant, GitHub…) et un faux Docker dans un second terminal :
+To work on widgets without the real services, start a fake service for each widget (Jellyfin, Plex, Proxmox, Home Assistant, GitHub…) and a fake Docker in a second terminal:
 
 ```bash
 npm run mocks
 ```
 
-Les URL et clés de test à saisir sont en tête de [dev/mocks.js](../dev/mocks.js).
+The URLs and test keys to enter are at the top of [dev/mocks.js](../dev/mocks.js).

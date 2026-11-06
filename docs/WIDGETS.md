@@ -1,108 +1,97 @@
 # Widgets
 
-🇬🇧 [English version](WIDGETS.en.md) · [Retour au README](../README.md) · [Guide](GUIDE.md)
+🇫🇷 [Version française](WIDGETS.fr.md) · [Back to the README](../README.md) · [Guide](GUIDE.md)
 
-Les 40 widgets, par famille, puis [où trouver leurs identifiants](#où-trouver-les-identifiants). Tu en ajoutes un avec **Connexion > Éditer > + Widget**.
+The 40 widgets by family, then [where to find their credentials](#where-to-find-the-credentials). Add one with **Log in > Edit > + Widget**.
 
-## Serveurs et sauvegardes
+## Servers and backups
 
-- **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
-- **Proxmox Backup Server** : sauvegardes réussies et en échec des dernières 24 h, occupation des datastores.
-- **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines dans aucune sauvegarde planifiée, stockage et prochaine sauvegarde ; alerte en cas d’échec.
-- **Sauvegarde par script** : le résultat d’un script maison (rsync vers un disque USB…) : date, taille, succès ou échec, historique ; alerte en cas d’échec ou de retard.
-- **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
-- **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
-- **Agent** : CPU, mémoire, disques et température d’une machine derrière un NAT ou sans port ouvert ; c’est elle qui contacte le dashboard. Voir [agent/README.md](../agent/README.md).
-- **Mises à jour** : paquets apt (dont ceux de sécurité) et images Docker en attente, pour le serveur du dashboard et chaque machine avec un agent. Affichage seulement, rien n’est installé.
-- **Scrutiny** : santé SMART des disques, ceux en échec en premier, avec leur température.
-- **Watchtower** : conteneurs vérifiés, à mettre à jour et en échec lors du dernier passage.
+- **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
+- **Proxmox Backup Server**: successful and failed backups over the last 24 h, datastore usage.
+- **Proxmox backups**: latest backup (date, success or failure), size and date per machine, machines in no scheduled backup, storage and next backup; alert on failure.
+- **Script backup**: the result of your own script (rsync to a USB disk…): date, size, success or failure, history; alert on failure or delay.
+- **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
+- **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
+- **Agent**: CPU, memory, disks and temperature of a machine behind NAT or without an open port; the machine contacts the dashboard. See [agent/README.md](../agent/README.md) (in French).
+- **Updates**: pending apt packages (including security ones) and Docker images, for the dashboard server and each machine with an agent. Display only, nothing is installed.
+- **Scrutiny**: SMART disk health, failing disks first, with their temperature.
+- **Watchtower**: containers checked, to update and failed during the last run.
 
-## Médias
+## Media
 
-- **Jellyfin / Plex** : lectures en cours (utilisateur, progression, pause) et taille de la bibliothèque.
-- **qBittorrent** : débits, torrents actifs, progression et temps restant.
-- **Sonarr / Radarr / Lidarr / Readarr** : épisodes, films, albums et livres à venir, file de téléchargement.
-- **Prowlarr** : indexeurs actifs et en pause, requêtes et téléchargements récupérés. **Bazarr** : épisodes et films sans sous-titres.
-- **Spotify** : ce qui joue en ce moment (titre, pochette, progression, appareil) et les dernières écoutes, cachées aux visiteurs non connectés.
-- **Immich** : nombre de photos et de vidéos, stockage utilisé, détail par utilisateur avec les quotas. Si un compteur de téléchargements `dl-stats` est placé devant Immich, ses totaux (téléchargements, photos téléchargées, visiteurs) s’affichent aussi.
+- **Jellyfin / Plex**: now playing, library size.
+- **qBittorrent**: speeds, active torrents.
+- **Sonarr / Radarr / Lidarr / Readarr**: upcoming episodes, movies, albums and books, download queue.
+- **Prowlarr**: active and paused indexers, queries and grabs. **Bazarr**: episodes and movies missing subtitles.
+- **Spotify**: what is playing now (title, cover, progress, device) and recent listening, hidden from visitors who are not logged in.
+- **Immich**: photo and video counts, storage used, per-user breakdown with quotas, plus `dl-stats` download totals when present.
 
-## Réseau et sécurité
+## Network and security
 
-- **Pi-hole / AdGuard Home** : requêtes DNS, requêtes bloquées et pourcentage, état de la protection (avec la pause en cours).
-- **CrowdSec** : les attaques détectées sur ton serveur dans les dernières 24 h (adresse, pays, opérateur, scénario), les plus actifs, et les adresses bannies ; alerte en cas de pic.
-- **Wazuh** : les agents actifs et déconnectés, et, avec l’indexer, les alertes de sécurité des 24 h par gravité ; alerte quand un agent se déconnecte ou en cas d’alerte critique.
-- **Authelia** : connexions réussies, refusées et bloquées, double authentification, accès autorisés et refusés.
-- **Traefik** : routeurs, services et middlewares, avec ceux en erreur ou en alerte ; alerte quand un routeur tombe en erreur.
-- **Nginx Proxy Manager** : hôtes actifs et désactivés, certificats SSL triés par date d’expiration, ceux qui expirent dans les 14 jours mis en évidence.
-- **Uptime Kuma** : sondes d’une page de statut, celles en panne en premier, avec le temps de réponse et la disponibilité sur 24 h.
-- **Speedtest Tracker** : dernier test de débit, moyenne sur 7 jours et derniers tests.
+- **Pi-hole / AdGuard Home**: DNS queries, blocked queries and percentage, protection status (including a running pause).
+- **CrowdSec**: attacks detected on your server in the last 24 h (address, country, ISP, scenario), the most active ones, and banned addresses; alert on a spike.
+- **Wazuh**: active and disconnected agents and, with the indexer, security alerts over 24 h by severity; alert when an agent disconnects or on a critical alert.
+- **Authelia**: successful, refused and blocked logins, two-factor authentication, allowed and denied access.
+- **Traefik**: routers, services and middlewares, with those in error or warning; alert when a router goes into error.
+- **Nginx Proxy Manager**: active and disabled hosts, SSL certificates sorted by expiry date, those expiring within 14 days highlighted.
+- **Uptime Kuma**: monitors from a status page, those down first, with response time and 24 h uptime.
+- **Speedtest Tracker**: latest speed test, 7-day average and recent tests.
 
-## Maison et quotidien
+## Home and daily life
 
-- **Home Assistant** : les capteurs choisis (température, consommation, portes, mouvement, lumières, présence…), avec leur état traduit et depuis quand.
-- **Frigate** : caméras en ligne et images par seconde, vitesse de détection, derniers événements (personne, voiture…) avec leur miniature, servie par le dashboard.
-- **Météo** : température actuelle et prévisions sur 5 jours ([Open-Meteo](https://open-meteo.com), sans clé API).
-- **Calendrier** : les événements des 7 prochains jours d’un ou plusieurs agendas iCal (Nextcloud, Google Agenda, Proton…), récurrents compris, groupés par jour.
-- **Flux RSS / Atom** : les 10 derniers articles d’un ou plusieurs flux, mélangés par date.
+- **Home Assistant**: the sensors you choose (temperature, power, doors, motion, lights, presence…), with their translated state and since when.
+- **Frigate**: cameras online and frames per second, detection speed, latest events (person, car…) with their thumbnail, served by the dashboard.
+- **Weather**: current conditions and a 5-day forecast ([Open-Meteo](https://open-meteo.com), no API key).
+- **Calendar**: events of the next 7 days from one or more iCal calendars (Nextcloud, Google Calendar, Proton…), recurring ones included, grouped by day.
+- **RSS / Atom feeds**: the 10 latest articles of one or more feeds, mixed by date.
 
-## Web et développement
+## Web and development
 
-- **Loki / Grafana** : volume de logs et erreurs des dernières 24 h, avec les dernières lignes d’erreur et les sources les plus bavardes.
-- **GoAccess** : visiteurs uniques d’un site (total, aujourd’hui, 7 derniers jours), requêtes et trafic, lus dans un rapport JSON de GoAccess.
-- **Alwaysdata** : les sites d’un compte d’hébergement, chacun testé par le dashboard (en ligne, en panne, temps de réponse), ceux en panne en premier.
-- **GitHub** : suivre un dépôt, avec sa dernière version, les commits non publiés depuis, les issues et les pull requests ouvertes.
-- **API personnalisée** : n’importe quelle API JSON (service sans widget, script maison) : on choisit les valeurs à afficher par leur chemin dans la réponse, avec un format (nombre, pourcentage, octets, débit, date).
+- **Loki / Grafana**: log volume and errors over the last 24 h, with the latest error lines and the noisiest sources.
+- **GoAccess**: a website’s unique visitors (total, today, last 7 days), requests and traffic, from a GoAccess JSON report.
+- **Alwaysdata**: the sites of a hosting account, each checked by the dashboard (up, down, response time), down ones first.
+- **GitHub**: follow a repository, with its latest release, unreleased commits since then, open issues and pull requests.
+- **Custom API**: any JSON API (a service without a widget, your own script): pick the values to show by their path in the response, with a format (number, percent, bytes, rate, date).
 
-## Où trouver les identifiants
+## Where to find the credentials
 
-| Service | Champs | Où les trouver |
+| Service | Fields | Where to find them |
 |---|---|---|
-| Jellyfin | URL + clé API | Tableau de bord > Clés API > « + » |
-| Plex | URL + token | Valeur `X-Plex-Token` ([doc Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) |
-| qBittorrent | URL + utilisateur / mot de passe de la WebUI | Options > Interface web |
-| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + clé API | Settings > General > API Key |
-| Bazarr | URL (`http://IP:6767`) + clé API | Settings > General > Security > API Key |
-| Pulse | URL (`http://IP:7655`) + jeton d’API | Pulse > Paramètres > API Access, scope `monitoring:read` |
-| Proxmox VE | URL (`https://IP:8006`) + identifiant et secret d’un jeton d’API | Voir ci-dessous |
-| Proxmox Backup Server | URL (`https://IP:8007`) + identifiant et secret d’un jeton d’API | Configuration > Access Control > API Token, avec le rôle **Audit** sur `/` pour le jeton (lecture seule) |
-| Scrutiny | URL de l’interface (`http://IP:8080`) | Aucune clé |
-| Speedtest Tracker | URL + jeton d’API facultatif | v1 : Settings > API Tokens (lecture). Sans jeton : ancienne API publique (v0) |
-| Pi-hole (v6) | URL (`http://IP`) + mot de passe | Celui de l’interface web. Avec la 2FA : mot de passe d’application (Paramètres > Web interface / API, mode Expert, « Configure app password »). Vide si Pi-hole n’a pas de mot de passe |
-| AdGuard Home | URL (`http://IP`) + utilisateur / mot de passe | Ceux de l’interface web (vides si elle n’en a pas) |
-| Immich | URL (`http://IP:2283`) + clé API | Paramètres du compte > Clés API, avec un compte **administrateur** (permission `server.statistics` si la clé est limitée) |
-| Calendrier | Adresse(s) `.ics` + identifiant / mot de passe facultatifs | Nextcloud : ⋯ > Copier le lien privé ; Google Agenda : Paramètres > Adresse secrète au format iCal. Plusieurs agendas : adresses séparées par un espace. L’adresse est gardée sur le serveur comme une clé |
-| GoAccess | URL du rapport JSON (`goaccess … -o rapport.json`) | Aucune clé. Pour ne rien exposer de sensible, génère un rapport limité au panneau des visiteurs (`--ignore-panel` pour tous les autres, dont `HOSTS`) : il ne contient aucune adresse IP |
-| Alwaysdata | Jeton d’API + nom du compte (facultatif) | Alwaysdata > Profil > Gestion des jetons. Le compte n’est utile que si le jeton en gère plusieurs. Le widget lit seulement la liste des sites, puis teste lui-même leur première adresse (HTTPS, sinon HTTP) |
-| Wazuh | URL de l’API du manager (`https://IP:55000`) + utilisateur et mot de passe de l’API ; facultatif : URL de l’indexer (`https://IP:9200`) et `utilisateur:mot de passe` de l’indexer | Compte de l’API Wazuh (idéalement avec le rôle `readonly`). Sans l’indexer, seuls les agents s’affichent. Certificats auto-signés acceptés |
-| Spotify | Client ID + Client Secret d’une application créée sur [developer.spotify.com](https://developer.spotify.com/dashboard), puis connexion du compte dans le widget | Son propriétaire doit avoir **Spotify Premium** (règle de Spotify). Enregistre le widget, rouvre-le et suis les trois étapes. Le dashboard n’étant pas en https, la page de retour ne s’affiche pas : recopie son adresse. La connexion est à refaire tous les 6 mois |
-| Loki / Grafana | URL de Loki (`http://IP:3100`) ; identifiant et mot de passe si un reverse proxy la protège ; ou URL de Grafana avec le chemin de la source (`https://grafana/api/datasources/proxy/uid/UID`) et un jeton de compte de service (rôle Viewer) | Sélecteur LogQL facultatif, ex. `{job="varlogs"}`. Les lignes d’erreur ne sont montrées qu’aux admins |
-| Authelia | URL des métriques (`http://IP:9959`) | Dans sa configuration : `telemetry: { metrics: { enabled: true } }`. Compteurs depuis son démarrage. Authelia ne publie pas le nombre de sessions actives |
-| Watchtower | URL de l’API (`http://IP:8080`) + jeton | Lancer avec `WATCHTOWER_HTTP_API_METRICS=true` et `WATCHTOWER_HTTP_API_TOKEN`. Ses métriques ne donnent ni le nom des conteneurs ni la date du passage : le dashboard note quand il voit un nouveau passage. Pour les noms, voir le widget Mises à jour. Watchtower n’est plus maintenu depuis 2025 |
-| Sauvegardes Proxmox | Comme Proxmox VE : URL, identifiant et secret du jeton (rôle PVEAuditor) | Lit les tâches `vzdump` et les stockages de sauvegarde, y compris un disque USB monté dans Proxmox |
-| Sauvegarde par script | Rien : le jeton est généré | Enregistre le widget, rouvre-le, et colle les lignes affichées à la fin de ton script. Adapte le chemin et `everyHours` (heures entre deux sauvegardes, pour détecter un retard) |
-| Traefik | URL de l’API (`http://IP:8080` ou le routeur qui publie `api@internal`) ; utilisateur et mot de passe si un middleware basicAuth la protège | Activer `api.dashboard` (ou `api.insecure` sur un réseau privé) dans la configuration statique de Traefik |
-| CrowdSec | URL de l’API locale (`http://IP:8080`) + compte machine **ou** clé de bouncer | Sur la machine CrowdSec : `cscli machines add dashboard --password …` (attaques détaillées : pays, opérateur, scénario) ou `cscli bouncers add dashboard` (lecture seule : adresses bannies). La liste communautaire n’est pas comptée comme une attaque |
-| Météo | Lieu : ville (`Nantes`, `Paris, France`) ou coordonnées (`47.21, -1.55`) | Aucun compte. L’URL est facultative : seulement pour une instance Open-Meteo auto-hébergée |
-| Uptime Kuma | URL (`http://IP:3001`) + nom de la page de statut, ou l’adresse complète de la page | Aucune clé : les pages de statut sont publiques (Uptime Kuma > Pages de statut) |
-| Glances | URL (`http://IP:61208`) + mot de passe facultatif | Lance `glances -w` sur la machine (avec `--password` pour en exiger un ; utilisateur `glances` par défaut) |
-| Frigate | URL (`http://IP:5000`), ou `https://IP:8971` + utilisateur / mot de passe | Port 5000 : rien à saisir. Port 8971 (Frigate 0.14+) : un compte Frigate, idéalement avec le rôle « viewer ». Les miniatures passent par le dashboard et suivent `REQUIRE_LOGIN` |
-| Home Assistant | URL (`http://IP:8123`) + jeton + entités (une par ligne) | Ton profil > Sécurité > Jetons d’accès longue durée. Les identifiants d’entités (`sensor.salon_temperature`) sont dans Paramètres > Appareils et services > Entités |
-| Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / mot de passe | Le compte de l’interface d’administration. Un compte dédié avec la permission « Proxy Hosts » en lecture suffit |
-| GitHub | Dépôt (`propriétaire/dépôt` ou son adresse) + jeton facultatif | Jeton obligatoire pour un dépôt privé : Settings > Developer settings > *Fine-grained tokens*, en lecture seule (Contents, Issues, Pull requests, Metadata). Sans jeton, GitHub limite à 60 requêtes par heure : rafraîchi toutes les 15 min (2 min avec un jeton), ce qui permet 4 à 5 widgets. Si la limite est atteinte, les dernières données restent affichées. L’URL de l’API ne sert que pour GitHub Enterprise |
-| API personnalisée | URL qui renvoie du JSON + valeurs (une par ligne : `chemin \| libellé \| format`) + authentification facultative | Chemin avec des points : `data.users.count`, `items.0.name`, `liste.length`. Formats : texte, nombre, pourcentage, octets, débit, date. Authentification : un en-tête (`X-Api-Key: …`, ou une valeur seule envoyée en `Authorization: Bearer …`) ou identifiant / mot de passe (Basic) |
-| Agent | Le nom de la machine | Enregistre le widget, rouvre-le et lance la commande affichée. Voir [agent/README.md](../agent/README.md) |
-| Mises à jour | Rien | Il suit le serveur du dashboard et les machines qui ont un widget Agent |
-| Flux RSS / Atom | Adresse des flux, une par ligne (10 au plus) | Aucune clé |
+| Proxmox VE | URL (`https://IP:8006`) + API token ID and secret | `pveum user token add root@pam dashboard --privsep 1` then `pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor` (read-only) |
+| Proxmox Backup Server | URL (`https://IP:8007`) + API token ID and secret | Configuration > Access Control > API Token, with the **Audit** role on `/` for the token (read-only) |
+| Scrutiny | Web interface URL (`http://IP:8080`) | No key |
+| Speedtest Tracker | URL + optional API token | v1: Settings > API Tokens (read). Without a token: legacy public API (v0) |
+| Pulse | URL (`http://IP:7655`) + API token | Pulse > Settings > API Access, `monitoring:read` scope only |
+| Pi-hole (v6) | URL (`http://IP`) + password | The web interface password. With 2FA: an app password (Settings > Web interface / API, Expert mode, "Configure app password"). Empty if Pi-hole has no password |
+| AdGuard Home | URL (`http://IP`) + username / password | The web interface credentials (empty if it has none) |
+| Immich | URL (`http://IP:2283`) + API key | Account Settings > API Keys, from an **admin** account (`server.statistics` permission if the key is restricted) |
+| Alwaysdata | API token + account name (optional) | Alwaysdata > Profile > Token management. The account is only needed if the token manages several. The widget only reads the list of sites, then checks their first address itself (HTTPS, else HTTP) |
+| Calendar | `.ics` address(es) + optional username / password | Nextcloud: ⋯ > Copy private link; Google Calendar: Settings > Secret address in iCal format. Several calendars: addresses separated by a space. The address is kept on the server like a key |
+| CrowdSec | Local API URL (`http://IP:8080`) + machine account **or** bouncer key | On the CrowdSec machine: `cscli machines add dashboard --password …` (detailed attacks: country, ISP, scenario) or `cscli bouncers add dashboard` (read-only: banned addresses). The community blocklist is not counted as an attack |
+| GoAccess | URL of the JSON report (`goaccess … -o report.json`) | No key. To expose nothing sensitive, generate a report limited to the visitors panel (`--ignore-panel` for all others, including `HOSTS`): it contains no IP address |
+| Weather | Location: a city (`London`, `Paris, France`) or coordinates (`51.5, -0.12`) | No account. The URL is optional: only for a self-hosted Open-Meteo instance |
+| Uptime Kuma | URL (`http://IP:3001`) + status page name, or the full page address | No key: status pages are public (Uptime Kuma > Status Pages) |
+| Glances | URL (`http://IP:61208`) + optional password | Run `glances -w` on the machine (add `--password` to require one; username `glances` by default) |
+| Frigate | URL (`http://IP:5000`), or `https://IP:8971` + username / password | Port 5000: nothing to enter. Port 8971 (Frigate 0.14+): a Frigate account, ideally with the "viewer" role. Thumbnails go through the dashboard and follow `REQUIRE_LOGIN` |
+| Home Assistant | URL (`http://IP:8123`) + token + entities (one per line) | Your profile > Security > Long-lived access tokens. Entity IDs (`sensor.living_room_temperature`) are in Settings > Devices & services > Entities |
+| Nginx Proxy Manager | URL (`http://IP:81`) + e-mail / password | The admin interface account. A dedicated account with read access to "Proxy Hosts" is enough |
+| GitHub | Repository (`owner/repo` or its address) + optional token | Token required for a private repository: Settings > Developer settings > *Fine-grained tokens*, read-only (Contents, Issues, Pull requests, Metadata). Without a token, GitHub allows 60 requests per hour: refreshed every 15 min (2 min with a token), enough for 4 or 5 widgets. If the limit is reached, the last data stays on screen. The API URL is only for GitHub Enterprise |
+| Custom API | URL returning JSON + values (one per line: `path \| label \| format`) + optional authentication | Dotted path: `data.users.count`, `items.0.name`, `list.length`. Formats: text, number, percent, bytes, rate, date. Authentication: a header (`X-Api-Key: …`, or a bare value sent as `Authorization: Bearer …`) or username / password (Basic) |
+| Jellyfin | URL + API key | Dashboard > API Keys |
+| Plex | URL + token | Your `X-Plex-Token` |
+| qBittorrent | URL + Web UI username / password | Options > Web UI |
+| Sonarr / Radarr / Lidarr / Readarr / Prowlarr | URL + API key | Settings > General > API Key |
+| Bazarr | URL (`http://IP:6767`) + API key | Settings > General > Security > API Key |
+| Wazuh | Manager API URL (`https://IP:55000`) + API username and password; optional: indexer URL (`https://IP:9200`) and indexer `username:password` | A Wazuh API account (ideally with the `readonly` role). Without the indexer, only agents are shown. Self-signed certificates are accepted |
+| Spotify | Client ID + Client Secret of an app created on [developer.spotify.com](https://developer.spotify.com/dashboard), then log in to the account in the widget | Its owner must have **Spotify Premium** (Spotify's rule). Save the widget, reopen it and follow the three steps. If the dashboard is not on https, the return page doesn't display: copy its address. The login must be redone every 6 months |
+| Loki / Grafana | Loki URL (`http://IP:3100`); username and password if a reverse proxy protects it; or Grafana URL with the source path (`https://grafana/api/datasources/proxy/uid/UID`) and a service account token (Viewer role) | Optional LogQL selector, for example `{job="varlogs"}`. Error lines are only shown to admins |
+| Authelia | Metrics URL (`http://IP:9959`) | In its configuration: `telemetry: { metrics: { enabled: true } }`. Counters since it started. Authelia doesn't publish the number of active sessions |
+| Watchtower | API URL (`http://IP:8080`) + token | Run with `WATCHTOWER_HTTP_API_METRICS=true` and `WATCHTOWER_HTTP_API_TOKEN`. Its metrics give neither container names nor the run date: the dashboard notes when it sees a new run. For names, see the Updates widget. Watchtower has not been maintained since 2025 |
+| Proxmox backups | Same as Proxmox VE: URL, token ID and secret (PVEAuditor role) | Reads `vzdump` tasks and backup storage, including a USB disk mounted in Proxmox |
+| Script backup | Nothing: the token is generated | Save the widget, reopen it, and paste the lines shown at the end of your script. Adapt the path and `everyHours` (hours between two backups, to detect a delay) |
+| Traefik | API URL (`http://IP:8080` or the router that publishes `api@internal`); username and password if a basicAuth middleware protects it | Enable `api.dashboard` (or `api.insecure` on a private network) in Traefik's static configuration |
+| Agent | The machine's name | Save the widget, reopen it and run the command shown. See [agent/README.md](../agent/README.md) (in French) |
+| Updates | Nothing | It follows the dashboard server and the machines with an Agent widget |
+| RSS / Atom feeds | Feed addresses, one per line (10 at most) | No key |
 
-**Pulse** : coche les blocs à afficher (Santé, Alertes, Nœuds / VM / LXC). Pour les placer librement, ajoute plusieurs widgets Pulse avec chacun un bloc, puis déplace-les par glisser-déposer.
-
-**Proxmox VE** : le widget affiche les stats de l’hôte (CPU, RAM, disque), l’état de toutes les VM et conteneurs LXC, et les stockages. C’est la façon de voir la machine complète quand le dashboard tourne lui-même dans un LXC, qui ne voit que ses propres limites. Crée un jeton en **lecture seule** dans le shell de l’hôte Proxmox :
-
-```bash
-pveum user token add root@pam dashboard --privsep 1
-pveum acl modify / --tokens "root@pam!dashboard" --roles PVEAuditor
-```
-
-La première commande affiche le secret (une seule fois). Dans le widget : identifiant `root@pam!dashboard`, secret = la valeur `value` affichée.
-
-Les URL doivent être joignables **depuis le serveur du dashboard** (par exemple `http://jellyfin:8096` si les deux sont dans le même réseau Docker). Les clés et mots de passe restent sur le serveur : ils ne sont jamais renvoyés au navigateur.
+URLs must be reachable **from the dashboard server** (for example `http://jellyfin:8096` if both are on the same Docker network). Keys and passwords stay on the server: they are never sent back to the browser.

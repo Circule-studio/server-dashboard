@@ -1,64 +1,64 @@
 # Server Dashboard
 
-**Tout ton homelab sur une seule page.** Tes services, tes machines, Docker et 40 widgets, dans un tableau de bord léger que tu héberges toi-même.
+**Your whole homelab on one page.** Your services, your machines, Docker and 40 widgets, in a lightweight dashboard you host yourself.
 
-[![Dernière version](https://img.shields.io/github/v/release/Circule-studio/server-dashboard?label=version)](https://github.com/Circule-studio/server-dashboard/releases)
+[![Latest release](https://img.shields.io/github/v/release/Circule-studio/server-dashboard?label=release)](https://github.com/Circule-studio/server-dashboard/releases)
 [![CI](https://github.com/Circule-studio/server-dashboard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Circule-studio/server-dashboard/actions/workflows/ci.yml)
-[![Licence MIT](https://img.shields.io/github/license/Circule-studio/server-dashboard?label=licence)](LICENSE)
+[![MIT License](https://img.shields.io/github/license/Circule-studio/server-dashboard)](LICENSE)
 
-🌐 [Site du projet](https://circule-studio.github.io/server-dashboard/) · 🇬🇧 [English version](README.en.md) · 📖 [Guide](docs/GUIDE.md) · 🧩 [Widgets](docs/WIDGETS.md)
+🌐 [Project website](https://circule-studio.github.io/server-dashboard/en/) · 🇫🇷 [Version française](README.fr.md) · 📖 [Guide](docs/GUIDE.md) · 🧩 [Widgets](docs/WIDGETS.md)
 
-![Le dashboard : onglets, stats du serveur, tuiles d'applications, widgets Proxmox VE, Jellyfin, Météo, Immich et qBittorrent](docs/screenshots/dashboard.png)
+![The dashboard: tabs, server stats, app tiles, and Proxmox VE, Jellyfin, Weather, Immich and qBittorrent widgets](docs/screenshots/dashboard-en.png)
 
 <details>
-<summary>Plus de captures</summary>
+<summary>More screenshots</summary>
 
-![L'onglet Serveurs : Pulse, deux machines suivies avec Glances, Scrutiny, sauvegardes et mises à jour en attente](docs/screenshots/servers.png)
+![The Servers tab: Pulse, two machines tracked with Glances, Scrutiny, backups and pending updates](docs/screenshots/servers-en.png)
 
-<img src="docs/screenshots/mobile.png" alt="Le dashboard sur un écran de téléphone" width="320">
+<img src="docs/screenshots/mobile-en.png" alt="The dashboard on a phone screen" width="320">
 
 </details>
 
-*Captures réalisées avec les faux services de `npm run mocks` : les données sont fictives.*
+*Screenshots taken with the fake services from `npm run mocks`: the data is made up.*
 
-## Pourquoi Server Dashboard
+## Why Server Dashboard
 
-- **Tout au même endroit** : tuiles d'applications, onglets, favoris et recherche au clavier. Le statut est vérifié par le serveur, services du réseau local compris.
-- **Tes machines d'un coup d'œil** : stats du serveur, Proxmox VE, Glances, ou un agent qui ne demande aucun port ouvert.
-- **Des alertes, même page fermée** : ntfy, Gotify, Discord ou webhook quand une application tombe, qu'une VM s'arrête ou qu'un disque se remplit.
-- **Les mises à jour en attente** : paquets apt et images Docker, machine par machine. Le dashboard les montre, il n'installe rien.
-- **Docker à portée de clic** : l'état de tes conteneurs, avec démarrage, arrêt et redémarrage une fois connecté.
-- **Tout se règle dans l'interface** : glisser-déposer, thème clair ou sombre, couleur d'accent, image de fond et seuils d'alerte, sans fichier à éditer.
-- **Sur ton téléphone** : l'interface s'adapte et s'installe comme une application.
-- **Léger et lisible** : Node.js avec une seule dépendance (Express), sans base de données ni étape de build. Tes clés API restent sur le serveur.
+- **Everything in one place**: app tiles, tabs, bookmarks and keyboard search. Status is checked by the server, so LAN-only services work too.
+- **Your machines at a glance**: server stats, Proxmox VE, Glances, or an agent that needs no open port.
+- **Alerts, even with the page closed**: ntfy, Gotify, Discord or a webhook when an app goes down, a VM stops or a disk fills up.
+- **Pending updates**: apt packages and Docker images, machine by machine. The dashboard shows them and installs nothing.
+- **Docker at your fingertips**: the state of your containers, with start, stop and restart once logged in.
+- **Everything is set in the interface**: drag and drop, light or dark theme, accent color, background image and alert thresholds, with no file to edit.
+- **On your phone**: the interface adapts and installs like an app.
+- **Light and readable**: Node.js with a single dependency (Express), no database and no build step. Your API keys stay on the server.
 
 ## 40 widgets
 
-| Famille | Services |
+| Family | Services |
 |---|---|
-| **Serveurs et sauvegardes** | Proxmox VE, Proxmox Backup Server, sauvegardes Proxmox, sauvegarde par script, Pulse, Glances, Agent, Mises à jour, Scrutiny, Watchtower |
-| **Médias** | Jellyfin, Plex, qBittorrent, Sonarr, Radarr, Lidarr, Readarr, Prowlarr, Bazarr, Spotify, Immich |
-| **Réseau et sécurité** | Pi-hole, AdGuard Home, CrowdSec, Wazuh, Authelia, Traefik, Nginx Proxy Manager, Uptime Kuma, Speedtest Tracker |
-| **Maison et quotidien** | Home Assistant, Frigate, Météo, Calendrier iCal, flux RSS / Atom |
-| **Web et développement** | Loki / Grafana, GoAccess, Alwaysdata, GitHub, API personnalisée pour tout le reste |
+| **Servers and backups** | Proxmox VE, Proxmox Backup Server, Proxmox backups, script backup, Pulse, Glances, Agent, Updates, Scrutiny, Watchtower |
+| **Media** | Jellyfin, Plex, qBittorrent, Sonarr, Radarr, Lidarr, Readarr, Prowlarr, Bazarr, Spotify, Immich |
+| **Network and security** | Pi-hole, AdGuard Home, CrowdSec, Wazuh, Authelia, Traefik, Nginx Proxy Manager, Uptime Kuma, Speedtest Tracker |
+| **Home and daily life** | Home Assistant, Frigate, Weather, iCal calendar, RSS / Atom feeds |
+| **Web and development** | Loki / Grafana, GoAccess, Alwaysdata, GitHub, a custom API widget for everything else |
 
-Ce que montre chaque widget et où trouver ses identifiants : [docs/WIDGETS.md](docs/WIDGETS.md).
+What each widget shows and where to find its credentials: [docs/WIDGETS.md](docs/WIDGETS.md).
 
 ## Installation
 
-### Sans Docker, en une commande
+### Without Docker, in one command
 
-En root, sur Debian 12+ ou Ubuntu 22.04+ avec systemd. Ça marche aussi dans un conteneur LXC Proxmox ou sur un Raspberry Pi :
+As root, on Debian 12+ or Ubuntu 22.04+ with systemd. It also works in a Proxmox LXC container or on a Raspberry Pi:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/packaging/install.sh | sudo bash
 ```
 
-Le script installe Node.js si besoin, crée un service systemd et affiche une seule fois le mot de passe admin généré. Relance la même commande pour mettre à jour.
+The script installs Node.js if needed, creates a systemd service and prints the generated admin password once. Run the same command again to update.
 
-### Avec Docker
+### With Docker
 
-L'image est publiée pour amd64 et arm64 (Raspberry Pi compris) :
+The image is published for amd64 and arm64 (Raspberry Pi included):
 
 ```bash
 mkdir server-dashboard && cd server-dashboard
@@ -66,31 +66,31 @@ curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/ma
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
 ```
 
-Ouvre `.env`, remplace `change-moi` par un vrai mot de passe, puis lance :
+Open `.env`, replace `change-moi` with a real password, then run:
 
 ```bash
 docker compose up -d
 ```
 
-Dans les deux cas, ouvre `http://IP-DU-SERVEUR:7575` : un écran d'accueil te guide. Mise à jour avec Docker : `docker compose pull && docker compose up -d`.
+Either way, open `http://SERVER-IP:7575`: a welcome screen guides you. To update with Docker: `docker compose pull && docker compose up -d`.
 
-### Avant de l'exposer sur Internet
+### Before exposing it to the internet
 
-Par défaut, le dashboard est lisible sans connexion : seule la modification est protégée. Pour l'ouvrir à l'extérieur, mets `REQUIRE_LOGIN=true` et place-le derrière un reverse proxy en HTTPS ou un VPN. Le panneau Docker donne un accès équivalent à root sur l'hôte. Détails : [Sécurité](docs/GUIDE.md#sécurité).
+By default, the dashboard can be read without logging in: only editing is protected. To open it to the outside, set `REQUIRE_LOGIN=true` and put it behind an HTTPS reverse proxy or a VPN. The Docker panel gives root-equivalent access to the host. Details: [Security](docs/GUIDE.md#security).
 
 ## Documentation
 
-- [Guide](docs/GUIDE.md) : fonctionnalités en détail, installation, disques, variables d'environnement, sécurité, API et développement.
-- [Widgets](docs/WIDGETS.md) : ce que montre chaque widget et où trouver ses identifiants.
-- [Agent](agent/README.md) : suivre une machine derrière un NAT ou sans port ouvert.
-- [Changelog](CHANGELOG.md) et [versions publiées](https://github.com/Circule-studio/server-dashboard/releases).
+- [Guide](docs/GUIDE.md): features in detail, installation, disks, environment variables, security, API and development.
+- [Widgets](docs/WIDGETS.md): what each widget shows and where to find its credentials.
+- [Agent](agent/README.md) (in French): track a machine behind NAT or without an open port.
+- [Changelog](CHANGELOG.md) (in French) and [published releases](https://github.com/Circule-studio/server-dashboard/releases).
 
-## Contribuer
+## Contributing
 
-Le projet est jeune et ouvert aux contributions : nouveaux widgets, interface, traductions. Tes retours avec de vrais services sont aussi très utiles ([#68](https://github.com/Circule-studio/server-dashboard/issues/68)). `npm run mocks` lance un faux service pour chaque widget, pour tout tester sans rien installer. Voir [CONTRIBUTING.md](CONTRIBUTING.md).
+The project is young and open to contributions: new widgets, interface, translations. Feedback from real services is also very useful ([#68](https://github.com/Circule-studio/server-dashboard/issues/68)). `npm run mocks` starts a fake service for each widget, so you can test everything without installing anything. Pull requests target the **`preprod`** branch. Details (in French) in [CONTRIBUTING.md](CONTRIBUTING.md); interface texts live in [`public/i18n.js`](public/i18n.js), add both French and English.
 
-Une faille de sécurité ? Merci de la signaler en privé : voir [SECURITY.md](SECURITY.md).
+Found a vulnerability? Please report it privately, see [SECURITY.md](SECURITY.md).
 
-## Licence
+## License
 
 [MIT](LICENSE)
