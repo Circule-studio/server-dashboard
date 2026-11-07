@@ -119,6 +119,7 @@ const OPTIONAL_FIELDS = {
   entities: (w) => sanitizeEntities(w.entities),
   feeds: (w) => sanitizeFeeds(w.feeds),
   mappings: (w) => sanitizeMappings(w.mappings),
+  view3d: (w) => w.view3d === true, // widget Agent : maquette 3D de Raspberry Pi
 };
 
 // Réglages des chiffres d'un widget (#96), rangés par libellé : masqué, seuils orange et rouge.

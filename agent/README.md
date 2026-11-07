@@ -41,6 +41,10 @@ Variables facultatives :
 
 Le dashboard garde les relevés de l'agent et en tire des courbes sur 24 h et 7 jours (bouton courbe du widget). Les débits réseau viennent des compteurs de `/proc/net/dev`, sur Linux seulement : un agent installé avant la version 0.29.0 n'envoie pas ces compteurs, relance sa commande d'installation pour avoir la courbe du réseau.
 
+## Vue 3D
+
+Sur un Raspberry Pi, coche **Vue 3D** dans le formulaire du widget : les valeurs s'affichent autour d'une maquette de la carte. Le réseau demande un agent installé à partir de la version 0.29.0.
+
 ## Lancement automatique à la main
 
 ### Linux (systemd)

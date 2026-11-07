@@ -59,6 +59,15 @@ test('Débit réseau : écart entre deux relevés, sans valeur après un redéma
   assert.equal(s.rx.at(-1), null);
 });
 
+test('Débit en direct : celui du point en cours, ou rien sans mesure', () => {
+  const h = createHistory(tmpFile());
+  assert.equal(h.latestRates('inconnue'), null);
+  h.add('a', { net: { rx: 1000, tx: 500 } }, NOW);
+  assert.equal(h.latestRates('a'), null);
+  h.add('a', { net: { rx: 61000, tx: 6500 } }, NOW + MIN);
+  assert.deepEqual(h.latestRates('a'), { rx: 1000, tx: 100 });
+});
+
 test('Disques : occupation par disque, et seuls les disques encore suivis sont renvoyés', () => {
   const h = createHistory(tmpFile());
   h.add('a', { disks: [{ path: '/', used: 10 * GIB, size: 100 * GIB }, { path: '/mnt', used: GIB, size: 2 * GIB }] }, NOW);

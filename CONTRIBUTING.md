@@ -24,6 +24,7 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 | `public/style.css` | Tout le style (les couleurs sont des variables dans `:root`) |
 | `public/app.js` | Logique de l'interface : rendu des tuiles, mode édition, rafraîchissement, outils partagés (`h()`, `fmtAgo`…) |
 | `public/history.js` | Fenêtre Historique et mini-courbes des cartes de stats (SVG, sans bibliothèque) |
+| `public/widgets/agent-3d.js` | Vue 3D du widget Agent : maquette de Raspberry Pi en CSS 3D |
 | `public/widgets/<service>.js` | Un widget : son type (`WIDGET_TYPES`) et son rendu (`RENDERERS`) |
 | `public/catalog.js` | Catalogue d'applications connues (nom, icône, port par défaut) : un objet par application, facile à compléter ; `node dev/check-icons.js` vérifie les noms d'icônes (lancé aussi par la CI) |
 | `agent/server-dashboard-agent.js` | Agent à lancer sur une autre machine : il envoie ses ressources au dashboard (widget Agent) |
