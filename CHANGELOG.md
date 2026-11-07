@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.31.0] - 2026-11-07
+
+### Ajouté
+- Vue 3D : grande jauge de température, avec un mot selon la chaleur (au frais, tiède, chaud, brûlant).
+
+### Modifié
+- Vue 3D : le CPU, la mémoire, la carte SD et le réseau s'affichent dans des anneaux avec une icône, à la place des barres. Les couleurs restent celles du tableau.
+
 ## [0.30.1] - 2026-11-07
 
 ### Modifié
@@ -360,7 +368,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.30.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.1...v0.30.0
 [0.29.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.0...v0.29.1
