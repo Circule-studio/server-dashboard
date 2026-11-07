@@ -4,6 +4,13 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.29.0] - 2026-11-07
+
+### Ajouté
+- **Courbes d’historique** (#136) : CPU, mémoire, disque et réseau sur 24 h et 7 jours, avec la valeur sous le pointeur. Un clic sur une carte de stats ouvre celles de la machine du dashboard, dont les cartes ont aussi une mini-courbe ; un bouton les ouvre sur les widgets Agent et sur chaque nœud, VM, LXC et stockage de Proxmox VE. Une panne se voit comme un trou.
+- **Estimation « disque plein »** : quand un disque se remplit régulièrement depuis au moins 2 jours, le nombre de jours restants à ce rythme.
+- L’historique du dashboard et des agents tient dans `data/history.json`, sans base de données ; Proxmox garde le sien, lu à la demande. Pour la courbe du réseau, relance la commande d’installation des agents.
+
 ### Modifié
 - README et site refaits pour présenter le projet : atouts, 40 widgets par famille, roadmap courte et captures à jour. Le détail passe dans `docs/GUIDE.md` et `docs/WIDGETS.md`, avec les widgets qui manquaient en anglais. L’anglais devient la langue par défaut de la documentation : la version française est dans les fichiers `.fr.md`.
 
@@ -334,7 +341,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.28.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.2...v0.28.0
 [0.27.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.0...v0.27.1

@@ -1,6 +1,6 @@
 {
   "name": "server-dashboard",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "Dashboard web auto-hébergé pour les services d’un serveur",
   "main": "server.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "node --watch server.js",
     "mocks": "node dev/mocks.js",
     "check:i18n": "node dev/check-i18n.js",
-    "test": "node --test test/widgets.test.js"
+    "test": "node --test test/widgets.test.js test/history.test.js"
   },
   "type": "commonjs",
   "dependencies": {

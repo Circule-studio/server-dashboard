@@ -11,7 +11,9 @@ const { version: APP_VERSION } = require('./package.json');
 const { INTEGRATIONS, fetchWidget, refreshWidget, resetIntegrations, request, orStale } = require('./integrations');
 const { fail, readJsonFile, writeJsonFileSync } = require('./integrations/lib');
 const { SECRET_FIELDS, sanitizeConfig, sanitizeNotify, publicConfig } = require('./config');
-const { cpuUsage, memInfo, diskInfo, disksOf, detectDisks, docker, dockerUsage } = require('./system');
+const { cpuUsage, cpuMeter, memInfo, diskInfo, disksOf, detectDisks, docker, dockerUsage } = require('./system');
+const { history, RANGES } = require('./history');
+const { networkTotals } = require('./agent/server-dashboard-agent');
 const { sendNotification, createMonitor } = require('./notify');
 const { checkApp } = require('./checks');
 
@@ -589,6 +591,48 @@ app.get('/api/system', readAuth, async (req, res) => {
     disks,
     disk: disks[0], // compatibilité avec les anciennes versions de l'interface
   });
+});
+
+// ---------- Historique des ressources (#136) ----------
+const localCpu = cpuMeter();
+
+history.start(async () => {
+  const [mem, disks] = await Promise.all([memInfo(), readConfig().then((cfg) => Promise.all(disksOf(cfg).map(diskInfo)))]);
+  history.add('local', {
+    cpu: localCpu(),
+    mem: (mem.used / mem.total) * 100,
+    disks: disks.filter((d) => d.total > 0).map((d) => ({ path: d.path, used: d.used, size: d.total })),
+    net: networkTotals(),
+  });
+});
+
+// La période demandée, sinon la réponse d'erreur est déjà faite.
+function historyRange(req, res) {
+  if (Object.hasOwn(RANGES, req.query.range ?? '')) return req.query.range;
+  sendError(res, 400, fail('history_range', 'Période inconnue'));
+  return null;
+}
+
+app.get('/api/history', readAuth, async (req, res) => {
+  const range = historyRange(req, res);
+  if (!range) return;
+  const names = Object.fromEntries(disksOf(await readConfig()).filter((d) => d.label).map((d) => [d.path, d.label]));
+  res.json(history.read('local', range, { names }));
+});
+
+// Machine d'un widget (agent, Proxmox VE). loadData : les données du widget, pour ne servir que ce qu'il montre.
+app.get('/api/widgets/:id/history', readAuth, async (req, res) => {
+  const range = historyRange(req, res);
+  if (!range) return;
+  const cfg = await readConfig();
+  const widget = cfg.widgets.find((w) => w.id === req.params.id);
+  const read = widget && INTEGRATIONS[widget.type]?.history;
+  if (!read) return notFound(res);
+  try {
+    res.json(await read(widget, range, req.query, () => fetchWidget(widget, cfg.widgets)));
+  } catch (e) {
+    sendError(res, e.key === 'history_target' ? 404 : 502, e);
+  }
 });
 
 app.get('/api/disks', requireAuth, async (req, res) => res.json(await detectDisks()));

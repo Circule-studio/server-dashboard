@@ -128,6 +128,7 @@
     .more-link { display: inline-block; margin-top: 4px; font-weight: 600; text-decoration: none; }
     .more-link:hover { text-decoration: underline; }
     figure.shot { margin-top: 40px; background: var(--bg-2); }
+    figure.history-shot { max-width: 780px; margin-inline: auto; }
     figcaption { padding: 12px 18px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
 
     /* Installation */
@@ -241,7 +242,7 @@
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
           <h3>Tes machines d’un coup d’œil</h3>
-          <p>Stats du serveur, Proxmox VE, Glances, ou un agent qui ne demande aucun port ouvert.</p>
+          <p>Stats du serveur, Proxmox VE, Glances, ou un agent qui ne demande aucun port ouvert. Avec des courbes sur 24 h et 7 jours.</p>
         </article>
         <article class="card">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
@@ -282,6 +283,10 @@
       <figure class="shot">
         <img src="screenshots/servers.png" width="1440" height="1000" loading="lazy" alt="L’onglet Serveurs : Pulse, deux machines suivies avec Glances, Scrutiny, sauvegardes et mises à jour en attente">
         <figcaption>Un onglet par sujet : ici, les serveurs. Données fictives, issues des faux services du projet.</figcaption>
+      </figure>
+      <figure class="shot history-shot">
+        <img src="screenshots/history.png" width="1560" height="1666" loading="lazy" alt="La fenêtre Historique : courbes CPU, mémoire, disque et réseau sur 24 h, avec un trou pendant une panne et l’estimation « plein dans environ 82 j »">
+        <figcaption>Un clic sur une carte ouvre l’historique : une panne se voit comme un trou. Données fictives.</figcaption>
       </figure>
     </div>
   </section>
@@ -409,7 +414,7 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
           <div class="phase-head"><h3>Disponible aujourd’hui</h3><span class="tag tag-done">Disponible</span></div>
           <ul>
             <li>40 widgets et une API personnalisée</li>
-            <li>Stats système et contrôle Docker</li>
+            <li>Stats système, courbes d’historique et contrôle Docker</li>
             <li>Onglets, catégories, favoris et recherche</li>
             <li>Alertes vers ntfy, Gotify, Discord ou webhook</li>
             <li>Plusieurs machines et mises à jour en attente</li>
@@ -421,7 +426,6 @@ curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/mai
           <div class="phase-head"><h3>En cours</h3><span class="tag tag-next">En cours</span></div>
           <ul>
             <li><a href="https://github.com/Circule-studio/server-dashboard/issues/68">Tester les widgets et les notifications avec de vrais services <span>#68</span></a></li>
-            <li><a href="https://github.com/Circule-studio/server-dashboard/issues/69">Tester le script Proxmox sur un vrai Proxmox <span>#69</span></a></li>
           </ul>
         </article>
         <article class="phase">

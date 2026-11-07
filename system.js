@@ -8,20 +8,25 @@ const DISK_PATH = process.env.DISK_PATH || (process.platform === 'win32' ? 'C:\\
 const DOCKER_SOCKET = process.env.DOCKER_SOCKET ||
   (process.platform === 'win32' ? '\\\\.\\pipe\\docker_engine' : '/var/run/docker.sock');
 
-let lastCpu = os.cpus();
-
-function cpuUsage() {
-  const now = os.cpus();
-  let idle = 0, total = 0;
-  now.forEach((c, i) => {
-    const prev = lastCpu[i] ? lastCpu[i].times : { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 };
-    const t = c.times;
-    idle += t.idle - prev.idle;
-    total += (t.user - prev.user) + (t.nice - prev.nice) + (t.sys - prev.sys) + (t.idle - prev.idle) + (t.irq - prev.irq);
-  });
-  lastCpu = now;
-  return total > 0 ? Math.round((1 - idle / total) * 1000) / 10 : 0;
+// Part du CPU utilisée depuis le dernier appel. Chaque utilisateur a sa mesure : l'historique, relevé
+// chaque minute, ne doit pas dépendre des appels de l'interface, toutes les 5 s.
+function cpuMeter() {
+  let last = os.cpus();
+  return () => {
+    const now = os.cpus();
+    let idle = 0, total = 0;
+    now.forEach((c, i) => {
+      const prev = last[i] ? last[i].times : { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 };
+      const t = c.times;
+      idle += t.idle - prev.idle;
+      total += (t.user - prev.user) + (t.nice - prev.nice) + (t.sys - prev.sys) + (t.idle - prev.idle) + (t.irq - prev.irq);
+    });
+    last = now;
+    return total > 0 ? Math.round((1 - idle / total) * 1000) / 10 : 0;
+  };
 }
+
+const cpuUsage = cpuMeter();
 
 async function memInfo() {
   // Sous Linux, MemAvailable est plus juste que os.freemem() (qui ignore le cache).
@@ -156,4 +161,4 @@ async function dockerUsage(names) {
   return out;
 }
 
-module.exports = { cpuUsage, memInfo, diskInfo, disksOf, detectDisks, docker, dockerUsage };
+module.exports = { cpuUsage, cpuMeter, memInfo, diskInfo, disksOf, detectDisks, docker, dockerUsage };

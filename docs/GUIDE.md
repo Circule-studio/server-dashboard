@@ -14,6 +14,7 @@
 
 - **App tiles** grouped by category, with icons ([dashboardicons.com](https://dashboardicons.com)) and an online / offline indicator. The check is done by the server, so it also works for LAN-only services. A tile can be **linked to its Proxmox VM or LXC, or to its Docker container**, to show their CPU and RAM.
 - **Server stats**: CPU, memory, disks and uptime, refreshed every 5 seconds.
+- **History charts**: click a stat card, or the chart button of an Agent widget or of a Proxmox node, VM, LXC or storage. CPU, memory, disk and network over 24 hours or 7 days, with the value under the pointer. A gap means the machine or the dashboard was stopped. When a disk fills steadily over at least 2 days, an estimate shows the days left, at that rate. The dashboard and agents' history is kept in `data/history.json` (a few hundred KB, no database); Proxmox keeps its own, read on demand. Glances machines have no history yet.
 - **Docker panel**: containers and their state, with start, stop and restart.
 - **Quick search**: just start typing anywhere. It filters the tiles and offers, from the keyboard, the tile to open, the typed address (`nas.home:8080`) or a web search (DuckDuckGo, Google, Qwant…, or a custom address, set in Display).
 - **Edit mode**, password protected: add, change or remove apps and categories, and reorder them by drag and drop. A welcome screen guides you on first launch.
@@ -30,7 +31,7 @@
 - **Notifications** to ntfy, Gotify, Discord or a webhook when an app goes down and when it comes back: the server checks every minute, even with the dashboard closed. With a widget's "Alert me" box, also for what it monitors: stopped Proxmox VM, container or node, disk over 90% (Proxmox, Glances, Agent), Glances or Agent machine offline, Nginx Proxy Manager certificate expiring within 7 days, Uptime Kuma monitor down, Frigate camera off.
 - **Backup**: export the configuration to a file (with or without API keys), and import it to restore it or copy it to another machine.
 
-Stack: Node.js + Express on the server, HTML / CSS / JS with no build step on the client. The configuration is stored in `data/config.json`.
+Stack: Node.js + Express on the server, HTML / CSS / JS with no build step on the client. The configuration is stored in `data/config.json`, and the charts' history in `data/history.json`.
 
 ## Installation details
 
@@ -103,6 +104,8 @@ Main routes. "–" means public, unless `REQUIRE_LOGIN=true`.
 | GET | `/api/config/export` | ✔ |
 | GET | `/api/status` | – |
 | GET | `/api/system` | – |
+| GET | `/api/history?range=(day\|week)` | – |
+| GET | `/api/widgets/:id/history?range=(day\|week)` | – |
 | GET | `/api/links` | – |
 | GET | `/api/widgets/:id` | – |
 | POST | `/api/widgets/:id/refresh` | ✔ |

@@ -5,6 +5,27 @@ const { http, json, GB } = require('./lib');
 
 const states = {};
 
+// Historique : des courbes qui bougent, et un stockage qui se remplit, pour l'estimation « plein dans N jours ».
+const RRD_STEP = { day: 60, week: 1800 };
+const RRD_SPAN = { day: 86400, week: 7 * 86400 };
+function rrdRows(timeframe, row) {
+  const step = RRD_STEP[timeframe] || 60;
+  const now = Math.floor(Date.now() / 1000);
+  const start = now - (now % step);
+  return Array.from({ length: Math.ceil((RRD_SPAN[timeframe] || 3600) / step) }, (_, i) => {
+    const time = start - i * step;
+    const wave = (Math.sin(time / 7000) + 1) / 2;
+    return { time, ...row(wave, (now - time) / 86400) };
+  });
+}
+const RRD_TARGETS = [
+  [/^\/api2\/json\/nodes\/pve\/rrddata$/, (w) => ({ cpu: 0.1 + w * 0.3, maxcpu: 16, memused: (35 + w * 10) * GB, memtotal: 64 * GB, rootused: 38 * GB, roottotal: 94 * GB, netin: 200_000 + w * 4e6, netout: 80_000 + w * 1e6 })],
+  [/^\/api2\/json\/nodes\/pve\/lxc\/\d+\/rrddata$/, (w) => ({ cpu: 0.02 + w * 0.1, mem: (1 + w) * GB, maxmem: 4 * GB, disk: 12 * GB, maxdisk: 32 * GB, netin: 10_000 + w * 5e5, netout: 5000 + w * 2e6 })],
+  // Une VM sans agent invité : disque à 0. Certaines lignes sont vides, comme pour une machine arrêtée.
+  [/^\/api2\/json\/nodes\/pve\/qemu\/\d+\/rrddata$/, (w) => (w < 0.05 ? {} : { cpu: 0.05 + w * 0.1, mem: 2 * GB, maxmem: 4 * GB, disk: 0, maxdisk: 32 * GB, netin: 1000, netout: 1000 })],
+  [/^\/api2\/json\/nodes\/pve\/storage\/[^/]+\/rrddata$/, (w, daysAgo) => ({ used: (612 - daysAgo * 6) * GB, total: 832 * GB })],
+];
+
 http.createServer((req, res) => {
   const ctl = req.url.match(/^\/__mock\/status\/(\d+)\/(running|stopped)$/);
   if (req.method === 'POST' && ctl) { states[ctl[1]] = ctl[2]; res.writeHead(204); return res.end(); }
@@ -12,6 +33,8 @@ http.createServer((req, res) => {
   // Sauvegardes (widget Sauvegardes Proxmox).
   const nowS = Math.floor(Date.now() / 1000);
   const url = req.url.split('?')[0];
+  const rrd = RRD_TARGETS.find(([re]) => re.test(url));
+  if (rrd) return json(res, { data: rrdRows(new URL(req.url, 'http://x').searchParams.get('timeframe'), rrd[1]) });
   if (url === '/api2/json/nodes') return json(res, { data: [{ node: 'pve', status: 'online' }, { node: 'eteint', status: 'offline' }] });
   if (url === '/api2/json/cluster/backup') return json(res, { data: [{ id: 'job', enabled: 1, 'next-run': nowS + 2 * 86400 }, { id: 'off', enabled: 0, 'next-run': nowS + 3600 }] });
   if (url === '/api2/json/cluster/backup-info/not-backed-up') return json(res, { data: [{ vmid: 102, name: 'pulse', type: 'lxc' }, { vmid: 101, type: 'lxc' }, { vmid: 120, name: 'windows-11', type: 'qemu' }, { vmid: 9000, name: 'debian-template', type: 'lxc' }] });

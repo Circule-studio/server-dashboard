@@ -14,6 +14,7 @@
 
 - **Tuiles d'applications** classées par catégories, avec icônes ([dashboardicons.com](https://dashboardicons.com)) et indicateur en ligne / hors ligne. Le ping est fait côté serveur, donc il marche aussi pour les services du réseau local. Une tuile peut être **liée à sa VM, son LXC Proxmox ou son conteneur Docker** pour afficher leur CPU et leur RAM.
 - **Stats du serveur** : CPU, mémoire, disque, uptime (mises à jour toutes les 5 s).
+- **Courbes d'historique** : clique sur une carte de stats, ou sur le bouton courbe d'un widget Agent ou d'un nœud, d'une VM, d'un LXC ou d'un stockage Proxmox. CPU, mémoire, disque et réseau sur 24 h ou 7 jours, avec la valeur sous le pointeur. Un trou veut dire que la machine ou le dashboard était arrêté. Quand un disque se remplit régulièrement depuis au moins 2 jours, une estimation donne les jours restants à ce rythme. L'historique du dashboard et des agents est gardé dans `data/history.json` (quelques centaines de Ko, sans base de données) ; Proxmox garde le sien, lu à la demande. Les machines suivies avec Glances n'ont pas encore d'historique.
 - **Panneau Docker** : liste des conteneurs et leur état, avec démarrage, arrêt et redémarrage.
 - **Recherche rapide** : commence à taper n’importe où. Elle filtre les tuiles et propose, au clavier, la tuile à ouvrir, l’adresse tapée (`nas.maison:8080`) ou une recherche web (DuckDuckGo, Google, Qwant…, ou une adresse personnalisée, réglable dans Affichage).
 - **Mode édition** protégé par mot de passe : ajouter, modifier ou supprimer des apps et des catégories, réordonner par glisser-déposer.
@@ -30,7 +31,7 @@
 - **Notifications** vers ntfy, Gotify, Discord ou un webhook quand une application tombe, puis quand elle revient : le serveur vérifie toutes les minutes, même dashboard fermé. Avec la case « M’alerter » d’un widget, aussi pour ce qu’il surveille : VM, conteneur ou nœud Proxmox arrêté, disque à plus de 90 % (Proxmox, Glances, Agent), machine Glances ou Agent hors ligne, certificat Nginx Proxy Manager qui expire dans 7 jours, sonde Uptime Kuma hors ligne, caméra Frigate coupée.
 - **Sauvegarde** : export de la configuration en un fichier (avec ou sans les clés API), et import pour la restaurer ou la recopier sur une autre machine.
 
-Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`.
+Stack : Node.js + Express côté serveur, HTML/CSS/JS sans étape de build côté client. La config est stockée dans `data/config.json`, et l'historique des courbes dans `data/history.json`.
 
 ## Installation en détail
 
@@ -107,6 +108,8 @@ Principales routes. « – » : publique, sauf si `REQUIRE_LOGIN=true`.
 | GET | `/api/config/export` | ✔ |
 | GET | `/api/status` | – |
 | GET | `/api/system` | – |
+| GET | `/api/history?range=(day\|week)` | – |
+| GET | `/api/widgets/:id/history?range=(day\|week)` | – |
 | GET | `/api/links` | – |
 | GET | `/api/widgets/:id` | – |
 | POST | `/api/widgets/:id/refresh` | ✔ |

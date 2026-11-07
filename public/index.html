@@ -202,6 +202,18 @@
     </form>
   </dialog>
 
+  <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
+    <div class="history-head">
+      <h3 id="historyTitle"></h3>
+      <div class="history-ranges" role="group" data-i18n-aria="history.period">
+        <button type="button" class="btn btn-ghost" data-range="day" data-i18n="history.day"></button>
+        <button type="button" class="btn btn-ghost" data-range="week" data-i18n="history.week"></button>
+      </div>
+      <button type="button" class="icon-btn" data-close data-i18n-aria="common.close">✕</button>
+    </div>
+    <div id="historyBody" class="history-body"></div>
+  </dialog>
+
   <dialog id="disksDialog">
     <form method="dialog" id="disksForm">
       <h3 data-i18n="disks.title"></h3>
@@ -377,6 +389,7 @@
   <script src="i18n.js"></script>
   <script src="catalog.js"></script>
   <script src="app.js"></script>
+  <script src="history.js"></script>
   <!-- Un fichier par widget, dans l'ordre de la liste « Type » du formulaire. -->
   <script src="widgets/pulse.js"></script>
   <script src="widgets/proxmox.js"></script>

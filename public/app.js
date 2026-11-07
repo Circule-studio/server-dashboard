@@ -696,6 +696,7 @@ function widgetCard(w, i) {
       : h('span', { class: 'widget-title' }, w.name || type.label));
   const card = h('article', { class: `widget widget-${type.kind}`, 'data-widget': w.id }, head, widgetBody(w));
   if (!state.editing) {
+    if (type.history) head.append(historyButton(w.name || type.label, widgetHistoryUrl(w), 'widget-history'));
     if (state.authed) head.append(h('button', { class: 'icon-btn widget-refresh', title: t('widget.refresh'), 'aria-label': t('widget.refresh'), onclick: (e) => refreshNow(w, e.currentTarget) }, '⟳'));
     return card;
   }
@@ -1625,6 +1626,7 @@ async function refreshSystem() {
     state.system = s;
     renderDisks(s.disks || [s.disk]);
     setStat('#stat-up', fmtUptime(s.uptime), s.platform);
+    refreshSparklines();
   } catch { /* le serveur est peut-être en train de redémarrer */ }
 }
 

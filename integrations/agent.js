@@ -4,6 +4,7 @@
 // Même format de données que Glances, pour le même affichage.
 
 const { fail, diskAlerts } = require('./lib');
+const { history } = require('../history');
 
 const reports = new Map(); // id du widget -> { t, data } ; perdu au redémarrage du dashboard
 // Le dashboard ne peut pas appeler l'agent : celui-ci garde une demande ouverte (GET /api/agent/:id/wait),
@@ -71,6 +72,14 @@ function receive(w, body) {
     interval: num(b.interval, 5, 86400) ?? 30,
   };
   reports.set(w.id, { t: Date.now(), data, updates: cleanUpdates(b.updates) });
+  // Les compteurs réseau ne servent qu'à l'historique : ils ne sont pas repris dans les données du widget.
+  const net = b.net && num(b.net.rx) !== null && num(b.net.tx) !== null ? { rx: num(b.net.rx), tx: num(b.net.tx) } : null;
+  history.add(w.id, {
+    cpu: data.cpu,
+    mem: mem ? (mem.used / mem.total) * 100 : null,
+    disks: data.disks.map((d) => ({ path: d.mount, used: d.used, size: d.size })),
+    net,
+  });
   wanted.delete(w.id);
   for (const arrived of arrivals.get(w.id) || []) arrived(true);
   return true;
@@ -133,6 +142,7 @@ module.exports = {
   // generatedKey : jeton créé par le serveur (server.js), jamais saisi.
   agent: {
     fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts, updatesOf, waitCommand, requestReport,
+    history: (w, range) => history.read(w.id, range),
     refresh: async (w) => ({ agentAnswered: await requestReport(w.id) }),
   },
 };

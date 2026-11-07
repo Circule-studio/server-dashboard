@@ -741,3 +741,47 @@ dialog fieldset.sections .stat-rule .check { margin: 0; }
 dialog [data-background-upload] { align-self: flex-start; margin-bottom: 14px; }
 /* Titres posés directement sur l'image : un halo de la couleur du fond les détache. */
 .has-bg :is(.category-head h2, #host, .clock, .version) { color: var(--text); text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg); }
+
+/* Courbes d'historique (#136) */
+.history-btn { width: 24px; height: 24px; flex: none; opacity: 0.6; }
+.history-btn:hover, .history-btn:focus-visible { opacity: 1; }
+.widget-history { margin-left: auto; }
+.widget-history + .widget-refresh { margin-left: 0; }
+.row:has(> .row-end) { align-items: center; }
+.row-end { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.meter-row { display: flex; align-items: center; gap: 8px; }
+.meter-row .meter { flex: 1; min-width: 0; }
+.history-dialog { width: min(780px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.history-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.history-head h3 { margin: 0; flex: 1; min-width: 180px; overflow-wrap: anywhere; }
+.history-ranges { display: flex; gap: 6px; }
+.history-ranges .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.history-fill { margin: 0 0 14px; padding: 8px 12px; border-radius: 8px; background: var(--veil-soft); font-size: 0.88rem; }
+.history-fill.warn { color: var(--warn); }
+.history-note { font-size: 0.78rem; margin: 4px 0 0; }
+.chart { margin-bottom: 18px; }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+.chart-head h4 { margin: 0; font-size: 0.9rem; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.chart-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.chart-plot { position: relative; height: 104px; border-radius: 8px; background: var(--veil-soft); overflow: hidden; touch-action: pan-y; }
+.chart-plot svg { display: block; width: 100%; height: 100%; }
+.chart-line { fill: none; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart-area { opacity: 0.14; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-max { position: absolute; top: 4px; left: 8px; font-size: 0.7rem; color: var(--muted); pointer-events: none; }
+.chart-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); pointer-events: none; }
+.chart-tip {
+  position: absolute; top: 6px; padding: 5px 9px; border-radius: 8px; font-size: 0.76rem; white-space: nowrap;
+  background: var(--bg-2); border: 1px solid var(--border-strong); pointer-events: none; font-variant-numeric: tabular-nums;
+}
+.chart-x { display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.7rem; color: var(--muted); }
+.stat { position: relative; overflow: hidden; }
+.stat > :not(.spark) { position: relative; }
+.stat { padding-bottom: 26px; }
+.spark { position: absolute; inset: auto 0 0 0; width: 100%; height: 22px; pointer-events: none; }
+.spark-line { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.6; }
+.spark-area { fill: var(--accent); opacity: 0.1; }
+body:not(.editing) .stat { cursor: pointer; transition: border-color 0.15s; }
+body:not(.editing) .stat:hover { border-color: var(--border-strong); }
+body:not(.editing) .stat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
