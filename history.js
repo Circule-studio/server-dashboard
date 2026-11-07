@@ -142,6 +142,12 @@ function createHistory(file = FILE) {
     });
   }
 
+  // Débits du point en cours, pour l'affichage en direct. null : pas encore de mesure.
+  function latestRates(id) {
+    const s = sources.get(id)?.open.day?.s;
+    return s?.r && s?.x ? { rx: s.r[0] / s.r[1], tx: s.x[0] / s.x[1] } : null;
+  }
+
   // Une machine sans point depuis une semaine (widget supprimé, agent arrêté) est oubliée.
   function save(now = Date.now()) {
     for (const [id, src] of sources) {
@@ -164,7 +170,7 @@ function createHistory(file = FILE) {
     }
   }
 
-  return { add, read, save, start };
+  return { add, read, latestRates, save, start };
 }
 
 module.exports = { RANGES, MIB, createHistory, buildSeries, estimateFill, history: createHistory() };

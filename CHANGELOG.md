@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.30.0] - 2026-11-07
+
+### Ajouté
+- **Vue 3D pour un Raspberry Pi** : une option du widget Agent affiche une maquette de la carte, à faire tourner à la souris ou au doigt, animée par les vraies valeurs : le SoC chauffe, les voyants suivent le CPU et le réseau, et chaque valeur est reliée à son composant. En CSS 3D, sans nouvelle dépendance.
+- Widget Agent : le débit réseau en direct dans ses données.
+
 ## [0.29.1] - 2026-11-07
 
 ### Corrigé
@@ -346,7 +352,8 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.1...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.1...v0.30.0
 [0.29.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.27.2...v0.28.0

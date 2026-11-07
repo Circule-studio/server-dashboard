@@ -1562,3 +1562,21 @@ test('Historique Proxmox : seules les machines du widget sont demandées, et auc
   const ok = await api('GET', '/api/widgets/proxmox/history?range=day&node=pve');
   assert.ok(!ok.text.includes('pve-secret'));
 });
+
+test('Vue 3D d\'un agent : option enregistrée, et débit en direct dans les données', async () => {
+  const cfg = (await api('GET', '/api/config')).json;
+  const toggle = (on) => api('PUT', '/api/config', { ...cfg, widgets: cfg.widgets.map((w) => (w.id === 'agent' ? { ...w, view3d: on } : w)) });
+  assert.equal((await toggle(true)).status, 200);
+  assert.equal((await api('GET', '/api/config')).json.widgets.find((w) => w.id === 'agent').view3d, true);
+
+  // Une valeur qui n'est pas vrai ou faux ne passe pas, et l'option reste propre aux agents.
+  const fresh = (await api('GET', '/api/config')).json;
+  await api('PUT', '/api/config', { ...fresh, widgets: fresh.widgets.map((w) => (w.id === 'agent' ? { ...w, view3d: 'oui' } : w.id === 'jellyfin' ? { ...w, view3d: true } : w)) });
+  const after = (await api('GET', '/api/config')).json.widgets;
+  assert.equal(after.find((w) => w.id === 'agent').view3d, false);
+  assert.equal(after.find((w) => w.id === 'jellyfin').view3d, undefined);
+
+  const data = await api('GET', '/api/widgets/agent');
+  assert.equal(data.status, 200);
+  assert.ok(data.json.rate === null || data.json.rate.rx >= 0, 'débit calculé ou pas encore connu');
+});

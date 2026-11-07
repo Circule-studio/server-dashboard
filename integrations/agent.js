@@ -89,7 +89,7 @@ async function agent(w) {
   const last = reports.get(w.id);
   if (!last) throw fail('agent_waiting', 'En attente du premier envoi de l\'agent');
   // Plus de nouvelles : dernières valeurs affichées, avec l'heure du dernier envoi.
-  return { ...last.data, ...freshness(last) };
+  return { ...last.data, rate: history.latestRates(w.id), ...freshness(last) };
 }
 
 const freshness = (r) => ({ seen: new Date(r.t).toISOString(), offline: Date.now() - r.t > r.data.interval * 1000 * MISSED });
@@ -141,7 +141,7 @@ const alerts = (d, w) => [{ id: `${w.id}:machine`, name: w.name, online: !d.offl
 module.exports = {
   // generatedKey : jeton créé par le serveur (server.js), jamais saisi.
   agent: {
-    fields: [], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts, updatesOf, waitCommand, requestReport,
+    fields: ['view3d'], generatedKey: true, cacheMs: 1000, fetch: agent, receive, alerts, updatesOf, waitCommand, requestReport,
     history: (w, range) => history.read(w.id, range),
     refresh: async (w) => ({ agentAnswered: await requestReport(w.id) }),
   },

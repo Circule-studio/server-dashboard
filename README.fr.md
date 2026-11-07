@@ -15,6 +15,8 @@
 
 ![La fenêtre Historique : courbes CPU, mémoire, disque et réseau sur 24 h, avec un trou pendant une panne et l'estimation « plein dans environ 82 j »](docs/screenshots/history.png)
 
+![La vue 3D d'un Raspberry Pi : une maquette de la carte animée par son CPU, sa mémoire, sa carte SD et son réseau](docs/screenshots/agent-3d.png)
+
 ![L'onglet Serveurs : Pulse, machines suivies avec Glances et un agent, Scrutiny, sauvegardes et mises à jour en attente](docs/screenshots/servers.png)
 
 <img src="docs/screenshots/mobile.png" alt="Le dashboard sur un écran de téléphone" width="320">
@@ -28,6 +30,7 @@
 - **Tout au même endroit** : tuiles d'applications, onglets, favoris et recherche au clavier. Le statut est vérifié par le serveur, services du réseau local compris.
 - **Tes machines d'un coup d'œil** : stats du serveur, Proxmox VE, Glances, ou un agent qui ne demande aucun port ouvert.
 - **Des courbes d'historique** : CPU, mémoire, disque et réseau sur 24 h et 7 jours, pour le serveur du dashboard, les agents, les machines et les stockages Proxmox. Une panne se voit comme un trou, et un disque qui se remplit a une estimation « plein dans environ N jours ».
+- **Un Raspberry Pi en 3D** : une option du widget Agent affiche une maquette de la carte que tu peux faire tourner, animée par ses vraies valeurs.
 - **Des alertes, même page fermée** : ntfy, Gotify, Discord ou webhook quand une application tombe, qu'une VM s'arrête ou qu'un disque se remplit.
 - **Les mises à jour en attente** : paquets apt et images Docker, machine par machine. Le dashboard les montre, il n'installe rien.
 - **Docker à portée de clic** : l'état de tes conteneurs, avec démarrage, arrêt et redémarrage une fois connecté.

@@ -12,7 +12,7 @@ The 40 widgets by family, then [where to find their credentials](#where-to-find-
 - **Script backup**: the result of your own script (rsync to a USB disk…): date, size, success or failure, history; alert on failure or delay.
 - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
 - **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
-- **Agent**: CPU, memory, disks and temperature of a machine behind NAT or without an open port; the machine contacts the dashboard. With history charts, network included. See [agent/README.md](../agent/README.md) (in French).
+- **Agent**: CPU, memory, disks and temperature of a machine behind NAT or without an open port; the machine contacts the dashboard. With history charts, network included, and an optional 3D Raspberry Pi view. See [agent/README.md](../agent/README.md) (in French).
 - **Updates**: pending apt packages (including security ones) and Docker images, for the dashboard server and each machine with an agent. Display only, nothing is installed.
 - **Scrutiny**: SMART disk health, failing disks first, with their temperature.
 - **Watchtower**: containers checked, to update and failed during the last run.

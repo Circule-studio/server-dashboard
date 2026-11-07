@@ -893,6 +893,7 @@ function openWidgetDialog(i) {
   f.location.value = w.location || '';
   f.indexerUrl.value = w.indexerUrl || '';
   f.query.value = w.query || '';
+  f.view3d.checked = !!w.view3d;
   f.repo.value = w.repo || '';
   f.slug.value = w.slug || '';
   f.entities.value = (w.entities || []).join('\n');
@@ -1076,6 +1077,7 @@ function submitWidget(e) {
   if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('indexerUrl')) w.indexerUrl = f.indexerUrl.value.trim();
   if (fields.includes('query')) w.query = f.query.value.trim();
+  if (fields.includes('view3d')) w.view3d = f.view3d.checked;
   if (fields.includes('repo')) w.repo = f.repo.value.trim(); // normalisé par le serveur
   if (fields.includes('slug')) w.slug = f.slug.value.trim(); // ou tiré de l'adresse de la page par le serveur
   if (fields.includes('entities')) w.entities = f.entities.value.split(/[\s,;]+/).filter(Boolean); // vérifiées par le serveur
