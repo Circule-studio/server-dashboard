@@ -72,17 +72,27 @@ test('Disques : occupation par disque, et seuls les disques encore suivis sont r
 
 test('Estimation « disque plein » : pente régulière, sans réponse quand elle ne veut rien dire', () => {
   const hour = 3600;
-  const series = (perHour, hours = 72, start = 500) => Array.from({ length: hours }, (_, i) => ({ t: i * hour, d: { '/': start + i * perHour } }));
+  const series = (perHour, hours = 120, start = 500) => Array.from({ length: hours }, (_, i) => ({ t: i * hour, d: { '/': start + i * perHour } }));
   const size = 1000 * MIB;
 
-  // 1 Mio par heure, 429 Mio restants après 72 h : environ 18 jours.
-  assert.equal(estimateFill(series(1), '/', size), 18);
+  // 24 Mio par jour, 381 Mio restants après 5 jours : environ 16 jours.
+  assert.equal(estimateFill(series(1), '/', size), 16);
   assert.equal(estimateFill(series(0), '/', size), null); // stable
   assert.equal(estimateFill(series(-1), '/', size), null); // en baisse
-  assert.equal(estimateFill(series(1, 20), '/', size), null); // moins de 2 jours de recul
-  assert.equal(estimateFill(series(0.01), '/', size), null); // plus d'un an
-  assert.equal(estimateFill(series(1, 72, 2000), '/', size), null); // déjà plein
+  assert.equal(estimateFill(series(1, 50), '/', size), null); // moins de 3 jours d'écarts
+  assert.equal(estimateFill(series(0.001), '/', size), null); // plus d'un an
+  assert.equal(estimateFill(series(1, 120, 2000), '/', size), null); // déjà plein
   assert.equal(estimateFill(series(1), '/autre', size), null);
+});
+
+test('Estimation « disque plein » : un saut ponctuel n\'annonce pas un disque plein', () => {
+  const size = 100_000 * MIB;
+  const days = (...values) => values.map((v, i) => ({ t: i * 86400, d: { '/': v } }));
+  // Relevés réels d'un LXC et d'un stockage de sauvegarde : deux sauts, puis un seul, stables le reste du temps.
+  assert.equal(estimateFill(days(28_000, 29_000, 39_000, 39_000, 39_000, 43_000, 43_000), '/', size), null);
+  assert.equal(estimateFill(days(190_000, 193_000, 193_000, 193_000, 193_000, 226_000, 226_000), '/', 400_000 * MIB), null);
+  // Une croissance régulière, même avec un saut et un jour de baisse, garde son rythme médian.
+  assert.equal(estimateFill(days(10_000, 11_000, 12_000, 18_000, 19_000, 18_900, 19_900, 20_900), '/', size), 79);
 });
 
 test('L\'historique survit à un redémarrage, et un fichier abîmé ne bloque pas le démarrage', () => {
