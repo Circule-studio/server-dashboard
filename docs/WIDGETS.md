@@ -6,13 +6,13 @@ The 40 widgets by family, then [where to find their credentials](#where-to-find-
 
 ## Servers and backups
 
-- **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage.
+- **Proxmox VE**: host CPU / RAM / disk, every VM and LXC container, storage, with history charts for each of them.
 - **Proxmox Backup Server**: successful and failed backups over the last 24 h, datastore usage.
 - **Proxmox backups**: latest backup (date, success or failure), size and date per machine, machines in no scheduled backup, storage and next backup; alert on failure.
 - **Script backup**: the result of your own script (rsync to a USB disk…): date, size, success or failure, history; alert on failure or delay.
 - **Pulse**: fleet health, active alerts, nodes / VMs / LXC, as blocks you can place freely.
 - **Glances**: CPU, memory, disks, temperature and uptime of another machine (PC, Raspberry Pi, NAS…), one widget per machine; a machine that is off is clearly shown.
-- **Agent**: CPU, memory, disks and temperature of a machine behind NAT or without an open port; the machine contacts the dashboard. See [agent/README.md](../agent/README.md) (in French).
+- **Agent**: CPU, memory, disks and temperature of a machine behind NAT or without an open port; the machine contacts the dashboard. With history charts, network included. See [agent/README.md](../agent/README.md) (in French).
 - **Updates**: pending apt packages (including security ones) and Docker images, for the dashboard server and each machine with an agent. Display only, nothing is installed.
 - **Scrutiny**: SMART disk health, failing disks first, with their temperature.
 - **Watchtower**: containers checked, to update and failed during the last run.

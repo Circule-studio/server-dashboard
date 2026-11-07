@@ -1483,3 +1483,82 @@ test('Recherche rapide : moteur de recherche web enregistré et vérifié (#91)'
     await api('PUT', '/api/config', { ...(await api('GET', '/api/config')).json, searchEngine: 'duckduckgo' });
   }
 });
+
+test('Historique : la machine du dashboard, et une période inconnue refusée', async () => {
+  const day = await api('GET', '/api/history?range=day');
+  assert.equal(day.status, 200);
+  assert.equal(day.json.range, 'day');
+  assert.equal(day.json.step, 120);
+  assert.ok(Array.isArray(day.json.cpu));
+  for (const bad of ['', '?range=year', '?range=constructor']) {
+    const res = await api('GET', `/api/history${bad}`);
+    assert.equal(res.status, 400, bad);
+    assert.equal(res.json.code, 'history_range');
+  }
+});
+
+test('Historique : un agent, avec le débit tiré de ses compteurs réseau', async () => {
+  const { json } = await api('GET', '/api/agent/agent/setup');
+  const send = (body) => fetch(`${BASE}/api/agent/agent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${json.token}` }, body: JSON.stringify(body),
+  });
+  const report = (rx) => ({
+    hostname: 'pc', cpu: 42, mem: { total: 1000, used: 500 }, disks: [{ mount: '/', size: 2000, used: 1000 }], net: { rx, tx: 10 }, interval: 30,
+  });
+  assert.equal((await send(report(1000))).status, 200);
+  await new Promise((r) => { setTimeout(r, 2100); }); // délai minimal entre deux envois
+  assert.equal((await send(report(5000))).status, 200);
+
+  const { status, json: h } = await api('GET', '/api/widgets/agent/history?range=day');
+  assert.equal(status, 200);
+  // Valeurs moyennées avec les envois des autres tests, tombés dans le même point.
+  assert.ok(h.cpu.at(-1) > 0);
+  assert.ok(h.mem.at(-1) > 0);
+  assert.equal(h.disks[0].path, '/');
+  assert.equal(h.disks[0].size, 2000);
+  assert.ok(h.rx.at(-1) > 0, 'débit reçu calculé');
+
+  // Les compteurs ne sont pas repris dans les données du widget.
+  const data = await api('GET', '/api/widgets/agent');
+  assert.equal(data.json.net, undefined);
+});
+
+test('Historique Proxmox : nœud, conteneur, VM et stockage, avec l\'estimation « plein dans N jours »', async () => {
+  const node = await api('GET', '/api/widgets/proxmox/history?range=day&node=pve');
+  assert.equal(node.status, 200);
+  assert.ok(node.json.t.length > 100);
+  assert.ok(node.json.cpu.every((v) => v >= 0 && v <= 100));
+  assert.ok(node.json.rx[0] > 0);
+  assert.equal(node.json.disks[0].path, '/');
+  assert.equal(node.json.disks[0].fillDays, null); // occupation stable
+
+  const lxc = await api('GET', '/api/widgets/proxmox/history?range=week&node=pve&vmid=100');
+  assert.equal(lxc.status, 200);
+  assert.equal(lxc.json.step, 1800);
+  assert.ok(lxc.json.disks[0].used[0] > 0);
+
+  // VM sans agent invité : pas de disque ; lignes vides d'une machine arrêtée : des trous.
+  const vm = await api('GET', '/api/widgets/proxmox/history?range=week&node=pve&vmid=110');
+  assert.equal(vm.status, 200);
+  assert.deepEqual(vm.json.disks, []);
+  assert.ok(vm.json.cpu.includes(null));
+
+  const storage = await api('GET', '/api/widgets/proxmox/history?range=day&node=pve&storage=local-lvm');
+  assert.equal(storage.status, 200);
+  assert.equal(storage.json.disks[0].name, 'local-lvm');
+  assert.equal(storage.json.cpu.every((v) => v === null), true);
+  assert.ok(storage.json.disks[0].fillDays > 0, 'le faux stockage se remplit');
+});
+
+test('Historique Proxmox : seules les machines du widget sont demandées, et aucun secret n\'en sort', async () => {
+  for (const q of ['node=inconnu', 'node=pve&vmid=999', 'node=pve&storage=inconnu', 'node=../../access/users', 'node=pve&vmid=100/../../x']) {
+    const res = await api('GET', `/api/widgets/proxmox/history?range=day&${q}`);
+    assert.equal(res.status, 404, q);
+    assert.equal(res.json.code, 'history_target');
+  }
+  // Sans la machine visée, ou pour un widget sans historique.
+  assert.equal((await api('GET', '/api/widgets/proxmox/history?range=day')).status, 404);
+  assert.equal((await api('GET', '/api/widgets/jellyfin/history?range=day')).status, 404);
+  const ok = await api('GET', '/api/widgets/proxmox/history?range=day&node=pve');
+  assert.ok(!ok.text.includes('pve-secret'));
+});

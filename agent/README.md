@@ -37,6 +37,10 @@ Variables facultatives :
 
 `node server-dashboard-agent.js --once` fait un seul envoi puis s'arrête : pratique pour tester.
 
+## Courbes d'historique
+
+Le dashboard garde les relevés de l'agent et en tire des courbes sur 24 h et 7 jours (bouton courbe du widget). Les débits réseau viennent des compteurs de `/proc/net/dev`, sur Linux seulement : un agent installé avant la version 0.29.0 n'envoie pas ces compteurs, relance sa commande d'installation pour avoir la courbe du réseau.
+
 ## Lancement automatique à la main
 
 ### Linux (systemd)

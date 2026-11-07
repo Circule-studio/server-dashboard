@@ -9,13 +9,15 @@ WIDGET_TYPES.proxmox = {
   alerts: 'proxmox.alertHelp', // case « M'alerter » : texte d'aide
 };
 
-RENDERERS.proxmox = (d) => {
+RENDERERS.proxmox = (d, w) => {
   const multiNode = d.nodes.length > 1;
   return [
     ...d.nodes.map((n) => h('div', { class: 'pve-node' },
       h('div', { class: 'row' },
         h('span', { class: 'item-title' }, h('span', { class: `dot ${n.online ? 'ok' : 'bad'}` }), ` ${n.name}`),
-        h('span', { class: 'muted' }, n.online ? t('pve.onlineFor', { duration: fmtUptime(n.uptime) }) : t('pve.offline'))),
+        h('span', { class: 'row-end' },
+          h('span', { class: 'muted' }, n.online ? t('pve.onlineFor', { duration: fmtUptime(n.uptime) }) : t('pve.offline')),
+          historyButton(n.name, widgetHistoryUrl(w, { node: n.name })))),
       n.online ? [
         meterEl('CPU', n.cpu, `${pct(n.cpu)} · ${t('pve.cores', { count: n.cores })}`),
         meterEl('RAM', n.mem / n.maxmem, `${fmtBytes(n.mem)} / ${fmtBytes(n.maxmem)}`),
@@ -28,11 +30,14 @@ RENDERERS.proxmox = (d) => {
           h('span', { class: 'item-title', title: `${g.type} ${g.id} · ${g.name}` },
             h('span', { class: `dot ${g.running ? 'ok' : ''}` }), ' ',
             h('span', { class: 'badge' }, g.type), ` ${g.id} · ${g.name}`),
-          h('span', { class: 'muted' }, g.running ? `${pct(g.cpu)} CPU · ${pct(g.mem)} RAM` : t('pve.stopped'))),
+          h('span', { class: 'row-end' },
+            h('span', { class: 'muted' }, g.running ? `${pct(g.cpu)} CPU · ${pct(g.mem)} RAM` : t('pve.stopped')),
+            historyButton(`${g.id} · ${g.name}`, widgetHistoryUrl(w, { node: g.node, vmid: g.id })))),
         multiNode ? h('div', { class: 'item-sub' }, g.node) : null)))
       : h('p', { class: 'muted' }, t('pve.noGuests')),
     d.storages.length ? h('div', { class: 'widget-subhead' }, t('pve.storages')) : null,
-    ...d.storages.map((s) => meterEl(multiNode ? `${s.name} (${s.node})` : s.name, s.used / s.total,
-      `${fmtBytes(s.used)} / ${fmtBytes(s.total)}`)),
+    ...d.storages.map((s) => h('div', { class: 'meter-row' },
+      meterEl(multiNode ? `${s.name} (${s.node})` : s.name, s.used / s.total, `${fmtBytes(s.used)} / ${fmtBytes(s.total)}`),
+      historyButton(s.name, widgetHistoryUrl(w, { node: s.node, storage: s.name })))),
   ];
 };

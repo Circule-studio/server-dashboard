@@ -6,6 +6,7 @@ WIDGET_TYPES.agent = {
   agentSetup: true, // commande d'installation affichée dans le formulaire (voir agentSetup dans app.js)
   waitingCode: 'agent_waiting', // rien reçu encore : message d'attente, pas d'erreur
   alerts: 'agent.alertHelp', // case « M'alerter » : texte d'aide
+  history: true, // bouton « Historique » dans la barre du widget
 };
 
 RENDERERS.agent = (d, w) => [

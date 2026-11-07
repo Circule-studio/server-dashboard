@@ -13,6 +13,7 @@
 //   DOCKER_SOCKET   socket de l'API Docker, pour les images à mettre à jour
 //   --once          un seul envoi, puis arrêt (pour tester)
 //
+// L'agent envoie aussi ses compteurs réseau, d'où le dashboard tire la courbe des débits.
 // L'agent garde aussi une demande ouverte vers le dashboard : le bouton ⟳ du widget y répond tout de suite,
 // et l'agent envoie alors ses valeurs sans attendre le prochain envoi. Aucun port n'est ouvert sur la machine.
 
@@ -84,6 +85,34 @@ function temperature() {
   return values.length ? { value: Math.round(Math.max(...values)), label: 'CPU' } : null;
 }
 
+// Compteurs de /proc/net/dev (reçu et envoyé depuis le démarrage), sur les vraies interfaces : les ponts
+// et interfaces virtuelles feraient compter deux fois le même trafic. null : aucune interface utile.
+const VIRTUAL_NET = /^(lo|veth|docker|br-|virbr|vmbr|fwbr|fwln|fwpr|tap|tun|wg|tailscale|cni|flannel|cali|dummy)/;
+
+function parseNetDev(text) {
+  let found = false;
+  let rx = 0;
+  let tx = 0;
+  for (const line of text.split('\n').slice(2)) {
+    const m = line.match(/^\s*([^:\s]+):\s*(.*)$/);
+    if (!m || VIRTUAL_NET.test(m[1])) continue;
+    const cols = m[2].trim().split(/\s+/).map(Number);
+    if (!Number.isFinite(cols[0]) || !Number.isFinite(cols[8])) continue;
+    found = true;
+    rx += cols[0];
+    tx += cols[8];
+  }
+  return found ? { rx, tx } : null;
+}
+
+function networkTotals() {
+  try {
+    return parseNetDev(fs.readFileSync('/proc/net/dev', 'utf8'));
+  } catch {
+    return null; // pas Linux
+  }
+}
+
 function osName() {
   try {
     const m = fs.readFileSync('/etc/os-release', 'utf8').match(/^PRETTY_NAME="?([^"\n]+)"?/m);
@@ -105,6 +134,7 @@ function report() {
     mem: memory(),
     disks: disks(),
     temp: temperature(),
+    net: networkTotals(),
     interval: INTERVAL,
     updates: UPDATES_HOURS ? updates : undefined,
   };
@@ -353,4 +383,4 @@ if (require.main === module) {
   if (!ONCE) waitLoop();
 }
 
-module.exports = { checkUpdates, parseApt, parseImage };
+module.exports = { checkUpdates, parseApt, parseImage, parseNetDev, networkTotals };

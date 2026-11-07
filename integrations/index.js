@@ -18,6 +18,7 @@
 //   generatedKey  jeton créé par le serveur, pour un service qui contacte le dashboard (agent)
 //   receive(w, b) reçoit les données envoyées par ce service (POST /api/agent/:id)
 //   reset()       vide les sessions et caches propres au service quand la config change
+//   history(w, range, query, loadData) : courbes d'une machine du widget (voir history.js).
 //   alerts(d, w)  éléments surveillés par les notifications quand « M'alerter » est coché :
 //                 [{ id stable, name, url, online, problem?, value? }] tirés des données d (ex. VM
 //                 Proxmox arrêtée). problem : 'disk', 'cert', 'backup', 'lastbackup', 'smart', 'attacks' ou 'security' pour un message adapté (notify.js)

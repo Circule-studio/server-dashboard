@@ -13,7 +13,9 @@
 <details>
 <summary>More screenshots</summary>
 
-![The Servers tab: Pulse, two machines tracked with Glances, Scrutiny, backups and pending updates](docs/screenshots/servers-en.png)
+![The history window: CPU, memory, disk and network charts over 24 hours, with a gap during an outage and a "full in about 82 days" disk estimate](docs/screenshots/history-en.png)
+
+![The Servers tab: Pulse, machines tracked with Glances and an agent, Scrutiny, backups and pending updates](docs/screenshots/servers-en.png)
 
 <img src="docs/screenshots/mobile-en.png" alt="The dashboard on a phone screen" width="320">
 
@@ -25,6 +27,7 @@
 
 - **Everything in one place**: app tiles, tabs, bookmarks and keyboard search. Status is checked by the server, so LAN-only services work too.
 - **Your machines at a glance**: server stats, Proxmox VE, Glances, or an agent that needs no open port.
+- **History charts**: CPU, memory, disk and network over 24 hours and 7 days, for the dashboard server, agents and Proxmox machines and storage. An outage shows as a gap, and a filling disk gets a "full in about N days" estimate.
 - **Alerts, even with the page closed**: ntfy, Gotify, Discord or a webhook when an app goes down, a VM stops or a disk fills up.
 - **Pending updates**: apt packages and Docker images, machine by machine. The dashboard shows them and installs nothing.
 - **Docker at your fingertips**: the state of your containers, with start, stop and restart once logged in.

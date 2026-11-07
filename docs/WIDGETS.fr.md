@@ -6,13 +6,13 @@ Les 40 widgets, par famille, puis [où trouver leurs identifiants](#où-trouver-
 
 ## Serveurs et sauvegardes
 
-- **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages.
+- **Proxmox VE** : stats de l’hôte, VM et conteneurs LXC, stockages, avec des courbes d’historique pour chacun.
 - **Proxmox Backup Server** : sauvegardes réussies et en échec des dernières 24 h, occupation des datastores.
 - **Sauvegardes Proxmox** : dernière sauvegarde (date, succès ou échec), taille et date par machine, machines dans aucune sauvegarde planifiée, stockage et prochaine sauvegarde ; alerte en cas d’échec.
 - **Sauvegarde par script** : le résultat d’un script maison (rsync vers un disque USB…) : date, taille, succès ou échec, historique ; alerte en cas d’échec ou de retard.
 - **Pulse** : santé globale, alertes actives, nœuds / VM / LXC, en blocs à placer où tu veux.
 - **Glances** : CPU, mémoire, disques, température et uptime d’une autre machine (PC, Raspberry Pi, NAS…), un widget par machine ; une machine éteinte est clairement signalée.
-- **Agent** : CPU, mémoire, disques et température d’une machine derrière un NAT ou sans port ouvert ; c’est elle qui contacte le dashboard. Voir [agent/README.md](../agent/README.md).
+- **Agent** : CPU, mémoire, disques et température d’une machine derrière un NAT ou sans port ouvert ; c’est elle qui contacte le dashboard. Avec des courbes d’historique, réseau compris. Voir [agent/README.md](../agent/README.md).
 - **Mises à jour** : paquets apt (dont ceux de sécurité) et images Docker en attente, pour le serveur du dashboard et chaque machine avec un agent. Affichage seulement, rien n’est installé.
 - **Scrutiny** : santé SMART des disques, ceux en échec en premier, avec leur température.
 - **Watchtower** : conteneurs vérifiés, à mettre à jour et en échec lors du dernier passage.

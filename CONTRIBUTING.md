@@ -23,11 +23,13 @@ Les identifiants des faux services sont en tête de `dev/mocks.js`. Ajoute les w
 | `public/index.html` | Structure de la page et des fenêtres de dialogue |
 | `public/style.css` | Tout le style (les couleurs sont des variables dans `:root`) |
 | `public/app.js` | Logique de l'interface : rendu des tuiles, mode édition, rafraîchissement, outils partagés (`h()`, `fmtAgo`…) |
+| `public/history.js` | Fenêtre Historique et mini-courbes des cartes de stats (SVG, sans bibliothèque) |
 | `public/widgets/<service>.js` | Un widget : son type (`WIDGET_TYPES`) et son rendu (`RENDERERS`) |
 | `public/catalog.js` | Catalogue d'applications connues (nom, icône, port par défaut) : un objet par application, facile à compléter ; `node dev/check-icons.js` vérifie les noms d'icônes (lancé aussi par la CI) |
 | `agent/server-dashboard-agent.js` | Agent à lancer sur une autre machine : il envoie ses ressources au dashboard (widget Agent) |
 | `notify.js` | Notifications : envoi vers ntfy, Gotify, Discord ou un webhook, et suivi des changements d'état des applications |
 | `server.js` | API Express : lecture et écriture de la config, auth, statut des tuiles, routes |
+| `history.js` | Historique des ressources : points moyennés, écriture dans `data/history.json`, estimation « disque plein » |
 | `config.js` | Validation de la config reçue du navigateur (`sanitizeConfig`) et version publique, sans secret (`publicConfig`) |
 | `system.js` | Ressources de la machine du dashboard (CPU, mémoire, disques) et API Docker |
 | `integrations/<service>.js` | Appels à un service et normalisation des données ; `integrations/index.js` les rassemble, `integrations/lib.js` contient les outils communs (requêtes, erreurs, sessions) |
