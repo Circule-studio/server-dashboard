@@ -5,7 +5,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART_W = 1000;
 const CHART_H = 100;
 const GAP_FACTOR = 2.5; // plus de 2,5 points manquants : un trou dans la courbe, pas un segment droit
-const SERIES_COLORS = ['var(--accent)', 'var(--ok)', 'var(--warn)', 'var(--bad)'];
+// La couleur d'accent peut être verte : la deuxième série ne doit pas utiliser le vert de « ok ».
+const SERIES_COLORS = ['var(--accent)', 'var(--warn)', '#a78bfa', 'var(--bad)'];
 const SPARK_EVERY_MS = 120_000;
 
 function svgEl(tag, attrs = {}, ...children) {

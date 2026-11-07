@@ -10,49 +10,82 @@ const SWAY_MS = 16_000;
 const WIDE_STAGE_PX = 620; // en dessous : valeurs sous la maquette, sans traits
 const boards = new Map(); // id du widget -> maquette : l'angle choisi survit aux rafraîchissements
 
-// Pavé droit posé sur la carte : x, y et z en pixels, w x d au sol, h de hauteur.
-function cuboid({ x, y, z = 0, w, d, h: height, color, cls = '', top }) {
-  const face = (name, style) => h('div', { class: `b3d-face ${name}`, style });
+// Pavé droit posé sur la carte : x, y et z en pixels, w x d au sol, h de hauteur. top, front et right :
+// le contenu de ces faces. inset : côtés raccourcis, pour suivre les coins arrondis de la carte.
+function cuboid({ x, y, z = 0, w, d, h: height, color, cls = '', top, front, right, inset = 0 }) {
+  const face = (name, style, content) => h('div', { class: `b3d-face ${name}`, style }, content);
   return h('div', { class: `b3d ${cls}`, style: `left:${x}px;top:${y}px;width:${w}px;height:${d}px;--c:${color};transform:translateZ(${z}px)` },
     face('bottom', `width:${w}px;height:${d}px`),
-    face('side', `width:${w}px;height:${height}px;transform:rotateX(90deg)`),
-    face('side front', `width:${w}px;height:${height}px;transform:translateY(${d}px) rotateX(90deg)`),
-    face('end', `width:${height}px;height:${d}px;transform:rotateY(-90deg)`),
-    face('end', `width:${height}px;height:${d}px;transform:translateX(${w}px) rotateY(-90deg)`),
+    face('side', `left:${inset}px;width:${w - 2 * inset}px;height:${height}px;transform:rotateX(90deg)`),
+    face('side front', `left:${inset}px;width:${w - 2 * inset}px;height:${height}px;transform:translateY(${d}px) rotateX(90deg)`, front),
+    face('end', `top:${inset}px;width:${height}px;height:${d - 2 * inset}px;transform:rotateY(-90deg)`),
+    face('end', `top:${inset}px;width:${height}px;height:${d - 2 * inset}px;transform:translateX(${w}px) rotateY(-90deg)`, right),
     h('div', { class: 'b3d-top', style: `width:${w}px;height:${d}px;transform:translateZ(${height}px)` }, top));
 }
 
+const place = (cls, left, top, width, height, content) => h('i', { class: cls, style: `left:${left}px;top:${top}px;width:${width}px;height:${height}px` }, content);
+
+// Connecteur GPIO : un socle, et les 40 broches dessinées sur trois plans, bien plus léger que 40 pavés.
+function gpio(x, y) {
+  const pinsZ = 14;
+  const plane = (py) => h('i', { class: 'b3d-pins', style: `transform:translateY(${py}px) rotateX(90deg)` });
+  return h('div', { class: 'b3d', style: `left:${x}px;top:${y}px;width:204px;height:20px;transform:translateZ(6px)` },
+    cuboid({ x: 0, y: 0, w: 204, d: 20, h: 7, color: '#17191d' }),
+    plane(5), plane(15),
+    h('i', { class: 'b3d-pin-tops', style: `transform:translateZ(${pinsZ + 6}px)` }));
+}
+
 function boardParts() {
-  const led = (cls, x, y) => h('i', { class: `b3d-led ${cls}`, style: `left:${x}px;top:${y}px` });
-  const hole = (x, y) => h('i', { class: 'b3d-hole', style: `left:${x}px;top:${y}px` });
-  const soc = cuboid({ x: 88, y: 70, z: 6, w: 56, d: 56, h: 5, color: '#c8ccd2', cls: 'b3d-soc', top: h('span', {}, 'SoC') });
-  const ram = cuboid({ x: 156, y: 78, z: 6, w: 42, d: 42, h: 3, color: '#20242b', top: h('span', {}, 'RAM') });
+  const led = (cls, left, top) => h('i', { class: `b3d-led ${cls}`, style: `left:${left}px;top:${top}px` });
+  const hole = (left, top) => h('i', { class: 'b3d-hole', style: `left:${left}px;top:${top}px` });
+  // Sur les faces, le premier axe monte depuis la carte (face de droite) ou la suit (face avant).
+  const usbPorts = [place('b3d-port b3d-port-usb', 7, 9, 21, 38), place('b3d-port b3d-port-usb', 34, 9, 21, 38)];
+  const soc = cuboid({ x: 88, y: 70, z: 6, w: 56, d: 56, h: 5, color: '#c8ccd2', cls: 'b3d-soc', top: h('span', {}, 'BCM2837') });
+  const ram = cuboid({ x: 156, y: 78, z: 6, w: 42, d: 42, h: 3, color: '#20242b', cls: 'b3d-chip', top: h('span', {}, 'RAM') });
   // Le point d'attache de la carte SD est sur sa partie visible, qui dépasse de la carte.
   const sd = cuboid({ x: -26, y: 92, z: -5, w: 60, d: 44, h: 4, color: '#2c4f8f', cls: 'b3d-sd', top: h('i', { class: 'b3d-anchor' }) });
   const eth = cuboid({
-    x: 266, y: 148, z: 6, w: 80, d: 62, h: 52, color: '#b9bec6',
-    top: [led('b3d-eth-a', 66, 8), led('b3d-eth-b', 66, 46)],
+    x: 266, y: 148, z: 6, w: 80, d: 62, h: 52, color: '#b9bec6', cls: 'b3d-metal',
+    right: [place('b3d-port', 6, 10, 38, 42), led('b3d-eth-a', 40, 4), led('b3d-eth-b', 40, 54)],
   });
+  // Petits composants à plat sur le circuit : une grille régulière, décalée d'une rangée à l'autre.
+  const smd = [];
+  for (const [ox, oy, cols, rows] of [[70, 134, 7, 3], [150, 128, 6, 3], [28, 112, 3, 6], [206, 134, 4, 4], [66, 36, 12, 2], [12, 178, 2, 2]]) {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cls = (c + r) % 3 === 0 ? 'b3d-smd b3d-smd-dark' : 'b3d-smd';
+        smd.push(place(cls, ox + c * 10 + (r % 2) * 3, oy + r * 8, 6, 3));
+      }
+    }
+  }
+  const caps = [[238, 136], [252, 136], [238, 152], [66, 176], [80, 176]].map(([x, y]) => cuboid({ x, y, z: 6, w: 9, d: 9, h: 11, color: '#c7ccd2', cls: 'b3d-cap' }));
   const parts = [
-    cuboid({ x: 0, y: 0, w: BOARD_W, d: BOARD_D, h: 6, color: '#0f6b3c', cls: 'b3d-pcb', top: [
+    h('i', { class: 'b3d-shadow' }),
+    cuboid({ x: 0, y: 0, w: BOARD_W, d: BOARD_D, h: 6, color: '#0a4f2c', cls: 'b3d-pcb', inset: 10, top: [
+      h('i', { class: 'b3d-traces' }),
       hole(10, 10), hole(BOARD_W - 22, 10), hole(10, BOARD_D - 22), hole(BOARD_W - 22, BOARD_D - 22),
       h('i', { class: 'b3d-heat' }),
+      place('b3d-silk-box', 25, 3, 210, 26),
+      h('span', { class: 'b3d-silk', style: 'left:150px;top:44px' }, 'Raspberry Pi 3 Model B+'),
+      ...smd,
       led('b3d-pwr', 10, 168), led('b3d-act', 22, 168),
     ] }),
     sd,
-    cuboid({ x: 28, y: 6, z: 6, w: 204, d: 20, h: 16, color: '#23262c', cls: 'b3d-gpio' }),
+    gpio(28, 6),
     soc,
     ram,
     cuboid({ x: 16, y: 58, z: 6, w: 50, d: 42, h: 5, color: '#aeb3ba', cls: 'b3d-can' }), // Wi-Fi
-    cuboid({ x: 214, y: 92, z: 6, w: 36, d: 36, h: 3, color: '#20242b' }), // contrôleur réseau
-    cuboid({ x: 272, y: 12, z: 6, w: 74, d: 56, h: 62, color: '#c3c8cf', cls: 'b3d-usb' }),
-    cuboid({ x: 272, y: 78, z: 6, w: 74, d: 56, h: 62, color: '#c3c8cf', cls: 'b3d-usb' }),
+    cuboid({ x: 214, y: 92, z: 6, w: 36, d: 36, h: 3, color: '#20242b', cls: 'b3d-chip', top: h('span', {}, 'LAN') }),
+    cuboid({ x: 238, y: 18, z: 6, w: 22, d: 22, h: 12, color: '#17191d', cls: 'b3d-poe' }), // PoE
+    ...caps,
+    cuboid({ x: 272, y: 12, z: 6, w: 74, d: 56, h: 62, color: '#c3c8cf', cls: 'b3d-usb b3d-metal', right: usbPorts }),
+    cuboid({ x: 272, y: 78, z: 6, w: 74, d: 56, h: 62, color: '#c3c8cf', cls: 'b3d-usb b3d-metal', right: usbPorts.map((p) => p.cloneNode(true)) }),
     eth,
-    cuboid({ x: 28, y: 198, z: 6, w: 30, d: 28, h: 12, color: '#c3c8cf' }), // alimentation
-    cuboid({ x: 94, y: 194, z: 6, w: 60, d: 32, h: 24, color: '#c3c8cf' }), // HDMI
-    cuboid({ x: 190, y: 190, z: 6, w: 28, d: 36, h: 24, color: '#17191d' }), // jack
-    cuboid({ x: 166, y: 168, z: 6, w: 44, d: 12, h: 9, color: '#e7e4da' }), // caméra
-    cuboid({ x: 8, y: 106, z: 6, w: 12, d: 50, h: 9, color: '#e7e4da' }), // écran
+    cuboid({ x: 28, y: 198, z: 6, w: 30, d: 28, h: 12, color: '#c3c8cf', cls: 'b3d-metal', front: place('b3d-port', 6, 3, 18, 6) }), // alimentation
+    cuboid({ x: 94, y: 194, z: 6, w: 60, d: 32, h: 24, color: '#c3c8cf', cls: 'b3d-metal', front: place('b3d-port b3d-port-hdmi', 7, 6, 46, 13) }), // HDMI
+    cuboid({ x: 190, y: 190, z: 6, w: 28, d: 36, h: 24, color: '#17191d', front: place('b3d-port b3d-port-jack', 7, 5, 14, 14) }), // jack
+    cuboid({ x: 166, y: 168, z: 6, w: 44, d: 12, h: 9, color: '#e7e4da', cls: 'b3d-ribbon' }), // caméra
+    cuboid({ x: 8, y: 106, z: 6, w: 12, d: 50, h: 9, color: '#e7e4da', cls: 'b3d-ribbon' }), // écran
   ];
   return { parts, anchors: { soc, ram, sd, eth } };
 }
@@ -80,9 +113,9 @@ function createBoard() {
   const lines = svgEl('svg', { class: 'b3d-lines', 'aria-hidden': 'true' });
   const labels = {
     soc: boardLabel('left', t('stat.cpu')),
-    ram: boardLabel('left', t('stat.memory')),
+    ram: boardLabel('right', t('stat.memory')),
     eth: boardLabel('right', t('history.network')),
-    sd: boardLabel('right', t('agent3d.sd')),
+    sd: boardLabel('left', t('agent3d.sd')),
   };
   const wires = Object.fromEntries(Object.keys(labels).map((k) => {
     const line = svgEl('line', { class: 'b3d-wire' });
@@ -92,13 +125,13 @@ function createBoard() {
   }));
   const stage = h('div', { class: 'b3d-stage', role: 'img', title: t('agent3d.hint') }, h('div', { class: 'b3d-view' }, scene));
   const root = h('div', { class: 'b3d-root' },
-    h('div', { class: 'b3d-labels' }, labels.soc.el, labels.ram.el),
+    h('div', { class: 'b3d-labels' }, labels.sd.el, labels.soc.el),
     stage,
-    h('div', { class: 'b3d-labels' }, labels.eth.el, labels.sd.el),
+    h('div', { class: 'b3d-labels' }, labels.ram.el, labels.eth.el),
     lines);
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const view = { rx: 56, rz: -24, drag: null, touched: reduced, started: performance.now(), running: false };
+  const view = { rx: 54, rz: 32, drag: null, touched: reduced, started: performance.now(), running: false };
 
   const drawWires = () => {
     const wide = root.classList.contains('b3d-wide');
@@ -124,7 +157,7 @@ function createBoard() {
     const width = root.clientWidth;
     root.classList.toggle('b3d-wide', width >= WIDE_STAGE_PX);
     const room = root.classList.contains('b3d-wide') ? width - 2 * 190 : width;
-    scene.style.setProperty('--b3d-scale', Math.min(1, room / 520).toFixed(3));
+    scene.style.setProperty('--b3d-scale', Math.min(1.3, room / 470).toFixed(3));
   };
 
   const frame = (now) => {
