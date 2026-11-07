@@ -796,31 +796,53 @@ body:not(.editing) .stat:focus-visible { outline: 2px solid var(--accent); outli
 .b3d-label b { font-size: 1.15rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .b3d-label small { font-size: 0.74rem; min-height: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .b3d-label-bar .bar { margin: 2px 0; }
-.b3d-stage { position: relative; height: 340px; cursor: grab; touch-action: pan-y; overflow: visible; user-select: none; }
+.b3d-stage { position: relative; height: 420px; cursor: grab; touch-action: pan-y; overflow: visible; user-select: none; }
 .b3d-stage.b3d-grabbing { cursor: grabbing; }
-.b3d-view { position: absolute; inset: 0; perspective: 1100px; display: grid; place-items: center; }
+.b3d-view { position: absolute; inset: 0; perspective: 1400px; display: grid; place-items: center; }
 .b3d-scene { position: relative; width: 340px; height: 224px; transform-style: preserve-3d; }
 .b3d { position: absolute; transform-style: preserve-3d; }
 .b3d-face, .b3d-top { position: absolute; left: 0; top: 0; }
-.b3d-face { transform-origin: 0 0; background: var(--c); filter: brightness(0.62); }
-.b3d-face.front { filter: brightness(0.78); }
-.b3d-face.bottom { filter: brightness(0.4); }
+.b3d-face { --shade: 0.38; transform-origin: 0 0; background: linear-gradient(rgba(0, 0, 0, var(--shade)), rgba(0, 0, 0, var(--shade))), var(--c); }
+.b3d-face.front { --shade: 0.2; }
+.b3d-face.bottom { --shade: 0.6; }
 .b3d-top { background: var(--c); display: grid; place-items: center; font: 600 9px/1 ui-monospace, Consolas, monospace; color: rgba(255, 255, 255, 0.75); }
 .b3d-top > * { pointer-events: none; }
 .b3d-pcb .b3d-top {
-  border-radius: 12px; display: block; overflow: hidden;
-  background: linear-gradient(135deg, #12804a, #0d5f35);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border-radius: 10px; display: block; overflow: hidden;
+  background: linear-gradient(135deg, #14824c, #0c5a33 70%, #0a4f2c);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 24px rgba(0, 0, 0, 0.25);
 }
 .b3d-hole { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #0b0f17; box-shadow: 0 0 0 2px #d1b35c; }
 .b3d-heat {
   position: absolute; left: 116px; top: 98px; width: 180px; height: 180px; margin: -90px; border-radius: 50%;
   background: radial-gradient(circle, var(--b3d-soc), transparent 68%); opacity: calc(var(--b3d-heat) * 0.75 + 0.1);
 }
-.b3d-soc .b3d-top { background: linear-gradient(135deg, #e3e6ea, #aab0b8); color: #3b4048; box-shadow: 0 0 calc(var(--b3d-heat) * 26px) var(--b3d-soc), inset 0 0 0 2px var(--b3d-soc); }
-.b3d-gpio .b3d-top { background: radial-gradient(circle at center, #d9b95d 0 2.6px, #23262c 3px) 0 0 / 10.2px 10px; }
-.b3d-can .b3d-top { background: linear-gradient(135deg, #d7dade, #9da3ab); }
-.b3d-usb .b3d-top { background: repeating-linear-gradient(90deg, #cfd3d9 0 10px, #b5bac2 10px 12px); }
+.b3d-soc .b3d-top { background: linear-gradient(135deg, #f2f4f6, #c2c7ce 45%, #e2e5e9 55%, #a4aab3); color: #3b4048; font-size: 8px; box-shadow: 0 0 calc(var(--b3d-heat) * 26px) var(--b3d-soc), inset 0 0 0 2px var(--b3d-soc); }
+.b3d-can .b3d-top { background: linear-gradient(135deg, #e6e8eb, #a8aeb6 50%, #d0d4d9 60%, #9aa0a8); box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.2); }
+.b3d-metal .b3d-top { background: linear-gradient(135deg, #e8eaed, #b8bdc5 45%, #d8dbe0 55%, #aeb3bb); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); }
+.b3d-usb .b3d-top { background: linear-gradient(90deg, transparent 0 94%, rgba(0, 0, 0, 0.15) 94%), repeating-linear-gradient(0deg, transparent 0 13px, rgba(0, 0, 0, 0.08) 13px 14px), linear-gradient(135deg, #e8eaed, #b8bdc5 45%, #d8dbe0 55%, #aeb3bb); }
+.b3d-chip .b3d-top { background: linear-gradient(135deg, #30353d, #15181c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.55); font-size: 8px; }
+.b3d-cap .b3d-top { background: radial-gradient(circle, #6d7279 0 22%, #dfe2e6 26% 62%, #9aa0a8 68%); border-radius: 50%; }
+.b3d-poe .b3d-top { background: radial-gradient(circle at center, #d9b95d 0 2.4px, #17191d 2.8px) 0 0 / 11px 11px; }
+.b3d-ribbon .b3d-top { background: linear-gradient(90deg, #efece2 0 72%, #6b4f33 72%); }
+.b3d-port { position: absolute; display: block; background: #0a0c0f; box-shadow: inset 0 0 6px #000, 0 0 0 1px rgba(0, 0, 0, 0.35); border-radius: 1px; }
+.b3d-port-usb::after { content: ''; position: absolute; left: 7px; top: 3px; bottom: 3px; width: 6px; background: #20242b; }
+.b3d-port-hdmi { clip-path: polygon(0 0, 100% 0, 100% 62%, 88% 100%, 12% 100%, 0 62%); }
+.b3d-port-jack { border-radius: 50%; box-shadow: inset 0 0 4px #000, 0 0 0 2px #8f949b; }
+.b3d-traces {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 21px, rgba(180, 255, 210, 0.05) 21px 22px),
+    repeating-linear-gradient(0deg, transparent 0 17px, rgba(180, 255, 210, 0.04) 17px 18px),
+    repeating-linear-gradient(45deg, transparent 0 34px, rgba(180, 255, 210, 0.035) 34px 35px);
+}
+.b3d-silk-box { position: absolute; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 2px; }
+.b3d-silk { position: absolute; font: 600 8px/1 system-ui, sans-serif; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); white-space: nowrap; }
+.b3d-smd { position: absolute; background: #c9a15e; border-radius: 0.5px; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.35); }
+.b3d-smd-dark { background: #1e2126; }
+.b3d-pins { position: absolute; left: 0; top: 0; width: 204px; height: 20px; transform-origin: 0 0; background: repeating-linear-gradient(90deg, transparent 0 3.6px, #e0c063 3.6px 6.6px, transparent 6.6px 10.2px); }
+.b3d-pin-tops { position: absolute; left: 0; top: 0; width: 204px; height: 20px; background: radial-gradient(circle at center, #f1d982 0 2.2px, transparent 2.6px) 0 0 / 10.2px 10px; }
+.b3d-shadow { position: absolute; left: -50px; top: -40px; width: 440px; height: 304px; transform: translateZ(-16px); background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent); pointer-events: none; }
 .b3d-sd .b3d-top { background: linear-gradient(90deg, #2c4f8f 0 40%, #b7bcc4 40%); }
 .b3d-led { position: absolute; width: 6px; height: 4px; border-radius: 1px; }
 .b3d-pwr { background: #ff4d4d; box-shadow: 0 0 6px 1px #ff4d4d; }

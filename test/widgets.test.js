@@ -169,8 +169,13 @@ before(async () => {
   assert.equal(saved.status, 200, saved.text);
 });
 
-after(() => {
-  for (const child of children) child.kill();
+after(async () => {
+  // Attendre la vraie fin des processus : à l'arrêt, le dashboard écrit encore son historique dans dataDir.
+  await Promise.all(children.map((child) => new Promise((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) return resolve();
+    child.once('exit', resolve);
+    child.kill();
+  })));
   if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
 });
 
