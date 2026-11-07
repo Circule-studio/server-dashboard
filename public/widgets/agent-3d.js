@@ -90,19 +90,64 @@ function boardParts() {
   return { parts, anchors: { soc, ram, sd, eth } };
 }
 
-// Une valeur reliée à son composant.
-function boardLabel(side, key) {
+// Icônes des anneaux, sur une grille de 24.
+const BOARD_ICONS = {
+  cpu: 'M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M8.5 7h7A1.5 1.5 0 0 1 17 8.5v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 15.5v-7A1.5 1.5 0 0 1 8.5 7z',
+  memory: 'M4.5 8h15A1.5 1.5 0 0 1 21 9.5v5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 14.5v-5A1.5 1.5 0 0 1 4.5 8zM7 16v3M12 16v3M17 16v3M7 11v2M12 11v2M17 11v2',
+  sd: 'M7 3h8l4 4v14H5V5a2 2 0 0 1 2-2zM9 7v3M12 7v3M15 7v3',
+  network: 'M8 4v14M4 14l4 4 4-4M16 20V6M12 10l4-4 4 4',
+};
+
+// Une valeur et son anneau, reliés à leur composant. Sans part à montrer (le réseau), l'anneau reste vide.
+function boardLabel(side, key, icon) {
   const value = h('b', {});
   const sub = h('small', { class: 'muted' });
-  const bar = h('div', { class: 'b3d-label-bar' });
+  const fill = svgEl('circle', { class: 'b3d-ring-fill', cx: '24', cy: '24', r: '20', pathLength: '100', 'stroke-dasharray': '0 100', transform: 'rotate(-90 24 24)' });
+  const ring = svgEl('svg', { class: 'b3d-ring', viewBox: '0 0 48 48', 'aria-hidden': 'true' },
+    svgEl('circle', { class: 'b3d-ring-track', cx: '24', cy: '24', r: '20' }),
+    fill,
+    svgEl('path', { class: 'b3d-ring-icon', d: BOARD_ICONS[icon], transform: 'translate(13.2 13.2) scale(0.9)' }));
   const el = h('div', { class: `b3d-label b3d-${side}` },
-    h('span', { class: 'muted' }, key), value, bar, sub);
+    ring, h('div', { class: 'b3d-label-text' }, h('span', { class: 'muted' }, key), value, sub));
   return {
     el,
     set(text, detail, ratio) {
       value.textContent = text;
       sub.textContent = detail || '';
-      bar.replaceChildren(...(ratio == null ? [] : [progressBar(ratio, levelOf(ratio))]));
+      fill.setAttribute('stroke-dasharray', `${ratio == null ? 0 : Math.min(100, ratio * 100).toFixed(1)} 100`);
+      fill.setAttribute('class', `b3d-ring-fill ${ratio == null ? 'b3d-ring-empty' : levelOf(ratio)}`);
+    },
+  };
+}
+
+// Grande jauge de température : un arc de 270°, de GAUGE_MIN à GAUGE_MAX °C.
+const GAUGE_MIN = 20;
+const GAUGE_MAX = 90;
+const GAUGE_ARC = 75; // part du cercle occupée par l'arc
+
+function tempWord(temp) {
+  if (temp < 60) return t('agent3d.cool');
+  if (temp < 75) return t('agent3d.warm');
+  return temp < 85 ? t('agent3d.hot') : t('agent3d.burning');
+}
+
+function boardGauge(side) {
+  const arc = (cls, length) => svgEl('circle', {
+    class: cls, cx: '60', cy: '60', r: '50', pathLength: '100', 'stroke-dasharray': `${length} 100`, transform: 'rotate(135 60 60)',
+  });
+  const fill = arc('b3d-gauge-fill', 0);
+  const value = h('b', {});
+  const word = h('small', {});
+  const el = h('div', { class: `b3d-label b3d-gauge b3d-${side}`, title: t('agent3d.temp') },
+    svgEl('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' }, arc('b3d-gauge-track', GAUGE_ARC), fill),
+    h('div', { class: 'b3d-gauge-text' }, value, word));
+  return {
+    el,
+    set(temp) {
+      value.textContent = temp == null ? '–' : `${temp} °C`;
+      word.textContent = temp == null ? t('agent3d.temp') : tempWord(temp);
+      const ratio = temp == null ? 0 : Math.min(1, Math.max(0, (temp - GAUGE_MIN) / (GAUGE_MAX - GAUGE_MIN)));
+      fill.setAttribute('stroke-dasharray', `${(ratio * GAUGE_ARC).toFixed(1)} 100`);
     },
   };
 }
@@ -111,12 +156,15 @@ function createBoard() {
   const { parts, anchors } = boardParts();
   const scene = h('div', { class: 'b3d-scene' }, parts);
   const lines = svgEl('svg', { class: 'b3d-lines', 'aria-hidden': 'true' });
+  const gauge = boardGauge('left');
   const labels = {
-    soc: boardLabel('left', t('stat.cpu')),
-    ram: boardLabel('right', t('stat.memory')),
-    eth: boardLabel('right', t('history.network')),
-    sd: boardLabel('left', t('agent3d.sd')),
+    temp: gauge,
+    sd: boardLabel('left', t('agent3d.sd'), 'sd'),
+    soc: boardLabel('right', t('stat.cpu'), 'cpu'),
+    ram: boardLabel('right', t('stat.memory'), 'memory'),
+    eth: boardLabel('right', t('history.network'), 'network'),
   };
+  const targets = { ...anchors, temp: anchors.soc };
   const wires = Object.fromEntries(Object.keys(labels).map((k) => {
     const line = svgEl('line', { class: 'b3d-wire' });
     const dot = svgEl('circle', { class: 'b3d-dot', r: '3' });
@@ -125,9 +173,9 @@ function createBoard() {
   }));
   const stage = h('div', { class: 'b3d-stage', role: 'img', title: t('agent3d.hint') }, h('div', { class: 'b3d-view' }, scene));
   const root = h('div', { class: 'b3d-root' },
-    h('div', { class: 'b3d-labels' }, labels.sd.el, labels.soc.el),
+    h('div', { class: 'b3d-labels b3d-labels-left' }, labels.temp.el, labels.sd.el),
     stage,
-    h('div', { class: 'b3d-labels' }, labels.ram.el, labels.eth.el),
+    h('div', { class: 'b3d-labels' }, labels.soc.el, labels.ram.el, labels.eth.el),
     lines);
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -140,7 +188,7 @@ function createBoard() {
     const box = root.getBoundingClientRect();
     lines.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
     for (const [key, { line, dot }] of Object.entries(wires)) {
-      const a = (anchors[key].querySelector('.b3d-anchor') || anchors[key].querySelector('.b3d-top')).getBoundingClientRect();
+      const a = (targets[key].querySelector('.b3d-anchor') || targets[key].querySelector('.b3d-top')).getBoundingClientRect();
       const l = labels[key].el.getBoundingClientRect();
       const left = labels[key].el.classList.contains('b3d-left');
       const x1 = (left ? l.right : l.left) - box.left;
@@ -156,7 +204,7 @@ function createBoard() {
   const applyLayout = () => {
     const width = root.clientWidth;
     root.classList.toggle('b3d-wide', width >= WIDE_STAGE_PX);
-    const room = root.classList.contains('b3d-wide') ? width - 2 * 190 : width;
+    const room = root.classList.contains('b3d-wide') ? width - 2 * 230 : width;
     scene.style.setProperty('--b3d-scale', Math.min(1.3, room / 470).toFixed(3));
   };
 
@@ -209,7 +257,8 @@ function createBoard() {
       root.style.setProperty('--b3d-act', `${(1.8 - Math.min(100, d.cpu ?? 0) * 0.016).toFixed(2)}s`);
       const flow = (d.rate?.rx ?? 0) + (d.rate?.tx ?? 0);
       root.style.setProperty('--b3d-net', `${flow > 1e6 ? 0.2 : flow > 1e4 ? 0.6 : 1.6}s`);
-      labels.soc.set(d.cpu == null ? '–' : `${Math.round(d.cpu)} %`, temp == null ? '' : `${temp} °C`, d.cpu == null ? null : d.cpu / 100);
+      gauge.set(temp);
+      labels.soc.set(d.cpu == null ? '–' : `${Math.round(d.cpu)} %`, d.load ? t('agent3d.load', { load: d.load.min1.toLocaleString(LOCALE, { maximumFractionDigits: 2 }) }) : '', d.cpu == null ? null : d.cpu / 100);
       labels.ram.set(d.mem ? `${Math.round((d.mem.used / d.mem.total) * 100)} %` : '–', d.mem ? `${fmtBytes(d.mem.used)} / ${fmtBytes(d.mem.total)}` : '', d.mem ? d.mem.used / d.mem.total : null);
       const disk = d.disks?.[0];
       labels.sd.set(disk ? `${Math.round((disk.used / disk.size) * 100)} %` : '–', disk ? `${fmtBytes(disk.used)} / ${fmtBytes(disk.size)}` : '', disk ? disk.used / disk.size : null);

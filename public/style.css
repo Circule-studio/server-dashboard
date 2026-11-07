@@ -788,14 +788,33 @@ body:not(.editing) .stat:focus-visible { outline: 2px solid var(--accent); outli
 
 /* Vue 3D du widget Agent : maquette de Raspberry Pi en CSS 3D */
 .b3d-root { position: relative; display: grid; gap: 12px; margin-top: 8px; --b3d-heat: 0; --b3d-soc: #c8ccd2; --b3d-act: 1.6s; --b3d-net: 1.6s; }
-.b3d-root.b3d-wide { grid-template-columns: 170px minmax(0, 1fr) 170px; align-items: center; }
+.b3d-root.b3d-wide { grid-template-columns: 210px minmax(0, 1fr) 210px; align-items: center; }
 .b3d-labels { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
-.b3d-wide .b3d-labels { grid-template-columns: 1fr; gap: 64px; position: relative; z-index: 1; }
-.b3d-label { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border); }
+.b3d-labels-left { grid-template-columns: 1fr; }
+.b3d-wide .b3d-labels { grid-template-columns: 1fr; gap: 18px; position: relative; z-index: 1; }
+.b3d-label { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); }
+.b3d-label-text { display: grid; gap: 2px; min-width: 0; }
 .b3d-label span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .b3d-label b { font-size: 1.15rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .b3d-label small { font-size: 0.74rem; min-height: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.b3d-label-bar .bar { margin: 2px 0; }
+.b3d-ring { width: 52px; height: 52px; display: block; }
+.b3d-ring-track, .b3d-gauge-track { fill: none; stroke: var(--track); }
+.b3d-ring-track, .b3d-ring-fill { stroke-width: 4.5; }
+.b3d-ring-fill { fill: none; stroke: var(--ok); stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+.b3d-ring-fill.warn { stroke: var(--warn); }
+.b3d-ring-fill.bad { stroke: var(--bad); }
+.b3d-ring-icon { fill: none; stroke: var(--text); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+.b3d-gauge { display: block; position: relative; padding: 12px 18px 4px; }
+.b3d-gauge svg { display: block; width: 100%; max-width: 170px; margin: 0 auto; }
+.b3d-gauge-track, .b3d-gauge-fill { stroke-width: 8; stroke-linecap: round; }
+.b3d-gauge-fill { fill: none; stroke: var(--b3d-soc); transition: stroke-dasharray 0.8s ease, stroke 0.8s ease; filter: drop-shadow(0 0 5px var(--b3d-soc)); }
+.b3d-gauge-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; pointer-events: none; }
+.b3d-gauge-text b { font-size: 1.7rem; letter-spacing: -0.02em; }
+.b3d-gauge-text small { font-size: 0.78rem; font-weight: 600; color: var(--b3d-soc); min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .b3d-ring-fill, .b3d-gauge-fill { transition: none; } }
+.b3d-root:not(.b3d-wide) .b3d-labels .b3d-label:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.b3d-offline .b3d-gauge-fill, .b3d-offline .b3d-ring-fill { stroke: var(--muted); filter: none; }
+.b3d-offline .b3d-gauge-text small { color: var(--muted); }
 .b3d-stage { position: relative; height: 420px; cursor: grab; touch-action: pan-y; overflow: visible; user-select: none; }
 .b3d-stage.b3d-grabbing { cursor: grabbing; }
 .b3d-view { position: absolute; inset: 0; perspective: 1400px; display: grid; place-items: center; }
@@ -859,3 +878,4 @@ body:not(.editing) .stat:focus-visible { outline: 2px solid var(--accent); outli
 .b3d-dot { fill: var(--accent); }
 .b3d-anchor { position: absolute; left: 10px; top: 50%; width: 1px; height: 1px; }
 .b3d-root:not(.b3d-wide) .b3d-stage { height: 220px; }
+.b3d-ring-empty { display: none; }
