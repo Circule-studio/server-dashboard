@@ -19,33 +19,33 @@ const RANGES = {
 };
 const MIB = 1024 ** 2;
 const MAX_NET_GAP_S = 900; // au-delà, une moyenne sur le trou ne dirait rien du débit réel
-const FILL_MIN_POINTS = 10;
-const FILL_MIN_SPAN_S = 2 * 86400;
+const FILL_MIN_DAYS = 3; // écarts d'un jour à l'autre nécessaires pour estimer
+const FILL_MIN_GROWING = 0.7; // part des jours où le disque doit avoir grandi
 const FILL_MAX_DAYS = 365; // au-delà, la tendance n'a plus de sens
 
 const round1 = (v) => Math.round(v * 10) / 10;
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
-// Jours avant qu'un disque soit plein, d'après la pente de son occupation (moindres carrés sur les
-// points de la semaine). null : pas assez de recul, occupation stable ou en baisse, ou échéance lointaine.
+// Jours avant qu'un disque soit plein, d'après sa croissance quotidienne médiane. Il doit grandir la
+// plupart des jours : un saut ponctuel (mise à jour, sauvegarde) ne se prolonge pas, et une droite tirée
+// à travers lui annoncerait à tort un disque plein. null : pas assez de recul, occupation qui ne monte
+// pas régulièrement, ou échéance lointaine.
 function estimateFill(points, diskPath, size) {
-  const known = points.filter((p) => isNum(p.d?.[diskPath]));
-  if (!(size > 0) || known.length < FILL_MIN_POINTS || known.at(-1).t - known[0].t < FILL_MIN_SPAN_S) return null;
-  const xs = known.map((p) => p.t);
-  const ys = known.map((p) => p.d[diskPath] * MIB);
-  const meanX = xs.reduce((a, b) => a + b, 0) / xs.length;
-  const meanY = ys.reduce((a, b) => a + b, 0) / ys.length;
-  let top = 0;
-  let bottom = 0;
-  xs.forEach((x, i) => {
-    top += (x - meanX) * (ys[i] - meanY);
-    bottom += (x - meanX) ** 2;
-  });
-  const perSecond = top / bottom;
-  const remaining = size - ys.at(-1);
-  if (!(perSecond > 0) || remaining <= 0) return null;
-  const days = remaining / perSecond / 86400;
-  return days > FILL_MAX_DAYS ? null : Math.max(1, Math.round(days));
+  if (!(size > 0)) return null;
+  const lastOfDay = new Map();
+  for (const p of points) {
+    if (isNum(p.d?.[diskPath])) lastOfDay.set(Math.floor(p.t / 86400), p.d[diskPath] * MIB);
+  }
+  const days = [...lastOfDay.values()];
+  const growth = days.slice(1).map((v, i) => v - days[i]);
+  if (growth.length < FILL_MIN_DAYS) return null;
+  if (growth.filter((g) => g > 0).length / growth.length < FILL_MIN_GROWING) return null;
+  const sorted = [...growth].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const remaining = size - days.at(-1);
+  if (!(median > 0) || remaining <= 0) return null;
+  const left = remaining / median;
+  return left > FILL_MAX_DAYS ? null : Math.max(1, Math.round(left));
 }
 
 // Colonnes envoyées à l'interface. Point : { t, c, m, r, x, d: { disque: Mio utilisés } } ; une valeur
