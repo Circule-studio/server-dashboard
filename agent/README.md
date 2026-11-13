@@ -80,7 +80,7 @@ Crée une tâche dans le Planificateur de tâches, déclenchée « Au démarrage
 
 L'agent ne fait que compter : il n'installe rien et ne modifie rien.
 
-- **Paquets apt** (Debian, Ubuntu, Proxmox) : le résultat de `apt-get -s dist-upgrade`, une simulation qui ne demande pas d'être root. Elle se base sur les listes de paquets de la machine, que l'agent ne rafraîchit pas. La commande d'installation active leur rafraîchissement quotidien (ça n'installe rien). Sans elle, si le widget les signale comme trop vieilles :
+- **Paquets apt** (Debian, Ubuntu, Proxmox) : le résultat de `apt-get -s dist-upgrade`, une simulation qui ne demande pas d'être root. Elle se base sur les listes de paquets de la machine, que l'agent ne rafraîchit pas. La commande d'installation les rafraîchit tout de suite, active leur rafraîchissement quotidien (même s'il était désactivé) et prévient si les tâches périodiques d'apt ne tournent pas. Rien de tout ça n'installe de paquet. Sans elle, si le widget les signale comme trop vieilles, lance `sudo apt update`, puis :
   ```bash
   echo 'APT::Periodic::Update-Package-Lists "1";' | sudo tee /etc/apt/apt.conf.d/20server-dashboard
   ```
