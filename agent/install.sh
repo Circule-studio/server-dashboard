@@ -24,6 +24,34 @@ export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
 die() { echo "Erreur : $*" >&2; exit 1; }
 info() { echo "==> $*"; }
+warn() { echo "Attention : $*" >&2; }
+
+# Valeur effective d'un réglage apt (vide s'il n'est défini nulle part).
+apt_value() { apt-config shell v "$1" | sed -n "s/^v='\(.*\)'$/\1/p"; }
+
+# Sinon le décompte des mises à jour vieillit avec les listes. Rafraîchir les listes n'installe rien.
+apt_refresh() {
+  # Absent ou désactivé (« 0 ») : activé. Avant, un « 0 » présent dans la config suffisait à ne rien faire.
+  local lists
+  lists="$(apt_value APT::Periodic::Update-Package-Lists)"
+  if [[ -z "$lists" || "$lists" == "0" ]]; then
+    echo 'APT::Periodic::Update-Package-Lists "1";' > "$APT_FILE"
+    # Un fichier lu après le nôtre (ordre alphabétique) peut encore le désactiver.
+    if [[ "$(apt_value APT::Periodic::Update-Package-Lists)" == "1" ]]; then
+      info "Rafraîchissement quotidien des listes de paquets activé (rien n'est installé)"
+    else
+      warn "un autre fichier de /etc/apt/apt.conf.d désactive le rafraîchissement des listes (Update-Package-Lists) : les listes ne seront pas rafraîchies."
+    fi
+  fi
+  # Ces réglages ne servent que si les tâches périodiques d'apt tournent : on prévient, sans toucher au choix de l'admin.
+  if [[ "$(apt_value APT::Periodic::Enable)" == "0" ]]; then
+    warn "les tâches périodiques d'apt sont désactivées (APT::Periodic::Enable \"0\") : les listes ne seront pas rafraîchies."
+  elif command -v systemctl >/dev/null && ! systemctl is-enabled -q apt-daily.timer 2>/dev/null; then
+    warn "apt-daily.timer n'est pas actif : les listes ne seront pas rafraîchies. Pour l'activer : systemctl enable --now apt-daily.timer"
+  fi
+  # Listes à jour tout de suite : le premier décompte est juste, sans attendre le passage quotidien.
+  timeout 120 apt-get update -qq >/dev/null 2>&1 || warn "apt-get update a échoué : le décompte des mises à jour peut être en retard."
+}
 
 # fetch (Node 18) et fs.statfsSync (Node 18.15), comme l'agent.
 node_ok() {
@@ -112,10 +140,8 @@ RestartSec=10
 WantedBy=multi-user.target
 UNIT
 
-  # Sinon le décompte des mises à jour vieillit avec les listes. Rafraîchir les listes n'installe rien.
-  if [[ "${AGENT_APT_REFRESH:-1}" != "0" ]] && command -v apt-config >/dev/null && ! apt-config dump | grep -q Update-Package-Lists; then
-    echo 'APT::Periodic::Update-Package-Lists "1";' > "$APT_FILE"
-    info "Rafraîchissement quotidien des listes de paquets activé (rien n'est installé)"
+  if [[ "${AGENT_APT_REFRESH:-1}" != "0" ]] && command -v apt-config >/dev/null; then
+    apt_refresh
   fi
 
   systemctl daemon-reload

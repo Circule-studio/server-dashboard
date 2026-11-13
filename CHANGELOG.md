@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.31.1] - 2026-11-13
+
+### Corrigé
+- Widget Mises à jour : « listes de paquets trop vieilles » sur une machine où le rafraîchissement quotidien d’apt était désactivé. La commande d’installation de l’agent ne l’activait pas dès que la config apt mentionnait le réglage, même à « 0 ». Elle l’active maintenant, rafraîchit les listes tout de suite et prévient si les tâches périodiques d’apt ne tournent pas (`apt-daily.timer`). Relancer la commande d’installation de l’agent applique la correction.
+- Le message du widget donne la commande à lancer (`sudo apt update`) au lieu de renvoyer à la documentation.
+
 ## [0.31.0] - 2026-11-07
 
 ### Ajouté
