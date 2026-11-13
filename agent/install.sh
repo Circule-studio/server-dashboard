@@ -36,7 +36,12 @@ apt_refresh() {
   lists="$(apt_value APT::Periodic::Update-Package-Lists)"
   if [[ -z "$lists" || "$lists" == "0" ]]; then
     echo 'APT::Periodic::Update-Package-Lists "1";' > "$APT_FILE"
-    info "Rafraîchissement quotidien des listes de paquets activé (rien n'est installé)"
+    # Un fichier lu après le nôtre (ordre alphabétique) peut encore le désactiver.
+    if [[ "$(apt_value APT::Periodic::Update-Package-Lists)" == "1" ]]; then
+      info "Rafraîchissement quotidien des listes de paquets activé (rien n'est installé)"
+    else
+      warn "un autre fichier de /etc/apt/apt.conf.d désactive le rafraîchissement des listes (Update-Package-Lists) : les listes ne seront pas rafraîchies."
+    fi
   fi
   # Ces réglages ne servent que si les tâches périodiques d'apt tournent : on prévient, sans toucher au choix de l'admin.
   if [[ "$(apt_value APT::Periodic::Enable)" == "0" ]]; then

@@ -129,11 +129,17 @@ jobs:
           curl -fsS -b jar -X PUT -H 'Content-Type: application/json' --data-binary @agent.json http://127.0.0.1:7575/api/config > /dev/null
           token=$(curl -fsS -b jar http://127.0.0.1:7575/api/agent/agent-ci/setup | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
           agent_install() { curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo env DASHBOARD_URL=http://127.0.0.1:7575 AGENT_ID=agent-ci AGENT_TOKEN="$token" bash; }
+          # Machine où le rafraîchissement des listes apt est désactivé : l'installation doit l'activer.
+          echo 'APT::Periodic::Update-Package-Lists "0";' | sudo tee /etc/apt/apt.conf.d/99ci-periodic > /dev/null
           agent_install
+          sudo grep -q 'Update-Package-Lists "1"' /etc/apt/apt.conf.d/20server-dashboard
+          sudo rm /etc/apt/apt.conf.d/99ci-periodic
           systemctl is-active server-dashboard-agent
           test "$(sudo stat -c '%a %U' /etc/server-dashboard-agent.env)" = "600 root"
           sudo grep -q '^SupplementaryGroups=docker$' /etc/systemd/system/server-dashboard-agent.service
-          sudo grep -q 'Update-Package-Lists "1"' /etc/apt/apt.conf.d/20server-dashboard
+          # Rafraîchissement quotidien des listes apt actif, qu'il vienne de l'agent ou de la machine.
+          apt-config dump | grep -i 'periodic' || true
+          apt-config dump | grep -q '^APT::Periodic::Update-Package-Lists "1";'
           # Le décompte arrive sans attendre l'envoi suivant (30 s) : moins de 25 s ici.
           for i in $(seq 1 12); do
             curl -fsS -b jar http://127.0.0.1:7575/api/widgets/updates-ci > updates.json
