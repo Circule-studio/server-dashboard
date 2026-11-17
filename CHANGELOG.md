@@ -4,6 +4,12 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Modifié
+- Agent plus léger : environ 10 Mo de mémoire en moins (requêtes sans `fetch`, qui charge à lui seul une bibliothèque entière) et presque trois fois moins de CPU. La liste des paquets et des images à mettre à jour n'est plus renvoyée à chaque envoi, seulement quand elle change. Relancer la commande d'installation de l'agent applique ces changements.
+
+### Corrigé
+- Agent : au démarrage, ou après une recherche de mises à jour, deux envois trop rapprochés faisaient refuser l'un d'eux. Le journal affichait alors « Envoi impossible : HTTP 429 » puis « Envoi rétabli ». Les envois partent maintenant un par un, espacés de 2,5 s au moins.
+
 ## [0.31.1] - 2026-11-13
 
 ### Corrigé
