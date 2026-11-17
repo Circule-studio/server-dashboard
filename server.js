@@ -49,6 +49,8 @@ const SECRET = process.env.SESSION_SECRET || (() => {
 
 if (!process.env.ADMIN_PASSWORD) {
   console.warn('[!] ADMIN_PASSWORD non défini : mot de passe par défaut "admin". Change-le en production.');
+} else if (ADMIN_PASSWORD === 'change-moi') {
+  console.warn('[!] ADMIN_PASSWORD vaut "change-moi", l\'exemple publié de .env.example : choisis un vrai mot de passe dans .env.');
 }
 
 // ---------- Config ----------
@@ -292,7 +294,8 @@ app.get('/api/me', (req, res) => {
     loginRequired: REQUIRE_LOGIN,
     // Révélé seulement à un admin connecté : inutile d'indiquer aux visiteurs
     // que le mot de passe par défaut fonctionne.
-    defaultPassword: authenticated && ADMIN_PASSWORD === 'admin',
+    // « change-moi » : l'exemple publié par les versions précédentes de .env.example, connu de tous (#158).
+    defaultPassword: authenticated && ['admin', 'change-moi'].includes(ADMIN_PASSWORD),
   });
 });
 

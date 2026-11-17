@@ -72,7 +72,7 @@ curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/ma
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
 ```
 
-Open `.env`, replace `change-moi` with a real password, then run:
+Open `.env` and fill in `ADMIN_PASSWORD` with a real password (the container refuses to start while it is empty), then run:
 
 ```bash
 docker compose up -d

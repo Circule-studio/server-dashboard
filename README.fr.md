@@ -72,7 +72,7 @@ curl -fsSLO https://raw.githubusercontent.com/Circule-studio/server-dashboard/ma
 curl -fsSL https://raw.githubusercontent.com/Circule-studio/server-dashboard/main/.env.example -o .env
 ```
 
-Ouvre `.env`, remplace `change-moi` par un vrai mot de passe, puis lance :
+Ouvre `.env` et remplis `ADMIN_PASSWORD` avec un vrai mot de passe (le conteneur refuse de démarrer tant qu’il est vide), puis lance :
 
 ```bash
 docker compose up -d
