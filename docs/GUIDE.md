@@ -85,6 +85,7 @@ In edit mode, the **Disks** button lists the disks found on the machine (`C:\`, 
 | `SESSION_SECRET` | generated in `data/.secret` | Session cookie signing key |
 | `NOTIFY_INTERVAL_MS` | `60000` | Interval between app checks for notifications (in milliseconds) |
 | `UPDATE_CHECK` | `true` | `false`: don't check GitHub for a new version (the installed version is still shown to the admin) |
+| `INSECURE_TLS` | `false` | `true`: never check HTTPS certificates. By default, a service at a public address must have a valid certificate (keys are sent to it); services on the local network, Tailscale or localhost are not checked, so self-signed certificates keep working |
 
 ## Security
 

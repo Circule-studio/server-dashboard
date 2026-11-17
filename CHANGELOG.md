@@ -4,6 +4,10 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+### Sécurité
+- Les requêtes qui modifient le dashboard (enregistrement, actions Docker, image de fond…) ne sont acceptées que depuis la page du dashboard elle-même, d’après ce qu’indique le navigateur. Les scripts (curl, agent) ne sont pas concernés.
+- Certificats HTTPS vérifiés pour les services à une adresse publique, qui reçoivent souvent une clé (Alwaysdata, agendas, API personnalisée…). Les services du réseau local, de Tailscale ou de la machine ne sont pas vérifiés : leurs certificats auto-signés marchent toujours. `INSECURE_TLS=true` désactive toute vérification.
+
 ### Modifié
 - Agent plus léger : environ 10 Mo de mémoire en moins (requêtes sans `fetch`, qui charge à lui seul une bibliothèque entière) et presque trois fois moins de CPU. La liste des paquets et des images à mettre à jour n'est plus renvoyée à chaque envoi, seulement quand elle change. Relancer la commande d'installation de l'agent applique ces changements.
 

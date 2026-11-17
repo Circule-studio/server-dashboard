@@ -4,6 +4,8 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
+const dns = require('dns');
+const net = require('net');
 const { version } = require('../package.json');
 
 // Envoyé à chaque service, sauf si l'intégration en donne un autre. Sans en-tête User-Agent, ou avec
@@ -24,9 +26,39 @@ const NETWORK_ERRORS = {
   ETIMEDOUT: ['timeout', 'Délai dépassé'],
 };
 
+// Certificat refusé (expiré, auto-signé, mauvais nom…) pour un service à une adresse publique.
+const TLS_ERROR = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ALTNAME/;
+
 function networkError(e) {
+  if (TLS_ERROR.test(e.code || '')) return fail('tls_untrusted', 'Certificat HTTPS non valide pour un service public : rien n\'a été envoyé');
   const [key, message] = NETWORK_ERRORS[e.code] || [];
   return fail(key, message || e.message || e.code || 'Erreur réseau');
+}
+
+// ---------- Certificats HTTPS ----------
+// Les services du réseau local ont souvent un certificat auto-signé : il n'est pas vérifié. Un service à une
+// adresse publique reçoit souvent un secret (jeton Alwaysdata, agenda privé, clé d'API) : son certificat est
+// vérifié, sinon n'importe qui sur le chemin réseau le recevrait. INSECURE_TLS=true : aucune vérification.
+const INSECURE_TLS = process.env.INSECURE_TLS === 'true';
+
+// Réseau local, machine elle-même, lien local, Tailscale / CGNAT (100.64.0.0/10), IPv6 locales.
+function isPrivateAddress(ip) {
+  const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (net.isIPv4(v4)) {
+    const [a, b] = v4.split('.').map(Number);
+    return a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+      || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127);
+  }
+  const x = ip.toLowerCase();
+  return x === '::1' || x === '::' || /^f[cd]/.test(x) || /^fe[89ab]/.test(x);
+}
+
+// Adresse à laquelle se connecter, et faut-il vérifier le certificat. La connexion est faite à cette
+// adresse-là : un DNS qui changerait de réponse entre-temps ne ferait pas sauter la vérification.
+async function tlsTarget(hostname) {
+  const host = hostname.replace(/^\[|\]$/g, '');
+  const { address, family } = net.isIP(host) ? { address: host, family: net.isIP(host) } : await dns.promises.lookup(host);
+  return { address, family, verify: !INSECURE_TLS && !isPrivateAddress(address) };
 }
 
 // Taille maximale d'une réponse : au-delà, la requête est abandonnée. Sans limite, une URL
@@ -35,17 +67,26 @@ const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 
 // `discardBody` : on ne lit que le code HTTP (utile pour un simple ping).
 // `raw` : corps renvoyé tel quel dans `body` (Buffer), pour une image.
-// `verifyTls` : vérifier le certificat. Désactivé par défaut : les services du réseau local ont
-// souvent un certificat auto-signé. À activer pour un service public qui reçoit un secret.
+// `verifyTls` : 'auto' (défaut) vérifie le certificat d'un service à une adresse publique seulement (voir
+// tlsTarget) ; true : toujours ; false : jamais (simple vérification d'état, sans secret).
 // `timeout` : inactivité maximale ; `deadline` : durée totale maximale. Le `timeout` de Node
 // ne mesure que l'inactivité : un service qui envoie un octet de temps en temps le contournait.
-function request(url, {
-  method = 'GET', headers = {}, body, timeout = 8000, deadline = 20_000, maxBytes = MAX_RESPONSE_BYTES, discardBody = false,
-  verifyTls = false, raw = false,
-} = {}) {
+async function request(url, options = {}) {
+  let u;
+  try { u = new URL(url); } catch { throw fail('invalid_url', 'URL invalide', { url }); }
+  const { verifyTls = 'auto' } = options;
+  if (u.protocol !== 'https:' || verifyTls !== 'auto') return send(u, options, { verify: verifyTls === true });
+  let target;
+  try { target = await tlsTarget(u.hostname); } catch (e) { throw networkError(e); }
+  return send(u, options, target);
+}
+
+function send(u, {
+  method = 'GET', headers = {}, body, timeout = 8000, deadline = 20_000, maxBytes = MAX_RESPONSE_BYTES, discardBody = false, raw = false,
+} = {}, { verify, address, family }) {
+  // Connexion à l'adresse déjà contrôlée (le nom reste celui du certificat attendu).
+  const lookup = address && ((hostname, opts, cb) => (opts?.all ? cb(null, [{ address, family }]) : cb(null, address, family)));
   return new Promise((resolve, reject) => {
-    let u;
-    try { u = new URL(url); } catch { return reject(fail('invalid_url', 'URL invalide', { url })); }
     let done = false;
     let timer;
     // Une seule issue par requête, même si plusieurs événements arrivent ensuite (erreur après abandon…).
@@ -56,7 +97,7 @@ function request(url, {
       fn(value);
     };
     const lib = u.protocol === 'https:' ? https : http;
-    const req = lib.request(u, { method, headers: { 'User-Agent': USER_AGENT, ...headers }, timeout, rejectUnauthorized: verifyTls }, (res) => {
+    const req = lib.request(u, { method, headers: { 'User-Agent': USER_AGENT, ...headers }, timeout, rejectUnauthorized: verify, ...(lookup ? { lookup } : {}) }, (res) => {
       res.on('error', (e) => finish(reject, networkError(e)));
       if (discardBody) {
         res.destroy();
@@ -188,4 +229,5 @@ const diskAlerts = (w, disks, label = (d) => d.mount) => disks.filter((d) => d.s
 
 module.exports = {
   parseMetrics, sumMetric, request, fail, join, pad, getJson, sessionCache, basicAuth, diskAlerts, readJsonFile, writeJsonFileSync,
+  isPrivateAddress, tlsTarget,
 };

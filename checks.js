@@ -27,7 +27,7 @@ function sanitizeCheck(check) {
 async function httpCheck(url, timeout = 5000) {
   const start = Date.now();
   try {
-    const { status } = await request(url, { timeout, discardBody: true });
+    const { status } = await request(url, { timeout, discardBody: true, verifyTls: false });
     // Un 401/403 signifie que le service répond : on le considère en ligne.
     return { online: status < 500, code: status, ms: Date.now() - start };
   } catch (e) {

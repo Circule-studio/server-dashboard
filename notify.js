@@ -55,10 +55,6 @@ function text(lang, key, vars = {}) {
   return (TEXTS[lang] || TEXTS.fr)[key].replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 }
 
-// Les services publics reçoivent un secret (le webhook Discord contient son jeton) : certificat
-// vérifié. Un serveur auto-hébergé (Gotify, ntfy maison) garde le comportement des autres services.
-const PUBLIC_HOSTS = /(^|\.)(ntfy\.sh|discord\.com|discordapp\.com)$/i;
-
 // event : { kind: 'down' | 'up' | 'test', name, url, board, problem?, value? } ; problem : 'disk',
 // 'cert', 'backup' ou 'smart' (alertes des widgets) pour un message adapté.
 function message(notify, event) {
@@ -112,9 +108,8 @@ async function sendNotification(notify, event) {
   } catch {
     throw fail('invalid_url', `URL invalide : ${notify.url}`, { url: notify.url });
   }
-  const verifyTls = PUBLIC_HOSTS.test(new URL(req.url).hostname);
   const r = await request(req.url, {
-    method: 'POST', body: req.body, verifyTls,
+    method: 'POST', body: req.body, // certificat vérifié pour un service public (integrations/lib.js)
     headers: { ...req.headers, 'Content-Length': Buffer.byteLength(req.body) }, maxBytes: 64 * 1024,
   });
   if (r.status === 401 || r.status === 403) throw fail('notify_auth', 'Jeton refusé par le service de notification');

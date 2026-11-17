@@ -62,7 +62,7 @@ async function githubFetch(w, url, limitKey, known, maxBytes) {
   if (known?.etag) headers['If-None-Match'] = known.etag;
   // Certificat vérifié pour github.com : le jeton ne doit partir que vers le vrai GitHub. Une URL
   // personnalisée (GitHub Enterprise interne) garde le comportement des autres services.
-  const r = await request(url, { headers, maxBytes, verifyTls: !w.url });
+  const r = await request(url, { headers, maxBytes, verifyTls: w.url ? 'auto' : true });
   const until = githubLimitUntil(r);
   if (until) {
     githubLimits.set(limitKey, until);
