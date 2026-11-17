@@ -794,6 +794,11 @@ test('Aucun secret dans /api/config (connecté ou non)', async () => {
   }
   assert.equal(authed.json.widgets.find((w) => w.id === 'jellyfin').hasApiKey, true);
   assert.ok(!('username' in visitor.json.widgets.find((w) => w.id === 'qbittorrent')), 'utilisateur caché aux visiteurs');
+  // Réglages du formulaire (adresses de flux, requêtes, réseau interne) : admin seulement (#155).
+  const adminOnly = ['feeds', 'query', 'indexerUrl', 'entities', 'mappings'];
+  const seen = (r) => r.json.widgets.flatMap((w) => adminOnly.filter((f) => f in w));
+  assert.deepEqual(seen(visitor), [], 'réglages internes cachés aux visiteurs');
+  assert.ok(seen(authed).length >= 3, 'mais envoyés à l’admin pour le formulaire');
 });
 
 test('Un champ secret vide garde la valeur enregistrée', async () => {
