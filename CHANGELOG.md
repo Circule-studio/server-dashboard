@@ -6,6 +6,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [0.32.0] - 2026-11-17
 
+### Corrigé
+- Agent : deux agents avec le même identifiant (machine clonée, agent lancé deux fois) se renvoyaient sans fin la demande ouverte au dashboard, plusieurs milliers de requêtes par seconde. Ils ralentissent maintenant, et le journal de l’agent explique le problème (#151).
+
 ### Sécurité
 - Les requêtes qui modifient le dashboard (enregistrement, actions Docker, image de fond…) ne sont acceptées que depuis la page du dashboard elle-même, d’après ce qu’indique le navigateur. Les scripts (curl, agent) ne sont pas concernés.
 - Certificats HTTPS vérifiés pour les services à une adresse publique, qui reçoivent souvent une clé (Alwaysdata, agendas, API personnalisée…). Les services du réseau local, de Tailscale ou de la machine ne sont pas vérifiés : leurs certificats auto-signés marchent toujours. `INSECURE_TLS=true` désactive toute vérification.

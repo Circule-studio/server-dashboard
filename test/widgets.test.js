@@ -1095,11 +1095,12 @@ test('Bouton ⟳ : le vrai agent répond tout de suite, sans attendre son procha
   let r = await api('POST', '/api/widgets/agent/refresh');
   assert.deepEqual([r.status, r.json.agentAnswered], [200, false], 'sans agent à l’écoute : on le dit');
 
-  // Une seconde demande remplace la première, qui se termine sans rien demander.
+  // Une seconde demande remplace la première, qui apprend qu'elle a été remplacée : un agent qui partage
+  // son identifiant avec un autre ralentit au lieu de reprendre la main aussitôt (#151).
   const first = wait();
   await sleep(100);
   const second = wait();
-  assert.deepEqual(await (await first).json(), {});
+  assert.deepEqual(await (await first).json(), { replaced: true });
   await sleep(2100);
   const refreshing = api('POST', '/api/widgets/agent/refresh');
   const command = await (await second).json();
