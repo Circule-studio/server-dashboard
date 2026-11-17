@@ -1426,6 +1426,15 @@ test('Notifications : suivi des changements d’état (module seul)', () => {
   const [event] = m.update(apps, { a: { online: false } });
   m.failed(event);
   assert.deepEqual(step(m, false), ['down']);
+  // Widget en erreur à un tour (keep) : l'alerte en cours est gardée, le retour est bien signalé (#149).
+  m = createMonitor();
+  step(m, true); step(m, false);
+  assert.deepEqual(step(m, false), ['down']);
+  assert.deepEqual(m.update([], {}, (id) => id === 'a'), []);
+  assert.deepEqual(step(m, true), ['up']);
+  // Vraiment retiré (pas de keep) : oublié, comme avant.
+  m.update([], {});
+  assert.deepEqual([step(m, false), step(m, true)], [[], []]);
 });
 
 test('Un secret ne passe pas d’un type de widget à un autre', async () => {
@@ -1434,6 +1443,17 @@ test('Un secret ne passe pas d’un type de widget à un autre', async () => {
   assert.equal(r.status, 200, r.text);
   assert.equal(r.json.widgets.find((w) => w.id === 'sonarr').hasApiKey, false, 'clé Sonarr gardée pour un Radarr');
   await api('PUT', '/api/config', { ...r.json, widgets: r.json.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'sonarr', apiKey: 'sonarr-key' } : w)) });
+
+  // Enregistrement refusé avec un changement de type : la clé enregistrée n'est pas touchée (#144).
+  const now = (await api('GET', '/api/config')).json;
+  const refused = await api('PUT', '/api/config', {
+    ...now,
+    widgets: now.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'radarr', apiKey: '' } : w)),
+    categories: [...now.categories, { name: 'x', apps: [{ name: 'a', url: 'ftp://invalide' }] }],
+  });
+  assert.equal(refused.status, 400);
+  const kept = (await api('GET', '/api/config/export?secrets=1')).json.config.widgets.find((w) => w.id === 'sonarr');
+  assert.equal(kept.apiKey, 'sonarr-key', 'clé gardée en mémoire après un refus');
 });
 
 // ---------- Démarrage ----------

@@ -124,8 +124,9 @@ const FAILS_BEFORE_DOWN = 2;
 function createMonitor() {
   const apps = new Map(); // id de l'app -> { down, fails, alerted } (alerted : « hors ligne » envoyé)
   return {
-    // statuses : { id: { online } } ; renvoie les événements à envoyer.
-    update(appList, statuses) {
+    // statuses : { id: { online } } ; renvoie les événements à envoyer. keep(id) : élément absent à garder
+    // tel quel (son widget est en erreur à ce tour) au lieu de l'oublier comme s'il avait été supprimé.
+    update(appList, statuses, keep = () => false) {
       const events = [];
       const ids = new Set();
       for (const app of appList) {
@@ -145,7 +146,7 @@ function createMonitor() {
           events.push({ kind: 'down', id: app.id, name: app.name, url: app.url, problem: app.problem, value: app.value });
         }
       }
-      for (const id of apps.keys()) if (!ids.has(id)) apps.delete(id); // app supprimée
+      for (const id of apps.keys()) if (!ids.has(id) && !keep(id)) apps.delete(id); // app supprimée
       return events;
     },
     // Envoi impossible (service de notification injoignable) : l'événement repartira à la prochaine

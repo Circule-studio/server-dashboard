@@ -761,16 +761,20 @@ let monitoring = false;
 // Éléments surveillés par les widgets dont « M'alerter » est coché. Un widget en erreur (mauvaise
 // clé, service injoignable) ne donne rien, sauf les codes `offlineCodes` de son intégration, qui
 // veulent dire « machine éteinte » (ex. Glances qui ne répond plus).
+// errored : widgets en erreur à ce tour. Leurs éléments gardent leur état (alerte en cours, échecs déjà
+// comptés) : sans ça, une erreur passagère faisait perdre l'alerte et la notification de retour (#149).
 async function widgetAlertItems(cfg) {
+  const errored = new Set();
   const lists = await Promise.all(cfg.widgets.filter((w) => w.alert && INTEGRATIONS[w.type]?.alerts).map(async (w) => {
     const integration = INTEGRATIONS[w.type];
     try {
       return integration.alerts(await fetchWidget(w), w);
     } catch (e) {
+      errored.add(w.id);
       return integration.offlineCodes?.includes(e.key) ? [{ id: `${w.id}:machine`, name: w.name, url: w.url, online: false }] : [];
     }
   }));
-  return lists.flat();
+  return { items: lists.flat(), errored };
 }
 
 async function checkForNotifications() {
@@ -780,10 +784,11 @@ async function checkForNotifications() {
     const cfg = await readConfig();
     if (!cfg.notify?.type) { monitor.clear(); widgetMonitor.clear(); return; } // réactivées plus tard : pas d'alerte sur l'état ancien
     // Statuts d'un visiteur réutilisés s'ils sont assez récents : pas de double ping.
-    const [statuses, items] = await Promise.all([getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2)), widgetAlertItems(cfg)]);
+    const [statuses, { items, errored }] = await Promise.all([getStatuses(Math.min(STATUS_CACHE_MS, NOTIFY_INTERVAL_MS / 2)), widgetAlertItems(cfg)]);
+    const ofErroredWidget = (id) => errored.has(id.slice(0, id.indexOf(':')));
     const events = [
       ...monitor.update(watchedApps(cfg).filter((a) => a.url), statuses).map((event) => [monitor, event]),
-      ...widgetMonitor.update(items, Object.fromEntries(items.map((i) => [i.id, i]))).map((event) => [widgetMonitor, event]),
+      ...widgetMonitor.update(items, Object.fromEntries(items.map((i) => [i.id, i])), ofErroredWidget).map((event) => [widgetMonitor, event]),
     ];
     // En parallèle : un service lent ne retarde pas les autres alertes ; un échec repart au tour suivant.
     await Promise.all(events.map(([source, event]) => sendNotification(cfg.notify, { ...event, board: cfg.title }).catch((e) => {
