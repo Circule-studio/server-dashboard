@@ -333,6 +333,18 @@ test('Flux RSS : adresses invalides refusées à l’enregistrement', async () =
   }
 });
 
+test('Calendrier : une adresse d’agenda n’apparaît jamais dans une erreur ; webcal:// accepté (#152, #175)', async () => {
+  const { INTEGRATIONS } = require('../integrations');
+  const err = await INTEGRATIONS.ical.fetch({ id: 'x', apiKey: 'ftp://agenda-SECRET-abc.ics' }).catch((e) => e);
+  assert.equal(err.key, 'ical_url_invalid');
+  assert.deepEqual(err.params, { index: 1 });
+  assert.ok(!JSON.stringify({ m: err.message, p: err.params }).includes('SECRET'), 'adresse secrète absente de l’erreur');
+  // webcal:// devient https:// : le faux service est en http, la connexion échoue, mais l'adresse est acceptée.
+  const webcal = await INTEGRATIONS.ical.fetch({ id: 'x', apiKey: 'webcal://localhost:18091/agenda-SECRET.ics' }).catch((e) => e);
+  assert.notEqual(webcal.key, 'ical_url_invalid');
+  assert.ok(!JSON.stringify({ m: webcal.message, p: webcal.params }).includes('SECRET'));
+});
+
 test('Calendrier : deux agendas (dont un protégé), prochains événements', async () => {
   const d = await widget('ical');
   assert.equal(d.calendars, 2);
@@ -1426,6 +1438,51 @@ test('Notifications : suivi des changements d’état (module seul)', () => {
   const [event] = m.update(apps, { a: { online: false } });
   m.failed(event);
   assert.deepEqual(step(m, false), ['down']);
+  // Widget en erreur à un tour (keep) : l'alerte en cours est gardée, le retour est bien signalé (#149).
+  m = createMonitor();
+  step(m, true); step(m, false);
+  assert.deepEqual(step(m, false), ['down']);
+  assert.deepEqual(m.update([], {}, (id) => id === 'a'), []);
+  assert.deepEqual(step(m, true), ['up']);
+  // Vraiment retiré (pas de keep) : oublié, comme avant.
+  m.update([], {});
+  assert.deepEqual([step(m, false), step(m, true)], [[], []]);
+});
+
+test('Alertes Uptime Kuma : toutes les sondes surveillées, pas seulement les 25 affichées (#157)', async () => {
+  const http = require('node:http');
+  const { INTEGRATIONS } = require('../integrations');
+  const { createMonitor } = require('../notify');
+  let down = '';
+  const ids = Array.from({ length: 30 }, (_, i) => i + 1);
+  const server = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    if (req.url.includes('/heartbeat/')) {
+      res.end(JSON.stringify({ heartbeatList: Object.fromEntries(ids.map((id) => [id, [{ status: `M${id}` === down ? 0 : 1, ping: 5 }]])), uptimeList: {} }));
+    } else {
+      res.end(JSON.stringify({ config: { title: 'Test' }, publicGroupList: [{ monitorList: ids.map((id) => ({ id, name: `M${String(id).padStart(2, '0')}` })) }] }));
+    }
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const w = { id: 'k', name: 'Kuma', url: `http://127.0.0.1:${server.address().port}`, slug: 'test' };
+  const m = createMonitor();
+  const turn = async () => {
+    INTEGRATIONS.uptimekuma.reset?.();
+    const items = INTEGRATIONS.uptimekuma.alerts(await INTEGRATIONS.uptimekuma.fetch(w), w);
+    return m.update(items, Object.fromEntries(items.map((i) => [i.id, i]))).map((e) => `${e.kind} ${e.name}`);
+  };
+  try {
+    const d = await INTEGRATIONS.uptimekuma.fetch(w);
+    assert.equal(d.monitors.length, 25, 'affichage toujours limité');
+    assert.equal(INTEGRATIONS.uptimekuma.alerts(d, w).length, 30, 'alertes sur toutes les sondes');
+    await turn();
+    down = 'M28'; // au-delà des 25 premières par ordre alphabétique
+    assert.deepEqual([await turn(), await turn()], [[], ['down M28']]);
+    down = '';
+    assert.deepEqual(await turn(), ['up M28']);
+  } finally {
+    server.close();
+  }
 });
 
 test('Un secret ne passe pas d’un type de widget à un autre', async () => {
@@ -1434,6 +1491,17 @@ test('Un secret ne passe pas d’un type de widget à un autre', async () => {
   assert.equal(r.status, 200, r.text);
   assert.equal(r.json.widgets.find((w) => w.id === 'sonarr').hasApiKey, false, 'clé Sonarr gardée pour un Radarr');
   await api('PUT', '/api/config', { ...r.json, widgets: r.json.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'sonarr', apiKey: 'sonarr-key' } : w)) });
+
+  // Enregistrement refusé avec un changement de type : la clé enregistrée n'est pas touchée (#144).
+  const now = (await api('GET', '/api/config')).json;
+  const refused = await api('PUT', '/api/config', {
+    ...now,
+    widgets: now.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'radarr', apiKey: '' } : w)),
+    categories: [...now.categories, { name: 'x', apps: [{ name: 'a', url: 'ftp://invalide' }] }],
+  });
+  assert.equal(refused.status, 400);
+  const kept = (await api('GET', '/api/config/export?secrets=1')).json.config.widgets.find((w) => w.id === 'sonarr');
+  assert.equal(kept.apiKey, 'sonarr-key', 'clé gardée en mémoire après un refus');
 });
 
 // ---------- Démarrage ----------
@@ -1454,6 +1522,31 @@ test('Docker : conteneurs du faux socket', { skip: process.platform === 'win32' 
   const r = await api('GET', '/api/docker/containers');
   assert.equal(r.json.available, true, r.text);
   assert.ok(r.json.containers.some((c) => c.name === 'jellyfin'));
+});
+
+test('Docker : une action lente attend la réponse ; erreurs traduisibles (#146)', { skip: process.platform === 'win32' && 'socket unix' }, async () => {
+  const http = require('node:http');
+  const sock = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sd-docker-')), 'docker.sock');
+  // Faux Docker : « stop » répond au bout de 1,5 s (Docker attend que le conteneur s'arrête), 404 sinon.
+  const fake = http.createServer((req, res) => {
+    if (req.url.endsWith('/stop')) setTimeout(() => res.writeHead(204).end(), 1500);
+    else res.writeHead(404).end('{"message":"No such container"}');
+  });
+  await new Promise((r) => fake.listen(sock, r));
+  const saved = process.env.DOCKER_SOCKET;
+  process.env.DOCKER_SOCKET = sock;
+  delete require.cache[require.resolve('../system')];
+  const { docker } = require('../system');
+  try {
+    await assert.rejects(docker('POST', '/containers/abc/stop', { timeout: 500, deadline: 5000 }), (e) => e.key === 'docker_timeout');
+    assert.equal(await docker('POST', '/containers/abc/stop', { timeout: 3000, deadline: 5000 }), null, 'réponse attendue');
+    await assert.rejects(docker('POST', '/containers/abc/start'), (e) => e.key === 'docker_error' && e.params.status === 404);
+  } finally {
+    process.env.DOCKER_SOCKET = saved;
+    delete require.cache[require.resolve('../system')];
+    fake.close();
+    fs.rmSync(path.dirname(sock), { recursive: true, force: true });
+  }
 });
 
 test('Modifications acceptées seulement depuis la page du dashboard (autre port, sous-domaine voisin)', async () => {

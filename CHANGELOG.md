@@ -4,6 +4,15 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.32.1] - 2026-11-17
+
+### Corrigé
+- Configuration : un enregistrement refusé (une tuile à l’adresse invalide…) pouvait effacer la clé API d’un widget dont on venait de changer le type (#144).
+- Alertes « M’alerter » : une erreur passagère d’un widget faisait oublier l’alerte en cours, et le retour à la normale n’était jamais notifié (#149).
+- Alertes Uptime Kuma et Nginx Proxy Manager : toutes les sondes et tous les certificats sont surveillés, pas seulement les 25 et 8 affichés. Une panne au-delà n’était jamais signalée (#157).
+- Calendrier : une adresse d’agenda invalide n’apparaît plus dans le message d’erreur, visible des visiteurs (#152). Les adresses `webcal://` (iCloud, Nextcloud, Outlook) sont acceptées (#175).
+- Panneau Docker : arrêter ou redémarrer un conteneur lent affichait « timeout » alors que l’action réussissait. Les actions attendent maintenant la réponse de Docker, et ses erreurs sont traduites (#146).
+
 ## [0.32.0] - 2026-11-17
 
 ### Corrigé

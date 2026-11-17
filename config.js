@@ -153,8 +153,12 @@ function sanitizeWidgets(list, previous = []) {
     const n = occurrences.get(raw) || 0;
     occurrences.set(raw, n + 1);
     // Même type seulement : la clé d'un ancien widget Sonarr ne doit pas partir vers un Radarr.
-    const old = (raw && previous.filter((p) => p.id === raw)[n]) || {};
-    if (old.type && old.type !== type) for (const f of SECRET_FIELDS) delete old[f];
+    const found = (raw && previous.filter((p) => p.id === raw)[n]) || {};
+    // Copie sans les secrets, jamais `found` modifié : c'est la config en mémoire, qu'un enregistrement
+    // refusé ensuite ne doit pas abîmer (#144).
+    const old = found.type && found.type !== type
+      ? Object.fromEntries(Object.entries(found).filter(([k]) => !SECRET_FIELDS.includes(k)))
+      : found;
     const out = { id, type, name: str(w.name, 100) || type, url: checkUrl(str(w.url, 2000)) };
     // Le nom d'utilisateur n'est envoyé qu'aux admins : absent de la requête = inchangé.
     if (has('username')) {

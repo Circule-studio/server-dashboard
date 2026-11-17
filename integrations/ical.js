@@ -194,10 +194,15 @@ function parseCalendar(text, from, to, calendar) {
   return out;
 }
 
-async function readCalendar(url, w, from, to, calendar) {
-  if (!/^https?:\/\//i.test(url)) throw fail('invalid_url', `URL invalide : ${url}`, { url });
+// L'adresse d'un agenda est un secret (elle donne accès à l'agenda) : une erreur ne la cite jamais, seulement
+// son rang dans la liste (#152). webcal:// (iCloud, Nextcloud, Outlook) est l'adresse https de l'agenda (#175).
+const invalidCalendar = (calendar) => fail('ical_url_invalid', 'Adresse d\'agenda invalide', { index: calendar + 1 });
+
+async function readCalendar(raw, w, from, to, calendar) {
+  const url = raw.replace(/^webcals?:\/\//i, 'https://');
+  if (!/^https?:\/\//i.test(url)) throw invalidCalendar(calendar);
   const headers = { Accept: 'text/calendar, */*;q=0.5', ...(w.username || w.password ? basicAuth(w.username, w.password) : {}) };
-  const r = await request(url, { headers });
+  const r = await request(url, { headers }).catch((e) => { throw e.params?.url ? invalidCalendar(calendar) : e; });
   if (r.status === 401 || r.status === 403) throw fail('auth_refused', 'Authentification refusée (vérifie l\'identifiant et le mot de passe)');
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
   return parseCalendar(r.text, from, to, calendar);

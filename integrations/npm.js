@@ -73,11 +73,14 @@ async function nginxProxyManager(w) {
     expiring: certs.filter((c) => c.expired || (c.days != null && c.days <= NPM_SOON_DAYS)).length,
     certificates: certs.slice(0, 8),
     certificateCount: certs.length,
+    // Tous les certificats pour « M'alerter », pas seulement les 8 affichés : un certificat renouvelé
+    // repartait loin dans la liste, et son retour n'était jamais signalé (#157).
+    certStates: certs.map((c) => ({ name: c.name, expired: c.expired, days: c.days })),
   };
 }
 
 // Alertes : un certificat expiré ou qui expire dans NPM_ALERT_DAYS jours, puis renouvelé.
-const alerts = (d, w) => d.certificates.map((c) => ({
+const alerts = (d, w) => d.certStates.map((c) => ({
   id: `${w.id}:cert:${c.name}`, name: c.name, url: w.url, problem: 'cert',
   online: !c.expired && (c.days == null || c.days > NPM_ALERT_DAYS), value: c.expired ? 0 : c.days,
 }));
