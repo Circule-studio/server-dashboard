@@ -394,15 +394,31 @@ function sendWhenDone(searching) {
 // Demande ouverte vers le dashboard, relancée dès qu'elle se termine (il répond au bout de 25 s sans demande).
 const WAIT_TIMEOUT_MS = 40_000;
 const WAIT_RETRY_MS = 30_000; // dashboard injoignable, ou trop ancien pour cette demande
+// Réponse vide bien avant les 25 s normales : la demande a été remplacée par celle d'un autre agent qui
+// utilise le même identifiant (machine clonée, agent lancé deux fois). Sans pause, les deux se
+// remplaçaient sans fin : des milliers de requêtes par seconde (#151).
+const WAIT_EARLY_MS = 5000;
+let duplicateWarned = 0;
 
 async function waitLoop() {
   for (;;) {
     try {
+      const started = Date.now();
       const res = await request(`${URL_BASE}/api/agent/${encodeURIComponent(ID)}/wait`, {
         headers: { Authorization: `Bearer ${TOKEN}` }, timeout: WAIT_TIMEOUT_MS,
       });
       if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
       const command = JSON.parse(res.body);
+      if (command.replaced || (!command.refresh && Date.now() - started < WAIT_EARLY_MS)) {
+        // Un message par heure au plus : le journal ne déborde pas.
+        if (Date.now() - duplicateWarned > 3600_000) {
+          duplicateWarned = Date.now();
+          console.error(`Un autre agent utilise l'identifiant ${ID} (machine clonée, ou agent lancé deux fois ?) : `
+            + 'ses valeurs et celles de cette machine se mélangent. Donne à chaque machine son propre widget Agent.');
+        }
+        await new Promise((r) => { setTimeout(r, WAIT_RETRY_MS); });
+        continue;
+      }
       if (command.refresh) {
         if (command.updates && Date.now() - updatesAt >= MIN_RECHECK_MS) updatesAt = 0;
         sendWhenDone(refreshUpdates());

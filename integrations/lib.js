@@ -53,12 +53,13 @@ function isPrivateAddress(ip) {
   return x === '::1' || x === '::' || /^f[cd]/.test(x) || /^fe[89ab]/.test(x);
 }
 
-// Adresse à laquelle se connecter, et faut-il vérifier le certificat. La connexion est faite à cette
-// adresse-là : un DNS qui changerait de réponse entre-temps ne ferait pas sauter la vérification.
+// Adresses auxquelles se connecter, et faut-il vérifier le certificat (oui dès qu'une est publique). La
+// connexion n'essaie que ces adresses : un DNS qui changerait de réponse entre-temps ne ferait pas sauter
+// la vérification. Toutes sont gardées : Node essaie l'IPv4 si l'IPv6 ne répond pas (localhost…).
 async function tlsTarget(hostname) {
   const host = hostname.replace(/^\[|\]$/g, '');
-  const { address, family } = net.isIP(host) ? { address: host, family: net.isIP(host) } : await dns.promises.lookup(host);
-  return { address, family, verify: !INSECURE_TLS && !isPrivateAddress(address) };
+  const addresses = net.isIP(host) ? [{ address: host, family: net.isIP(host) }] : await dns.promises.lookup(host, { all: true });
+  return { addresses, verify: !INSECURE_TLS && addresses.some((a) => !isPrivateAddress(a.address)) };
 }
 
 // Taille maximale d'une réponse : au-delà, la requête est abandonnée. Sans limite, une URL
@@ -83,9 +84,9 @@ async function request(url, options = {}) {
 
 function send(u, {
   method = 'GET', headers = {}, body, timeout = 8000, deadline = 20_000, maxBytes = MAX_RESPONSE_BYTES, discardBody = false, raw = false,
-} = {}, { verify, address, family }) {
-  // Connexion à l'adresse déjà contrôlée (le nom reste celui du certificat attendu).
-  const lookup = address && ((hostname, opts, cb) => (opts?.all ? cb(null, [{ address, family }]) : cb(null, address, family)));
+} = {}, { verify, addresses }) {
+  // Connexion aux adresses déjà contrôlées (le nom reste celui du certificat attendu).
+  const lookup = addresses && ((hostname, opts, cb) => (opts?.all ? cb(null, addresses) : cb(null, addresses[0].address, addresses[0].family)));
   return new Promise((resolve, reject) => {
     let done = false;
     let timer;

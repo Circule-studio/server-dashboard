@@ -108,9 +108,15 @@ const alerts = (d, w) => [
   ...(d.alerts ? [{ id: `${w.id}:critical`, name: w.name, url: w.url, problem: 'security', online: d.alerts.high === 0, value: d.alerts.high }] : []),
 ];
 
+// Visiteur non connecté : les nombres seulement. Les noms des machines, le détail des alertes et la version
+// aideraient à attaquer (#166), comme pour Mises à jour et Loki.
+function publicData({ disconnected, agentStates, alerts: a, version, ...d }) {
+  return { ...d, disconnected: [], agentStates: [], version: null, alerts: a && { ...a, recent: [] }, hidden: true };
+}
+
 module.exports = {
   wazuh: {
     fields: ['url', 'username', 'password', 'indexerUrl', 'apiKey'], userRequired: true, cacheMs: 30_000,
-    fetch: wazuh, alerts, reset: () => sessions.clear(),
+    fetch: wazuh, alerts, publicData, reset: () => sessions.clear(),
   },
 };

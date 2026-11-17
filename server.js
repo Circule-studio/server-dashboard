@@ -34,6 +34,9 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const STATUS_CACHE_MS = 15_000;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
+// La config contient toutes les clés API : lisible par le service seulement (#153). Un fichier écrit par
+// une version précédente (0644) est corrigé au démarrage.
+try { fs.chmodSync(CONFIG_FILE, 0o600); } catch { /* pas encore de config */ }
 
 // ---------- Secret de session (persisté pour survivre aux redémarrages) ----------
 const SECRET_FILE = path.join(DATA_DIR, '.secret');
@@ -111,7 +114,7 @@ let writeQueue = Promise.resolve();
 function writeConfig(cfg) {
   const run = async () => {
     const tmp = `${CONFIG_FILE}.${crypto.randomUUID()}.tmp`;
-    await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2));
+    await fsp.writeFile(tmp, JSON.stringify(cfg, null, 2), { mode: 0o600 });
     await fsp.rename(tmp, CONFIG_FILE);
     configCache = { stamp: stampOf(await fsp.stat(CONFIG_FILE)), cfg };
   };

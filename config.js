@@ -192,6 +192,10 @@ function sanitizeWidgets(list, previous = []) {
   });
 }
 
+// Réglages qui ne servent qu'au formulaire d'édition, réservés à l'admin connecté : une adresse de flux
+// contient souvent un jeton (?token=…), les autres décrivent le réseau interne (#155).
+const ADMIN_ONLY_FIELDS = ['username', 'feeds', 'query', 'indexerUrl', 'entities', 'mappings'];
+
 // Version envoyée au navigateur : jamais de clés API ni de mots de passe,
 // et les noms d'utilisateur seulement pour un admin connecté.
 function publicConfig(cfg, authed) {
@@ -205,7 +209,7 @@ function publicConfig(cfg, authed) {
       for (const f of SECRET_FIELDS) {
         if (f in pub) { pub[flag('has', f)] = !!pub[f]; delete pub[f]; }
       }
-      if (!authed) delete pub.username;
+      if (!authed) for (const f of ADMIN_ONLY_FIELDS) delete pub[f];
       return pub;
     }),
   };

@@ -32,6 +32,7 @@ RENDERERS.wazuh = (d) => {
         h('span', { class: 'muted' }, x.time ? fmtAgo(x.time) : '')),
       h('div', { class: 'item-sub' }, [x.agent, t('wazuh.level', { level: x.level })].filter(Boolean).join(' · '))))) : null,
     d.alertsError ? h('p', { class: 'error' }, `⚠ ${t('wazuh.indexerError')} : ${errMsg({ code: d.alertsError })}`) : null,
+    d.hidden ? h('p', { class: 'muted widget-note' }, t('wazuh.login')) : null,
     d.version ? h('p', { class: 'muted traefik-meta' }, `Wazuh ${d.version}`) : null,
   ];
 };

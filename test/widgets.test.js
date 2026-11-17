@@ -398,6 +398,16 @@ test('Wazuh : agents, alertes de l’indexer, sans indexer', async () => {
   const items = INTEGRATIONS.wazuh.alerts(d, { id: 'z', name: 'Wazuh', url: 'u' });
   assert.deepEqual(items.filter((i) => !i.online).map((i) => i.name), ['Wazuh · nas', 'Wazuh'], 'agent déconnecté et alerte critique');
   assert.ok(!items.some((i) => /manager|portable/.test(i.name)), 'manager et agent jamais connecté ignorés');
+
+  // Visiteur non connecté : les nombres, sans machines, détail des alertes ni version (#166).
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/widgets/wazuh');
+  cookie = saved;
+  assert.equal(visitor.status, 200);
+  assert.deepEqual([visitor.json.agents.disconnected, visitor.json.alerts.high, visitor.json.hidden], [1, 2, true]);
+  assert.deepEqual([visitor.json.disconnected, visitor.json.agentStates, visitor.json.alerts.recent, visitor.json.version], [[], [], [], null]);
+  assert.ok(!visitor.text.includes('"nas"'), 'pas de nom de machine');
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
@@ -794,6 +804,11 @@ test('Aucun secret dans /api/config (connecté ou non)', async () => {
   }
   assert.equal(authed.json.widgets.find((w) => w.id === 'jellyfin').hasApiKey, true);
   assert.ok(!('username' in visitor.json.widgets.find((w) => w.id === 'qbittorrent')), 'utilisateur caché aux visiteurs');
+  // Réglages du formulaire (adresses de flux, requêtes, réseau interne) : admin seulement (#155).
+  const adminOnly = ['feeds', 'query', 'indexerUrl', 'entities', 'mappings'];
+  const seen = (r) => r.json.widgets.flatMap((w) => adminOnly.filter((f) => f in w));
+  assert.deepEqual(seen(visitor), [], 'réglages internes cachés aux visiteurs');
+  assert.ok(seen(authed).length >= 3, 'mais envoyés à l’admin pour le formulaire');
 });
 
 test('Un champ secret vide garde la valeur enregistrée', async () => {
@@ -1095,11 +1110,12 @@ test('Bouton ⟳ : le vrai agent répond tout de suite, sans attendre son procha
   let r = await api('POST', '/api/widgets/agent/refresh');
   assert.deepEqual([r.status, r.json.agentAnswered], [200, false], 'sans agent à l’écoute : on le dit');
 
-  // Une seconde demande remplace la première, qui se termine sans rien demander.
+  // Une seconde demande remplace la première, qui apprend qu'elle a été remplacée : un agent qui partage
+  // son identifiant avec un autre ralentit au lieu de reprendre la main aussitôt (#151).
   const first = wait();
   await sleep(100);
   const second = wait();
-  assert.deepEqual(await (await first).json(), {});
+  assert.deepEqual(await (await first).json(), { replaced: true });
   await sleep(2100);
   const refreshing = api('POST', '/api/widgets/agent/refresh');
   const command = await (await second).json();

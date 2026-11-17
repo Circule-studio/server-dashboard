@@ -6,15 +6,19 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [0.32.0] - 2026-11-17
 
+### Corrigé
+- Agent : au démarrage, ou après une recherche de mises à jour, deux envois trop rapprochés faisaient refuser l'un d'eux. Le journal affichait alors « Envoi impossible : HTTP 429 » puis « Envoi rétabli ». Les envois partent maintenant un par un, espacés de 2,5 s au moins.
+- Agent : deux agents avec le même identifiant (machine clonée, agent lancé deux fois) se renvoyaient sans fin la demande ouverte au dashboard, plusieurs milliers de requêtes par seconde. Ils ralentissent maintenant, et le journal de l’agent explique le problème (#151).
+- Connexion HTTPS à un nom qui répond en IPv6 puis en IPv4 (comme `localhost`) : l’IPv4 est de nouveau essayée quand l’IPv6 ne répond pas.
+- `data/config.json`, qui contient les clés API, n’est plus lisible que par le service ; un fichier existant est corrigé au démarrage (#153).
+- Visiteurs non connectés : les réglages internes des widgets (adresses des flux, requêtes Loki, indexer Wazuh, entités Home Assistant, API personnalisée) ne leur sont plus envoyés (#155), ni les machines et le détail des alertes Wazuh, dont ils voient seulement les nombres (#166).
+
 ### Sécurité
 - Les requêtes qui modifient le dashboard (enregistrement, actions Docker, image de fond…) ne sont acceptées que depuis la page du dashboard elle-même, d’après ce qu’indique le navigateur. Les scripts (curl, agent) ne sont pas concernés.
 - Certificats HTTPS vérifiés pour les services à une adresse publique, qui reçoivent souvent une clé (Alwaysdata, agendas, API personnalisée…). Les services du réseau local, de Tailscale ou de la machine ne sont pas vérifiés : leurs certificats auto-signés marchent toujours. `INSECURE_TLS=true` désactive toute vérification.
 
 ### Modifié
 - Agent plus léger : environ 10 Mo de mémoire en moins (requêtes sans `fetch`, qui charge à lui seul une bibliothèque entière) et presque trois fois moins de CPU. La liste des paquets et des images à mettre à jour n'est plus renvoyée à chaque envoi, seulement quand elle change. Relancer la commande d'installation de l'agent applique ces changements.
-
-### Corrigé
-- Agent : au démarrage, ou après une recherche de mises à jour, deux envois trop rapprochés faisaient refuser l'un d'eux. Le journal affichait alors « Envoi impossible : HTTP 429 » puis « Envoi rétabli ». Les envois partent maintenant un par un, espacés de 2,5 s au moins.
 
 ## [0.31.1] - 2026-11-13
 

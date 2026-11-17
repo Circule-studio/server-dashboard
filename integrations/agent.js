@@ -106,7 +106,9 @@ function updatesOf(id) {
 
 // Demande ouverte par l'agent : { promise, cancel }. promise donne ce qu'il doit faire ({} : rien).
 function waitCommand(w) {
-  waiting.get(w.id)?.({}); // l'agent n'a qu'une demande ouverte : la plus récente
+  // L'agent n'a qu'une demande ouverte : la plus récente. La précédente apprend qu'elle a été remplacée,
+  // par un autre agent avec le même identifiant le plus souvent : il ralentit au lieu de la reprendre (#151).
+  waiting.get(w.id)?.({ replaced: true });
   let resolve;
   const promise = new Promise((r) => { resolve = r; });
   const finish = (command) => {
