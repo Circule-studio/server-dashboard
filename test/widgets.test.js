@@ -1524,6 +1524,31 @@ test('Docker : conteneurs du faux socket', { skip: process.platform === 'win32' 
   assert.ok(r.json.containers.some((c) => c.name === 'jellyfin'));
 });
 
+test('Docker : une action lente attend la réponse ; erreurs traduisibles (#146)', { skip: process.platform === 'win32' && 'socket unix' }, async () => {
+  const http = require('node:http');
+  const sock = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sd-docker-')), 'docker.sock');
+  // Faux Docker : « stop » répond au bout de 1,5 s (Docker attend que le conteneur s'arrête), 404 sinon.
+  const fake = http.createServer((req, res) => {
+    if (req.url.endsWith('/stop')) setTimeout(() => res.writeHead(204).end(), 1500);
+    else res.writeHead(404).end('{"message":"No such container"}');
+  });
+  await new Promise((r) => fake.listen(sock, r));
+  const saved = process.env.DOCKER_SOCKET;
+  process.env.DOCKER_SOCKET = sock;
+  delete require.cache[require.resolve('../system')];
+  const { docker } = require('../system');
+  try {
+    await assert.rejects(docker('POST', '/containers/abc/stop', { timeout: 500, deadline: 5000 }), (e) => e.key === 'docker_timeout');
+    assert.equal(await docker('POST', '/containers/abc/stop', { timeout: 3000, deadline: 5000 }), null, 'réponse attendue');
+    await assert.rejects(docker('POST', '/containers/abc/start'), (e) => e.key === 'docker_error' && e.params.status === 404);
+  } finally {
+    process.env.DOCKER_SOCKET = saved;
+    delete require.cache[require.resolve('../system')];
+    fake.close();
+    fs.rmSync(path.dirname(sock), { recursive: true, force: true });
+  }
+});
+
 test('Modifications acceptées seulement depuis la page du dashboard (autre port, sous-domaine voisin)', async () => {
   const send = (path, headers, contentType = 'text/plain') => fetch(BASE + path, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': contentType, ...headers }, body: 'x' });
   const docker = (await api('GET', '/api/docker/containers')).json.containers?.[0];

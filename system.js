@@ -99,7 +99,11 @@ async function detectDisks() {
 // Comme request() dans integrations/lib.js : taille et durée totale bornées, une seule issue.
 const DOCKER_MAX_BYTES = 20 * 1024 * 1024;
 
-function docker(method, apiPath) {
+// `timeout` : inactivité maximale, `deadline` : durée totale. Une action (stop, restart) ne reçoit sa réponse
+// qu'une fois le conteneur arrêté : Docker attend qu'il s'arrête de lui-même (10 s par défaut, plus avec
+// stop_grace_period), sans rien envoyer entre-temps (#146). Erreurs avec un code traduisible (key).
+function docker(method, apiPath, { timeout = 5000, deadline = 15_000 } = {}) {
+  const timedOut = () => Object.assign(new Error('timeout'), { key: 'docker_timeout' });
   return new Promise((resolve, reject) => {
     let done = false;
     let timer;
@@ -109,7 +113,7 @@ function docker(method, apiPath) {
       clearTimeout(timer);
       fn(value);
     };
-    const req = http.request({ socketPath: DOCKER_SOCKET, path: apiPath, method, timeout: 5000 }, (res) => {
+    const req = http.request({ socketPath: DOCKER_SOCKET, path: apiPath, method, timeout }, (res) => {
       const chunks = [];
       let size = 0;
       res.on('error', (e) => finish(reject, e));
@@ -124,14 +128,16 @@ function docker(method, apiPath) {
       });
       res.on('end', () => {
         const body = Buffer.concat(chunks).toString('utf8');
-        if (res.statusCode >= 400) return finish(reject, new Error(`Docker ${res.statusCode}: ${body.slice(0, 500)}`));
+        if (res.statusCode >= 400) {
+          return finish(reject, Object.assign(new Error(`Docker ${res.statusCode}: ${body.slice(0, 500)}`), { key: 'docker_error', params: { status: res.statusCode } }));
+        }
         let data = null;
         try { data = body ? JSON.parse(body) : null; } catch { /* pas du JSON */ }
         finish(resolve, data);
       });
     });
-    timer = setTimeout(() => req.destroy(new Error('timeout')), 15_000);
-    req.on('timeout', () => req.destroy(new Error('timeout')));
+    timer = setTimeout(() => req.destroy(timedOut()), deadline);
+    req.on('timeout', () => req.destroy(timedOut()));
     req.on('error', (e) => finish(reject, e));
     req.end();
   });

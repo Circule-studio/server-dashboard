@@ -733,7 +733,7 @@ app.post('/api/docker/containers/:id/:action', requireAuth, async (req, res) => 
     return res.status(400).json({ error: 'Requête invalide', code: 'bad_request' });
   }
   try {
-    await docker('POST', `/containers/${id}/${action}`);
+    await docker('POST', `/containers/${id}/${action}`, { timeout: 65_000, deadline: 70_000 });
     res.json({ ok: true });
   } catch (e) {
     sendError(res, 502, e);
