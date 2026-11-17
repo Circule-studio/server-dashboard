@@ -721,7 +721,7 @@ function widgetBody(w) {
   else if (entry.error) content = h('p', { class: 'error' }, `⚠ ${entry.error}`);
   else content = RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w);
   const body = h('div', { class: 'widget-body' }, content);
-  applyStatRules(body, w.stats);
+  applyStatRules(body, w.stats, WIDGET_TYPES[w.type].kind);
   return body;
 }
 
@@ -730,12 +730,26 @@ function widgetBody(w) {
 // libellé, ramené à sa clé de traduction : un réglage reste valable quand la langue change.
 const statCells = (root) => [...root.querySelectorAll('.widget-stats > div')].filter((el) => el.querySelector(':scope > b') && el.querySelector(':scope > span'));
 
-let statKeys = null; // texte traduit -> clé de traduction
-function statKey(cell) {
+// Un même texte peut venir de plusieurs clés (« En ligne » : status.online et kuma.up en français, mais
+// « Online » et « Up » en anglais) : la bonne est celle que le rendu du widget utilise (#154).
+let statKeys = null; // texte traduit -> [clés de traduction]
+const rendererSources = new Map();
+function statKey(cell, kind) {
   const label = cell.querySelector(':scope > span').textContent.trim();
-  statKeys ||= new Map(Object.entries(I18N[LANG]).reverse().map(([key, text]) => [text, key]));
-  return statKeys.get(label) || label; // libellé choisi par l'utilisateur (API personnalisée) : tel quel
+  if (!statKeys) {
+    statKeys = new Map();
+    for (const [key, text] of Object.entries(I18N[LANG])) statKeys.set(text, [...(statKeys.get(text) || []), key]);
+  }
+  const keys = statKeys.get(label);
+  if (!keys) return label; // libellé choisi par l'utilisateur (API personnalisée) : tel quel
+  if (keys.length === 1 || !kind) return keys[0];
+  if (!rendererSources.has(kind)) rendererSources.set(kind, String(RENDERERS[kind]));
+  return keys.find((k) => rendererSources.get(kind).includes(`'${k}'`)) || keys[0];
 }
+
+// Clés qui désignent le même chiffre : réglage enregistré avant #154 sous une autre clé de même texte.
+const sameStat = (a, b) => a === b || Object.values(I18N).some((texts) => texts[a] !== undefined && texts[a] === texts[b]);
+const statRule = (rules, key) => (Object.hasOwn(rules, key) ? rules[key] : rules[Object.keys(rules).find((r) => sameStat(r, key))] || null);
 
 // Le nombre affiché : « 2 904 », « 22 Go », « 3,8 Go », « 30 % ». Rien s'il ne commence pas par un nombre.
 function statNumber(cell) {
@@ -745,11 +759,10 @@ function statNumber(cell) {
   return Number.isFinite(n) ? n : null;
 }
 
-function applyStatRules(body, rules) {
+function applyStatRules(body, rules, kind) {
   if (!rules) return;
   for (const cell of statCells(body)) {
-    const key = statKey(cell);
-    const rule = Object.hasOwn(rules, key) ? rules[key] : null;
+    const rule = statRule(rules, statKey(cell, kind));
     if (!rule) continue;
     if (rule.hide) { cell.remove(); continue; }
     const value = statNumber(cell);
@@ -774,10 +787,10 @@ function fillStatRules(w) {
   const seen = new Set();
   const cells = entry?.data ? statCells(h('div', {}, RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w))) : [];
   const rows = cells.flatMap((cell) => {
-    const key = statKey(cell);
+    const key = statKey(cell, WIDGET_TYPES[w.type].kind);
     if (seen.has(key)) return [];
     seen.add(key);
-    const rule = w.stats?.[key] || {};
+    const rule = (w.stats && statRule(w.stats, key)) || {};
     const input = (field, label) => (statNumber(cell) == null ? h('span') : h('input', {
       type: 'number', step: 'any', 'data-stat-field': field, 'aria-label': `${cell.querySelector(':scope > span').textContent} : ${label}`, value: rule[field] ?? '',
     }));
@@ -798,8 +811,10 @@ function readStatRules(form, prev) {
   for (const row of form.querySelectorAll('[data-stat-key]')) {
     const value = (field) => row.querySelector(`[data-stat-field="${field}"]`)?.value ?? '';
     const rule = { hide: !row.querySelector('[data-stat-show]').checked || undefined, warn: value('warn') || undefined, bad: value('bad') || undefined };
-    if (rule.hide || rule.warn || rule.bad) rules[row.dataset.statKey] = rule;
-    else delete rules[row.dataset.statKey];
+    const key = row.dataset.statKey;
+    for (const old of Object.keys(rules)) if (old !== key && sameStat(old, key)) delete rules[old]; // ancienne clé (#154)
+    if (rule.hide || rule.warn || rule.bad) rules[key] = rule;
+    else delete rules[key];
   }
   return Object.keys(rules).length ? rules : undefined;
 }
@@ -1007,6 +1022,11 @@ async function agentSetup(type, w) {
     text.textContent = t('agent.saveFirst');
     return;
   }
+  // Les commandes contiendraient l'ancien jeton, qui cessera de marcher à l'enregistrement.
+  if (w.regenerateKey) {
+    text.textContent = t('agent.regeneratePending');
+    return;
+  }
   text.textContent = t('common.loading');
   let s;
   try {
@@ -1073,6 +1093,8 @@ function submitWidget(e) {
     url: f.url.value.trim(),
     hasApiKey: prev?.hasApiKey,
     hasPassword: prev?.hasPassword,
+    // Nouveau jeton demandé, pas encore enregistré : une nouvelle validation du formulaire ne l'annule pas (#148).
+    regenerateKey: prev?.regenerateKey === true || undefined,
   };
   if (fields.includes('location')) w.location = f.location.value.trim();
   if (fields.includes('indexerUrl')) w.indexerUrl = f.indexerUrl.value.trim();
@@ -1337,6 +1359,14 @@ async function startEditing() {
   // Config fraîche et complète (noms d'utilisateur inclus, réservés aux admins
   // connectés) : on n'édite jamais une copie chargée avant la connexion.
   try {
+    // Session expirée (onglet ouvert depuis des jours, mot de passe changé…) : la config reçue serait celle
+    // d'un visiteur, sans les noms d'utilisateur, qu'un enregistrement effacerait ensuite (#145).
+    if (!(await api('/api/me')).authenticated) {
+      state.authed = false;
+      render();
+      toast(t('login.expired'), true);
+      return onAuthClick();
+    }
     state.config = await api('/api/config');
   } catch (e) {
     return toast(errMsg(e), true);
@@ -1810,7 +1840,13 @@ async function importConfig(file) {
   // Sans secret dans le fichier, le serveur garde ceux des widgets de même identifiant et de même
   // type : le formulaire doit alors les afficher comme « inchangés ».
   const saved = new Map(state.config.widgets.map((w) => [w.id, w]));
-  const widgets = (Array.isArray(cfg.widgets) ? cfg.widgets : []).filter((w) => w && typeof w === 'object').map((w) => {
+  // Fichier d'une autre version ou écrit à la main : widgets d'un type inconnu ici écartés, catégories
+  // sans tuiles complétées. Sans ça, le rendu plantait et laissait le mode édition cassé (#150).
+  const listed = (Array.isArray(cfg.widgets) ? cfg.widgets : []).filter((w) => w && typeof w === 'object');
+  const known = listed.filter((w) => WIDGET_TYPES[w.type]);
+  const categories = cfg.categories.filter((c) => c && typeof c === 'object')
+    .map((c) => ({ ...c, apps: (Array.isArray(c.apps) ? c.apps : []).filter((a) => a && typeof a === 'object') }));
+  const widgets = known.map((w) => {
     const old = saved.get(w.id);
     const keep = old && old.type === w.type ? old : {};
     return { ...w, hasApiKey: !!w.apiKey || !!keep.hasApiKey, hasPassword: !!w.password || !!keep.hasPassword };
@@ -1825,10 +1861,21 @@ async function importConfig(file) {
     else if (ours.type === cfg.notify.type) notify = { ...ours, lang: cfg.notify.lang || ours.lang };
     else notify = { type: '' };
   }
-  state.draft = { ...cfg, widgets, notify, revision: state.draft.revision };
+  const before = state.draft;
+  state.draft = { ...cfg, categories, widgets, notify, revision: state.draft.revision };
+  try {
+    render();
+  } catch (e) {
+    console.error(e);
+    state.draft = before;
+    render();
+    toast(t('backup.invalid'), true);
+    return;
+  }
   $('#backupDialog').close();
-  render();
-  toast(t(data.secrets === false ? 'backup.importedNoSecrets' : 'backup.imported'));
+  const skipped = listed.length - known.length;
+  toast(t(data.secrets === false ? 'backup.importedNoSecrets' : 'backup.imported')
+    + (skipped ? `. ${t('backup.skippedWidgets', { count: skipped })}` : ''), !!skipped);
 }
 
 // ---------- Apparence (#95) ----------

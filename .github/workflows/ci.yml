@@ -34,8 +34,8 @@ jobs:
     name: Syntaxe JS et script shell
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - run: npm ci
@@ -56,7 +56,7 @@ jobs:
     name: Installation sans Docker (systemd)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installation
         run: sudo SD_SOURCE_DIR="$GITHUB_WORKSPACE" SD_ADMIN_PASSWORD=ci-test SD_PORT=7575 bash packaging/install.sh
@@ -65,7 +65,8 @@ jobs:
         run: |
           systemctl is-active server-dashboard
           curl -fsS http://127.0.0.1:7575/api/me
-          curl -fsS http://127.0.0.1:7575/api/system | head -c 300; echo
+          curl -fsS http://127.0.0.1:7575/api/system > system.json
+          head -c 300 system.json; echo
           curl -fsS http://127.0.0.1:7575/ | grep -q "Server Dashboard"
 
       - name: Connexion et sauvegarde de la config
@@ -152,12 +153,12 @@ jobs:
           agent_install
           systemctl is-active server-dashboard-agent
           # Valeur invalide refusée par le script, service intact.
-          ! curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo env DASHBOARD_URL=http://127.0.0.1:7575 AGENT_ID=agent-ci AGENT_TOKEN='x y' bash
+          if curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo env DASHBOARD_URL=http://127.0.0.1:7575 AGENT_ID=agent-ci AGENT_TOKEN='x y' bash; then echo "::error::un jeton invalide aurait dû être refusé"; exit 1; fi
           systemctl is-active server-dashboard-agent
           curl -fsSL http://127.0.0.1:7575/agent/install.sh | sudo bash -s -- --uninstall
-          ! systemctl is-active server-dashboard-agent
-          ! sudo test -e /etc/server-dashboard-agent.env
-          ! sudo test -e /etc/apt/apt.conf.d/20server-dashboard
+          if systemctl is-active server-dashboard-agent; then echo "::error::le service de l'agent tourne encore après la désinstallation"; exit 1; fi
+          if sudo test -e /etc/server-dashboard-agent.env; then echo "::error::le fichier du jeton de l'agent existe encore"; exit 1; fi
+          if sudo test -e /etc/apt/apt.conf.d/20server-dashboard; then echo "::error::le réglage apt de l'agent existe encore"; exit 1; fi
 
       - name: Mise à jour (2e passage) en gardant la config
         run: |
@@ -169,11 +170,11 @@ jobs:
       - name: Désinstallation
         run: |
           sudo bash packaging/install.sh --uninstall
-          ! systemctl is-active server-dashboard
+          if systemctl is-active server-dashboard; then echo "::error::le service tourne encore après la désinstallation"; exit 1; fi
           test ! -d /opt/server-dashboard
           # Le dossier n'est lisible que par root et le service : il contient le mot de passe.
           sudo test -f /etc/server-dashboard/server-dashboard.env
-          ! test -r /etc/server-dashboard/server-dashboard.env
+          if test -r /etc/server-dashboard/server-dashboard.env; then echo "::error::le fichier de réglages est lisible par tous"; exit 1; fi
 
       # Issue #44 : le mot de passe est relu par systemd. Les caractères qu'il modifierait
       # sont refusés avant toute installation ; les autres (espaces, accents…) doivent marcher.
@@ -200,8 +201,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - run: npm ci
@@ -216,8 +217,8 @@ jobs:
     name: Script Proxmox (community-scripts, hors Proxmox)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
 
@@ -247,7 +248,7 @@ jobs:
     name: Image Docker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Construction de l'image
         run: docker build -t server-dashboard:ci .

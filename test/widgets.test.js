@@ -333,6 +333,24 @@ test('Flux RSS : adresses invalides refusées à l’enregistrement', async () =
   }
 });
 
+test('RSS et Calendrier : un contenu piégé ou un gros historique ne fige pas le dashboard (#147, #163)', () => {
+  const { INTEGRATIONS } = require('../integrations');
+  const timed = (fn) => { const t = Date.now(); try { fn(); } catch { /* rejet possible */ } return Date.now() - t; };
+  // Avant : 12,9 s (flux de 640 Ko sans balise fermante) et 4,7 s (ligne de 80 Ko pleine de « : »).
+  assert.ok(timed(() => INTEGRATIONS.rss.parse(`<rss><channel>${'<item>'.repeat(100_000)}`, 'http://x/feed')) < 500, 'flux piégé');
+  const now = Date.now();
+  const evil = `BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:a\nDTSTART:20300101T100000Z\nDESCRIPTION:${':'.repeat(80_000)}"\nEND:VEVENT\nEND:VCALENDAR\n`;
+  assert.ok(timed(() => INTEGRATIONS.ical.parse(evil, now, now + 7 * 864e5, 0)) < 500, 'ligne d’agenda piégée');
+  // Un paramètre entre guillemets peut contenir « : » : la valeur commence après.
+  const quoted = 'BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:q\nDTSTART;X-NOTE="a:b":20300101T100000Z\nSUMMARY:Réunion : bilan\nEND:VEVENT\nEND:VCALENDAR\n';
+  const [event] = INTEGRATIONS.ical.parse(quoted, Date.UTC(2029, 11, 31), Date.UTC(2030, 0, 2), 0);
+  assert.equal(event.title, 'Réunion : bilan');
+  // RSS : articles lus normalement, et au plus 50 par flux.
+  const feed = `<rss><channel><title>Blog</title>${Array.from({ length: 80 }, (_, i) => `<item><title>A${i}</title><link>https://x/${i}</link></item>`).join('')}</channel></rss>`;
+  const items = INTEGRATIONS.rss.parse(feed, 'http://x/feed');
+  assert.deepEqual([items.length, items[0].title, items[0].link, items[0].source], [50, 'A0', 'https://x/0', 'Blog']);
+});
+
 test('Calendrier : une adresse d’agenda n’apparaît jamais dans une erreur ; webcal:// accepté (#152, #175)', async () => {
   const { INTEGRATIONS } = require('../integrations');
   const err = await INTEGRATIONS.ical.fetch({ id: 'x', apiKey: 'ftp://agenda-SECRET-abc.ics' }).catch((e) => e);
