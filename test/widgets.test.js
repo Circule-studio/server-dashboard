@@ -333,6 +333,18 @@ test('Flux RSS : adresses invalides refusées à l’enregistrement', async () =
   }
 });
 
+test('Calendrier : une adresse d’agenda n’apparaît jamais dans une erreur ; webcal:// accepté (#152, #175)', async () => {
+  const { INTEGRATIONS } = require('../integrations');
+  const err = await INTEGRATIONS.ical.fetch({ id: 'x', apiKey: 'ftp://agenda-SECRET-abc.ics' }).catch((e) => e);
+  assert.equal(err.key, 'ical_url_invalid');
+  assert.deepEqual(err.params, { index: 1 });
+  assert.ok(!JSON.stringify({ m: err.message, p: err.params }).includes('SECRET'), 'adresse secrète absente de l’erreur');
+  // webcal:// devient https:// : le faux service est en http, la connexion échoue, mais l'adresse est acceptée.
+  const webcal = await INTEGRATIONS.ical.fetch({ id: 'x', apiKey: 'webcal://localhost:18091/agenda-SECRET.ics' }).catch((e) => e);
+  assert.notEqual(webcal.key, 'ical_url_invalid');
+  assert.ok(!JSON.stringify({ m: webcal.message, p: webcal.params }).includes('SECRET'));
+});
+
 test('Calendrier : deux agendas (dont un protégé), prochains événements', async () => {
   const d = await widget('ical');
   assert.equal(d.calendars, 2);
