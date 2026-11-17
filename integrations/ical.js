@@ -15,10 +15,22 @@ const MAX_STEPS = 5000; // garde-fou pour une règle qui ne finit jamais
 const DAY = 864e5;
 const WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
+// Premier « : » hors guillemets (un paramètre peut en contenir : TZID="…:…"). Parcours caractère par
+// caractère : l'ancienne expression régulière était quadratique sur une longue ligne pleine de « : » (#147).
+function valueColon(l) {
+  let quoted = false;
+  for (let i = 0; i < l.length; i++) {
+    const c = l.charCodeAt(i);
+    if (c === 34) quoted = !quoted; // "
+    else if (c === 58 && !quoted) return i; // :
+  }
+  return -1;
+}
+
 // Lignes « nom;param=…:valeur », lignes repliées (CRLF suivi d'un espace ou d'une tabulation) réunies.
 function lines(text) {
   return text.replace(/\r?\n[ \t]/g, '').split(/\r?\n/).filter(Boolean).map((l) => {
-    const colon = l.search(/:(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+    const colon = valueColon(l);
     const [name, ...params] = l.slice(0, colon).split(';');
     return {
       name: name.toUpperCase(),
@@ -30,15 +42,32 @@ function lines(text) {
 
 const unescape = (v) => v.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim();
 
-// Décalage d'un fuseau à un instant donné (ms), via Intl. Fuseau inconnu (nom Windows…) : null.
+// Un formateur par fuseau, créé une fois : en créer un à chaque date était l'essentiel du temps de lecture
+// d'un gros agenda (#163). null : fuseau inconnu (nom Windows…).
+const formatters = new Map();
+function formatterOf(tz) {
+  if (!formatters.has(tz)) {
+    let f = null;
+    try {
+      f = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+    } catch { /* fuseau inconnu */ }
+    if (formatters.size > 200) formatters.clear(); // noms venus de l'agenda : jamais de liste sans fin
+    formatters.set(tz, f);
+  }
+  return formatters.get(tz);
+}
+
+// Décalage d'un fuseau à un instant donné (ms), via Intl. Fuseau inconnu : null.
 function tzOffset(t, tz) {
+  const f = formatterOf(tz);
+  if (!f) return null;
   try {
-    const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
-      timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
-    }).formatToParts(new Date(t)).map((x) => [x.type, Number(x.value)]));
+    const p = Object.fromEntries(f.formatToParts(new Date(t)).map((x) => [x.type, Number(x.value)]));
     return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - t;
   } catch {
-    return null;
+    return null; // date hors limites
   }
 }
 
@@ -153,11 +182,13 @@ function parseCalendar(text, from, to, calendar) {
     }
   }
   // Occurrences modifiées : elles remplacent l'occurrence d'origine de l'événement récurrent.
+  // Fenêtre en heure murale, élargie d'un jour de chaque côté pour les décalages de fuseau.
+  const near = (wall, length = 0) => wall + Math.max(0, length) >= from - DAY && wall <= to + DAY;
   const replaced = new Set();
   for (const e of events) {
     if (!e['RECURRENCE-ID'] || !e.UID) continue;
     const r = parseDate(e['RECURRENCE-ID']);
-    if (r) replaced.add(`${e.UID.value}|${toInstant(r.wall, r.zone)}`);
+    if (r && near(r.wall)) replaced.add(`${e.UID.value}|${toInstant(r.wall, r.zone)}`);
   }
   const out = [];
   for (const e of events) {
@@ -167,9 +198,11 @@ function parseCalendar(text, from, to, calendar) {
     const allDay = start.zone === 'DATE';
     const endDate = e.DTEND && parseDate(e.DTEND);
     const length = endDate ? endDate.wall - start.wall : e.DURATION ? parseDuration(e.DURATION.value) ?? 0 : allDay ? DAY : 0;
-    const excluded = new Set(e.exdates.map((x) => toInstant(x.wall, x.zone)));
-    // Fenêtre en heure murale, élargie d'un jour de chaque côté pour les décalages de fuseau.
-    const walls = e.RRULE && !e['RECURRENCE-ID']
+    const recurring = e.RRULE && !e['RECURRENCE-ID'];
+    // Événement ponctuel hors de la fenêtre (l'historique de l'agenda) : écarté avant tout calcul de fuseau.
+    if (!recurring && !near(start.wall, length)) continue;
+    const excluded = new Set(e.exdates.filter((x) => near(x.wall)).map((x) => toInstant(x.wall, x.zone)));
+    const walls = recurring
       ? occurrences(start.wall, parseRule(e.RRULE.value), from - DAY - Math.max(0, length), to + DAY)
       : [start.wall];
     for (const wall of walls) {

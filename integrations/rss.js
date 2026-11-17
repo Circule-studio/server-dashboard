@@ -23,10 +23,38 @@ function textOf(raw) {
   return decode(decode(unwrapped).replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
 }
 
+// Les recherches ci-dessous avancent toujours : une balise ouverte sans fermeture arrête la lecture au lieu
+// de faire reparcourir la fin du document à chaque candidate (temps quadratique, dashboard figé : #147).
+const MAX_FIELD = 16 * 1024; // un titre, un lien ou une date n'a pas besoin de plus
+
 // Contenu du premier élément `tag` (avec ou sans préfixe d'espace de noms, ex. dc:date).
 function tagContent(xml, tag) {
-  const m = xml.match(new RegExp(`<(?:[\\w-]+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w-]+:)?${tag}>`, 'i'));
-  return m ? m[1] : null;
+  const open = new RegExp(`<(?:[\\w-]+:)?${tag}(?:\\s[^<>]*)?>`, 'i').exec(xml);
+  if (!open) return null;
+  const close = new RegExp(`</(?:[\\w-]+:)?${tag}>`, 'ig');
+  close.lastIndex = open.index + open[0].length;
+  const end = close.exec(xml);
+  return end ? xml.slice(open.index + open[0].length, end.index).slice(0, MAX_FIELD) : null;
+}
+
+// Blocs <item>…</item> ou <entry>…</entry>, en un seul passage, MAX_FEED_ITEMS au plus par flux : seuls
+// les plus récents sont affichés. Un bloc n'est lu que sur ses MAX_BLOCK premiers caractères (titre, lien, date).
+const MAX_FEED_ITEMS = 50;
+const MAX_BLOCK = 256 * 1024;
+function blocksOf(xml, tag) {
+  const lower = xml.toLowerCase();
+  const out = [];
+  for (let i = 0; out.length < MAX_FEED_ITEMS;) {
+    const start = lower.indexOf(`<${tag}`, i);
+    if (start < 0) break;
+    const after = lower[start + tag.length + 1];
+    if (after !== '>' && !/\s/.test(after || '')) { i = start + tag.length + 1; continue; } // <itemfoo>
+    const end = lower.indexOf(`</${tag}>`, start);
+    if (end < 0) break; // pas de fermeture : rien d'autre à lire
+    out.push(xml.slice(start, Math.min(end + tag.length + 3, start + MAX_BLOCK)));
+    i = end + tag.length + 3;
+  }
+  return out;
 }
 
 const safeLink = (href) => {
@@ -46,7 +74,7 @@ function atomLink(entry) {
 function parseFeed(xml, url) {
   const isAtom = /<feed[\s>]/i.test(xml);
   if (!isAtom && !/<(rss|rdf:RDF|channel)[\s>]/i.test(xml)) throw fail('rss_invalid', 'Ce n\'est pas un flux RSS ou Atom', { url });
-  const blocks = [...xml.matchAll(isAtom ? /<entry[\s>][\s\S]*?<\/entry>/gi : /<item[\s>][\s\S]*?<\/item>/gi)].map((m) => m[0]);
+  const blocks = blocksOf(xml, isAtom ? 'entry' : 'item');
   // Titre du flux : celui qui précède le premier article.
   const first = xml.search(isAtom ? /<entry[\s>]/i : /<item[\s>]/i);
   const head = first > 0 ? xml.slice(0, first) : xml;
@@ -79,5 +107,5 @@ async function rss(w) {
 }
 
 module.exports = {
-  rss: { fields: ['feeds'], cacheMs: 15 * 60_000, fetch: rss },
+  rss: { fields: ['feeds'], cacheMs: 15 * 60_000, fetch: rss, parse: parseFeed },
 };
