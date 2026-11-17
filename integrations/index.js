@@ -16,7 +16,8 @@
 //   userRequired  nom d'utilisateur obligatoire (vérifié par server.js)
 //   thumbnail     images servies par /api/widgets/:id/thumbnail/:clé (voir server.js)
 //   generatedKey  jeton créé par le serveur, pour un service qui contacte le dashboard (agent)
-//   receive(w, b) reçoit les données envoyées par ce service (POST /api/agent/:id)
+//   receive(w, b) reçoit les données envoyées par ce service (POST /api/agent/:id) ; false : refusées (trop
+//                 rapprochées), un objet : ajouté à la réponse
 //   reset()       vide les sessions et caches propres au service quand la config change
 //   history(w, range, query, loadData) : courbes d'une machine du widget (voir history.js).
 //   alerts(d, w)  éléments surveillés par les notifications quand « M'alerter » est coché :

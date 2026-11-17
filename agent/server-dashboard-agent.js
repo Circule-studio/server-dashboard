@@ -20,6 +20,7 @@
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
+const https = require('https');
 const { execFile } = require('child_process');
 
 const URL_BASE = (process.env.DASHBOARD_URL || '').replace(/\/+$/, '');
@@ -121,16 +122,20 @@ function osName() {
   return `${os.type()} ${os.release()}`;
 }
 
+// Ne changent pas tant que l'agent tourne : lus une seule fois, pas à chaque envoi.
+const OS_NAME = osName();
+const CPU_NAME = os.cpus()[0]?.model?.trim() || '';
+const CORES = os.cpus().length;
+
 function report() {
-  const cores = os.cpus().length;
   return {
     hostname: os.hostname(),
-    os: osName(),
+    os: OS_NAME,
     uptime: Math.round(os.uptime()),
     cpu: cpuPercent(),
-    cpuName: os.cpus()[0]?.model?.trim() || '',
+    cpuName: CPU_NAME,
     // Pas de charge moyenne sous Windows (os.loadavg() renvoie des zéros).
-    load: process.platform === 'win32' ? null : { min1: Math.round(os.loadavg()[0] * 100) / 100, cores },
+    load: process.platform === 'win32' ? null : { min1: Math.round(os.loadavg()[0] * 100) / 100, cores: CORES },
     mem: memory(),
     disks: disks(),
     temp: temperature(),
@@ -138,6 +143,44 @@ function report() {
     interval: INTERVAL,
     updates: UPDATES_HOURS ? updates : undefined,
   };
+}
+
+// ---------- Requêtes HTTP ----------
+// http / https plutôt que fetch : fetch charge undici, environ 8 Mo de mémoire en plus pour un agent qui
+// tourne en continu, souvent sur un Raspberry Pi. `timeout` : inactivité maximale ; pas de redirection suivie.
+function request(url, { method = 'GET', headers = {}, body, timeout = 15_000, maxBytes = 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = (u.protocol === 'https:' ? https : http).request(u, { method, headers, timeout }, (res) => {
+      const chunks = [];
+      let size = 0;
+      res.on('data', (d) => {
+        size += d.length;
+        if (size > maxBytes) req.destroy(new Error('réponse trop volumineuse'));
+        else chunks.push(d);
+      });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString('utf8'), url }));
+      res.on('error', reject);
+    });
+    req.on('timeout', () => req.destroy(new Error('délai dépassé')));
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+// Avec les redirections (lscr.io -> ghcr.io). L'en-tête Authorization n'est pas transmis à un autre hôte.
+async function follow(url, options = {}) {
+  for (let i = 0; i < 5; i++) {
+    const res = await request(url, options);
+    if (res.status < 300 || res.status >= 400 || !res.headers.location) return res;
+    const next = new URL(res.headers.location, url);
+    if (next.host !== new URL(url).host) {
+      const { Authorization, ...headers } = options.headers || {};
+      options = { ...options, headers };
+    }
+    url = next.href;
+  }
+  throw new Error('trop de redirections');
 }
 
 // ---------- Mises à jour en attente (#122) ----------
@@ -223,22 +266,22 @@ function parseImage(ref) {
 // HEAD ne compte pas dans la limite de téléchargements de Docker Hub.
 async function remoteDigest({ registry, path, tag }) {
   const scheme = /^(localhost|127\.)/.test(registry) ? 'http' : 'https';
-  const head = (url, headers = {}) => fetch(url, { method: 'HEAD', headers: { Accept: MANIFESTS, ...headers }, signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
+  const head = (url, headers = {}) => follow(url, { method: 'HEAD', headers: { Accept: MANIFESTS, ...headers }, timeout: REGISTRY_TIMEOUT_MS });
   let res = await head(`${scheme}://${registry}/v2/${path}/manifests/${tag}`);
   if (res.status === 401) {
     // Jeton anonyme demandé là où le registre l'indique. res.url : après une redirection (lscr.io -> ghcr.io).
-    const auth = res.headers.get('www-authenticate') || '';
+    const auth = res.headers['www-authenticate'] || '';
     const param = (k) => auth.match(new RegExp(`${k}="([^"]*)"`))?.[1];
     if (!/^bearer/i.test(auth) || !param('realm')) return null;
     const url = new URL(param('realm'));
     if (param('service')) url.searchParams.set('service', param('service'));
     url.searchParams.set('scope', param('scope') || `repository:${path}:pull`);
-    const token = await fetch(url, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
-    if (!token.ok) return null;
-    const body = await token.json();
+    const token = await follow(url.href, { timeout: REGISTRY_TIMEOUT_MS });
+    if (token.status !== 200) return null;
+    const body = JSON.parse(token.body);
     res = await head(res.url, { Authorization: `Bearer ${body.token || body.access_token}` });
   }
-  return res.ok ? res.headers.get('docker-content-digest') : null;
+  return res.status === 200 ? res.headers['docker-content-digest'] || null : null;
 }
 
 // Une image à vérifier : 'update', 'ok', 'unknown' (privée, construite ici, registre injoignable)
@@ -303,20 +346,43 @@ function refreshUpdates() {
   return checkUpdates().then((u) => { updates = u; }, (e) => console.error(`Recherche de mises à jour impossible : ${e.message}`));
 }
 
-async function send() {
-  const res = await fetch(`${URL_BASE}/api/agent/${encodeURIComponent(ID)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
-    body: JSON.stringify(report()),
-    signal: AbortSignal.timeout(15_000),
-    // Une redirection (http -> https derrière un reverse proxy) changerait le POST en GET sans corps.
-    redirect: 'manual',
-  });
-  if (res.status >= 300 && res.status < 400) {
-    throw new Error(`le dashboard redirige vers ${res.headers.get('location')} : mets cette adresse dans DASHBOARD_URL`);
-  }
-  if (res.status === 401 || res.status === 404) throw new Error('jeton ou identifiant refusé : recopie la commande donnée par le dashboard');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+// Le dashboard refuse deux envois à moins de 2 s : les envois passent un par un, espacés d'au moins
+// SEND_GAP_MS. Avant, l'envoi du résultat d'une recherche pouvait suivre l'envoi régulier de trop près,
+// et le journal affichait « Envoi impossible : HTTP 429 » puis « Envoi rétabli ».
+const SEND_GAP_MS = 2500;
+let sending = Promise.resolve();
+let lastSentAt = 0;
+// Date de la recherche de mises à jour que le dashboard a déjà : inutile de lui renvoyer la liste des
+// paquets à chaque envoi. Un dashboard plus ancien ne la donne pas : la liste part alors à chaque fois.
+let storedUpdatesAt = null;
+
+function send() {
+  const run = async () => {
+    const wait = lastSentAt + SEND_GAP_MS - Date.now();
+    if (wait > 0) await new Promise((r) => { setTimeout(r, wait); });
+    lastSentAt = Date.now();
+    const body = report();
+    if (body.updates?.checkedAt && body.updates.checkedAt === storedUpdatesAt) {
+      body.updatesAt = body.updates.checkedAt;
+      delete body.updates;
+    }
+    const json = JSON.stringify(body);
+    // Pas de redirection suivie : une redirection (http -> https derrière un reverse proxy) changerait le POST en GET.
+    const res = await request(`${URL_BASE}/api/agent/${encodeURIComponent(ID)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(json), Authorization: `Bearer ${TOKEN}` },
+      body: json,
+    });
+    if (res.status >= 300 && res.status < 400) {
+      throw new Error(`le dashboard redirige vers ${res.headers.location} : mets cette adresse dans DASHBOARD_URL`);
+    }
+    if (res.status === 401 || res.status === 404) throw new Error('jeton ou identifiant refusé : recopie la commande donnée par le dashboard');
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    try { storedUpdatesAt = JSON.parse(res.body).updatesAt ?? null; } catch { storedUpdatesAt = null; }
+  };
+  const result = sending.then(run, run);
+  sending = result.catch(() => {});
+  return result;
 }
 
 // Le résultat d'une recherche part dès qu'il est prêt, après le délai minimal entre deux envois (2 s côté
@@ -332,11 +398,11 @@ const WAIT_RETRY_MS = 30_000; // dashboard injoignable, ou trop ancien pour cett
 async function waitLoop() {
   for (;;) {
     try {
-      const res = await fetch(`${URL_BASE}/api/agent/${encodeURIComponent(ID)}/wait`, {
-        headers: { Authorization: `Bearer ${TOKEN}` }, signal: AbortSignal.timeout(WAIT_TIMEOUT_MS), redirect: 'manual',
+      const res = await request(`${URL_BASE}/api/agent/${encodeURIComponent(ID)}/wait`, {
+        headers: { Authorization: `Bearer ${TOKEN}` }, timeout: WAIT_TIMEOUT_MS,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const command = await res.json();
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+      const command = JSON.parse(res.body);
       if (command.refresh) {
         if (command.updates && Date.now() - updatesAt >= MIN_RECHECK_MS) updatesAt = 0;
         sendWhenDone(refreshUpdates());
@@ -361,7 +427,7 @@ async function loop() {
     failures = 0;
   } catch (e) {
     // Un message au premier échec puis toutes les 10 tentatives : pas de journal qui déborde.
-    if (failures++ % 10 === 0) console.error(`Envoi impossible vers ${URL_BASE} : ${e.cause?.code || e.message}`);
+    if (failures++ % 10 === 0) console.error(`Envoi impossible vers ${URL_BASE} : ${e.code || e.message}`);
     if (ONCE) process.exit(1);
   }
   if (ONCE) return;
@@ -373,8 +439,8 @@ if (require.main === module) {
     console.error('DASHBOARD_URL, AGENT_ID et AGENT_TOKEN sont obligatoires (commande donnée par le dashboard).');
     process.exit(1);
   }
-  // fetch (Node 18) et fs.statfsSync (Node 18.15, pour les disques).
-  if (typeof fetch !== 'function' || typeof fs.statfsSync !== 'function') {
+  // fs.statfsSync : Node 18.15, pour les disques.
+  if (typeof fs.statfsSync !== 'function') {
     console.error(`Node.js 18.15 ou plus récent est nécessaire (version actuelle : ${process.version}).`);
     process.exit(1);
   }

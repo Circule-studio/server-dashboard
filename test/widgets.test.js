@@ -1185,6 +1185,20 @@ test('Mises à jour : décompte par machine, détail réservé à l’admin (#12
   d = await widget('updates');
   const pi = d.machines.find((m) => m.id === 'agent');
   assert.deepEqual([pi.name, pi.packages.count, pi.packages.names.length, pi.packages.names[0].name.length, pi.docker.count, pi.docker.images], ['PC de bureau', 3, 1, 100, 0, []]);
+
+  // Recherche déjà reçue : l'agent n'envoie plus que sa date, et le dashboard garde la liste.
+  const pushed = async (body) => {
+    for (;;) {
+      const r = await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+      if (r.status !== 429) return r.json();
+      await new Promise((res) => setTimeout(res, 500));
+    }
+  };
+  const { updatesAt } = await pushed({ hostname: 'pi', interval: 30, updates: { checkedAt: 1_700_000_000_000, packages: { count: 2, security: 0, names: [] } } });
+  assert.equal(updatesAt, 1_700_000_000_000, 'le dashboard dit quelle recherche il a');
+  assert.equal((await pushed({ hostname: 'pi', interval: 30, updatesAt })).updatesAt, updatesAt, 'liste gardée');
+  assert.equal((await pushed({ hostname: 'pi', interval: 30, updatesAt: 123 })).updatesAt, null, 'autre date : pas de liste inventée');
+  await pushed({ hostname: 'pi', interval: 30, updates: { checkedAt: Date.now(), packages: { count: 3, security: 1, listsAt: Date.now(), names: [{ name: 'x'.repeat(500), version: '1', security: true }] } } });
   assert.equal(d.total, 3 + here.docker.count + (here.packages?.count || 0));
   assert.ok(d.security >= 1);
   assert.ok(!('updates' in await widget('agent')), 'pas de détail dans le widget Agent, visible des visiteurs');

@@ -524,8 +524,9 @@ app.get('/api/agent/:id/wait', async (req, res) => {
 app.post('/api/agent/:id', async (req, res) => {
   const w = await agentFromToken(req, res);
   if (!w) return;
-  if (!INTEGRATIONS[w.type].receive(w, req.body)) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
-  res.json({ ok: true });
+  const received = INTEGRATIONS[w.type].receive(w, req.body);
+  if (!received) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
+  res.json({ ok: true, ...(typeof received === 'object' ? received : {}) });
 });
 
 // Identifiant et jeton de l'agent, pour sa commande d'installation : admin seulement. L'adresse du
