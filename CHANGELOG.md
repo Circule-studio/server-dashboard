@@ -8,6 +8,9 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ### Corrigé
 - Agent : deux agents avec le même identifiant (machine clonée, agent lancé deux fois) se renvoyaient sans fin la demande ouverte au dashboard, plusieurs milliers de requêtes par seconde. Ils ralentissent maintenant, et le journal de l’agent explique le problème (#151).
+- Connexion HTTPS à un nom qui répond en IPv6 puis en IPv4 (comme `localhost`) : l’IPv4 est de nouveau essayée quand l’IPv6 ne répond pas.
+- `data/config.json`, qui contient les clés API, n’est plus lisible que par le service ; un fichier existant est corrigé au démarrage (#153).
+- Visiteurs non connectés : les réglages internes des widgets (adresses des flux, requêtes Loki, indexer Wazuh, entités Home Assistant, API personnalisée) ne leur sont plus envoyés (#155), ni les machines et le détail des alertes Wazuh, dont ils voient seulement les nombres (#166).
 
 ### Sécurité
 - Les requêtes qui modifient le dashboard (enregistrement, actions Docker, image de fond…) ne sont acceptées que depuis la page du dashboard elle-même, d’après ce qu’indique le navigateur. Les scripts (curl, agent) ne sont pas concernés.
