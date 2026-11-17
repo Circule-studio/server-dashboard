@@ -4,6 +4,19 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.32.2] - 2026-11-17
+
+### Corrigé
+- Un flux RSS ou un agenda piégé pouvait figer tout le dashboard pendant de longues secondes (#147). Un agenda avec des années d’historique se lit maintenant dix fois plus vite (#163).
+- Mode édition ouvert avec une session expirée : les noms d’utilisateur des widgets étaient effacés à l’enregistrement. La connexion est maintenant demandée avant d’éditer (#145).
+- « Nouveau jeton » (Agent, Sauvegardes) était annulé sans prévenir quand on rouvrait le formulaire du widget (#148).
+- Importer la configuration d’une autre version (widget d’un type inconnu, catégorie sans tuiles) cassait le mode édition sans message (#150).
+- Chiffres des widgets : un chiffre masqué ou un seuil réglé en français n’était pas appliqué en anglais, pour huit libellés partagés entre widgets (#154).
+
+### Sécurité
+- `.env.example` ne contient plus de mot de passe d’exemple : sans vrai mot de passe, le conteneur refuse de démarrer. Un `.env` copié avec l’ancien exemple (« change-moi ») est signalé (#158).
+- Actions GitHub fixées par l’empreinte de leur commit (#161) ; vérifications de la CI renforcées (#156).
+
 ## [0.32.1] - 2026-11-17
 
 ### Corrigé
