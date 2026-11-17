@@ -31,6 +31,7 @@ async function uptimekuma(w) {
       const last = list[list.length - 1];
       const uptime = beats.uptimeList?.[`${m.id}_24`];
       return {
+        id: m.id,
         name: m.name,
         status: last ? STATES[last.status] || 'unknown' : 'unknown',
         ping: typeof last?.ping === 'number' ? last.ping : null,
@@ -48,11 +49,16 @@ async function uptimekuma(w) {
     uptime: uptimes.length ? uptimes.reduce((a, b) => a + b, 0) / uptimes.length : null,
     monitors: monitors.slice(0, 25),
     total: monitors.length,
+    // Toutes les sondes pour « M'alerter », pas seulement les 25 affichées : une sonde au-delà, vue pour la
+    // première fois déjà en panne, n'était jamais signalée (#157).
+    monitorStates: monitors.slice(0, MAX_ALERT_MONITORS).map((m) => ({ id: m.id, name: m.name, ok: m.status !== 'down' })),
   };
 }
 
+const MAX_ALERT_MONITORS = 500;
+
 // Alertes : une sonde hors ligne (« en attente » et maintenance ne sont pas des pannes).
-const alerts = (d, w) => d.monitors.map((m) => ({ id: `${w.id}:${m.name}`, name: m.name, url: w.url, online: m.status !== 'down' }));
+const alerts = (d, w) => d.monitorStates.map((m) => ({ id: `${w.id}:${m.id}`, name: m.name, url: w.url, online: m.ok }));
 
 module.exports = {
   uptimekuma: { fields: ['url', 'slug'], fetch: uptimekuma, alerts },

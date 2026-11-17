@@ -1437,6 +1437,42 @@ test('Notifications : suivi des changements d’état (module seul)', () => {
   assert.deepEqual([step(m, false), step(m, true)], [[], []]);
 });
 
+test('Alertes Uptime Kuma : toutes les sondes surveillées, pas seulement les 25 affichées (#157)', async () => {
+  const http = require('node:http');
+  const { INTEGRATIONS } = require('../integrations');
+  const { createMonitor } = require('../notify');
+  let down = '';
+  const ids = Array.from({ length: 30 }, (_, i) => i + 1);
+  const server = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    if (req.url.includes('/heartbeat/')) {
+      res.end(JSON.stringify({ heartbeatList: Object.fromEntries(ids.map((id) => [id, [{ status: `M${id}` === down ? 0 : 1, ping: 5 }]])), uptimeList: {} }));
+    } else {
+      res.end(JSON.stringify({ config: { title: 'Test' }, publicGroupList: [{ monitorList: ids.map((id) => ({ id, name: `M${String(id).padStart(2, '0')}` })) }] }));
+    }
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const w = { id: 'k', name: 'Kuma', url: `http://127.0.0.1:${server.address().port}`, slug: 'test' };
+  const m = createMonitor();
+  const turn = async () => {
+    INTEGRATIONS.uptimekuma.reset?.();
+    const items = INTEGRATIONS.uptimekuma.alerts(await INTEGRATIONS.uptimekuma.fetch(w), w);
+    return m.update(items, Object.fromEntries(items.map((i) => [i.id, i]))).map((e) => `${e.kind} ${e.name}`);
+  };
+  try {
+    const d = await INTEGRATIONS.uptimekuma.fetch(w);
+    assert.equal(d.monitors.length, 25, 'affichage toujours limité');
+    assert.equal(INTEGRATIONS.uptimekuma.alerts(d, w).length, 30, 'alertes sur toutes les sondes');
+    await turn();
+    down = 'M28'; // au-delà des 25 premières par ordre alphabétique
+    assert.deepEqual([await turn(), await turn()], [[], ['down M28']]);
+    down = '';
+    assert.deepEqual(await turn(), ['up M28']);
+  } finally {
+    server.close();
+  }
+});
+
 test('Un secret ne passe pas d’un type de widget à un autre', async () => {
   const cfg = (await api('GET', '/api/config')).json;
   const r = await api('PUT', '/api/config', { ...cfg, widgets: cfg.widgets.map((w) => (w.id === 'sonarr' ? { ...w, type: 'radarr', apiKey: '' } : w)) });
