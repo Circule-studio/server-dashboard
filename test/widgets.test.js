@@ -398,6 +398,16 @@ test('Wazuh : agents, alertes de l’indexer, sans indexer', async () => {
   const items = INTEGRATIONS.wazuh.alerts(d, { id: 'z', name: 'Wazuh', url: 'u' });
   assert.deepEqual(items.filter((i) => !i.online).map((i) => i.name), ['Wazuh · nas', 'Wazuh'], 'agent déconnecté et alerte critique');
   assert.ok(!items.some((i) => /manager|portable/.test(i.name)), 'manager et agent jamais connecté ignorés');
+
+  // Visiteur non connecté : les nombres, sans machines, détail des alertes ni version (#166).
+  const saved = cookie;
+  cookie = '';
+  const visitor = await api('GET', '/api/widgets/wazuh');
+  cookie = saved;
+  assert.equal(visitor.status, 200);
+  assert.deepEqual([visitor.json.agents.disconnected, visitor.json.alerts.high, visitor.json.hidden], [1, 2, true]);
+  assert.deepEqual([visitor.json.disconnected, visitor.json.agentStates, visitor.json.alerts.recent, visitor.json.version], [[], [], [], null]);
+  assert.ok(!visitor.text.includes('"nas"'), 'pas de nom de machine');
 });
 
 test('Pi-hole et AdGuard Home : format commun', async () => {
