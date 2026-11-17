@@ -660,7 +660,8 @@ test('Apparence : couleur et fond validés, image envoyée vérifiée par son co
   assert.equal((await svg.json()).code, 'image_invalid');
   assert.equal((await fetch(`${BASE}/api/background`)).status, 404, 'pas encore d’image');
   const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
-  const sent = await upload(png, 'text/html');
+  assert.equal((await upload(png, 'text/html')).status, 400, 'type qu’un formulaire d’un autre site pourrait envoyer');
+  const sent = await upload(png, 'application/octet-stream');
   assert.equal(sent.status, 200);
   const { url } = await sent.json();
   assert.match(url, /^\/api\/background\?v=\d+$/);
@@ -1185,6 +1186,20 @@ test('Mises à jour : décompte par machine, détail réservé à l’admin (#12
   d = await widget('updates');
   const pi = d.machines.find((m) => m.id === 'agent');
   assert.deepEqual([pi.name, pi.packages.count, pi.packages.names.length, pi.packages.names[0].name.length, pi.docker.count, pi.docker.images], ['PC de bureau', 3, 1, 100, 0, []]);
+
+  // Recherche déjà reçue : l'agent n'envoie plus que sa date, et le dashboard garde la liste.
+  const pushed = async (body) => {
+    for (;;) {
+      const r = await fetch(`${BASE}/api/agent/agent`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+      if (r.status !== 429) return r.json();
+      await new Promise((res) => setTimeout(res, 500));
+    }
+  };
+  const { updatesAt } = await pushed({ hostname: 'pi', interval: 30, updates: { checkedAt: 1_700_000_000_000, packages: { count: 2, security: 0, names: [] } } });
+  assert.equal(updatesAt, 1_700_000_000_000, 'le dashboard dit quelle recherche il a');
+  assert.equal((await pushed({ hostname: 'pi', interval: 30, updatesAt })).updatesAt, updatesAt, 'liste gardée');
+  assert.equal((await pushed({ hostname: 'pi', interval: 30, updatesAt: 123 })).updatesAt, null, 'autre date : pas de liste inventée');
+  await pushed({ hostname: 'pi', interval: 30, updates: { checkedAt: Date.now(), packages: { count: 3, security: 1, listsAt: Date.now(), names: [{ name: 'x'.repeat(500), version: '1', security: true }] } } });
   assert.equal(d.total, 3 + here.docker.count + (here.packages?.count || 0));
   assert.ok(d.security >= 1);
   assert.ok(!('updates' in await widget('agent')), 'pas de détail dans le widget Agent, visible des visiteurs');
@@ -1423,6 +1438,60 @@ test('Docker : conteneurs du faux socket', { skip: process.platform === 'win32' 
   const r = await api('GET', '/api/docker/containers');
   assert.equal(r.json.available, true, r.text);
   assert.ok(r.json.containers.some((c) => c.name === 'jellyfin'));
+});
+
+test('Modifications acceptées seulement depuis la page du dashboard (autre port, sous-domaine voisin)', async () => {
+  const send = (path, headers, contentType = 'text/plain') => fetch(BASE + path, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': contentType, ...headers }, body: 'x' });
+  const docker = (await api('GET', '/api/docker/containers')).json.containers?.[0];
+  // Page d'un autre service du même hôte ou d'un sous-domaine voisin : le cookie part quand même.
+  for (const headers of [{ Origin: 'http://localhost:8080' }, { 'Sec-Fetch-Site': 'same-site' }, { 'Sec-Fetch-Site': 'cross-site', Origin: 'https://evil.example' }, { Origin: 'null' }]) {
+    const r = await send(`/api/widgets/jellyfin/refresh`, headers);
+    assert.equal(r.status, 403, JSON.stringify(headers));
+    assert.equal((await r.json()).code, 'cross_site');
+    if (docker) assert.equal((await send(`/api/docker/containers/${docker.id}/restart`, headers)).status, 403);
+    assert.equal((await send('/api/background', headers, 'image/gif')).status, 403);
+  }
+  // La page du dashboard elle-même, et un script sans en-tête de navigateur (curl) : acceptés.
+  for (const headers of [{ 'Sec-Fetch-Site': 'same-origin', Origin: BASE }, { Origin: BASE }, {}]) {
+    assert.notEqual((await send('/api/widgets/jellyfin/refresh', headers, 'application/json')).status, 403, JSON.stringify(headers));
+  }
+  // Derrière un reverse proxy qui transmet le nom public dans X-Forwarded-Host.
+  assert.notEqual((await send('/api/widgets/jellyfin/refresh', { Origin: 'https://dash.example.com', 'X-Forwarded-Host': 'dash.example.com' }, 'application/json')).status, 403);
+  // Image de fond : un corps texte n'est pas lu comme une image.
+  assert.equal((await send('/api/background', {}, 'text/plain')).status, 400);
+});
+
+test('Certificats HTTPS : vérifiés pour une adresse publique, pas pour le réseau local', async () => {
+  const { isPrivateAddress, tlsTarget, request } = require('../integrations/lib');
+  for (const ip of ['127.0.0.1', '10.1.2.3', '172.20.0.5', '192.168.1.10', '169.254.1.1', '100.100.10.10', '::1', 'fd12::1', 'fe80::1', '::ffff:192.168.1.2']) {
+    assert.ok(isPrivateAddress(ip), ip);
+  }
+  for (const ip of ['8.8.8.8', '172.32.0.1', '100.128.0.1', '2001:4860::8888', '::ffff:1.1.1.1']) assert.ok(!isPrivateAddress(ip), ip);
+  assert.equal((await tlsTarget('1.1.1.1')).verify, true);
+  assert.equal((await tlsTarget('192.168.1.10')).verify, false);
+  assert.equal((await tlsTarget('[::1]')).verify, false);
+
+  // Service local en HTTPS auto-signé : accepté par défaut, refusé quand la vérification est demandée.
+  const { execFileSync } = require('node:child_process');
+  const https = require('node:https');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-tls-'));
+  try {
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=localhost',
+      '-keyout', path.join(dir, 'key.pem'), '-out', path.join(dir, 'cert.pem')], { stdio: 'ignore' });
+  } catch {
+    fs.rmSync(dir, { recursive: true, force: true });
+    return; // pas d'openssl sur cette machine
+  }
+  const server = https.createServer({ key: fs.readFileSync(path.join(dir, 'key.pem')), cert: fs.readFileSync(path.join(dir, 'cert.pem')) }, (req, res) => res.end('{"ok":true}'));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const url = `https://localhost:${server.address().port}/`;
+  try {
+    assert.equal((await request(url)).json.ok, true, 'auto-signé sur le réseau local');
+    await assert.rejects(request(url, { verifyTls: true }), (e) => e.key === 'tls_untrusted');
+  } finally {
+    server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('Tuiles liées à une VM / un LXC Proxmox ou à un conteneur Docker (#89)', { skip: process.platform === 'win32' && 'socket unix' }, async () => {

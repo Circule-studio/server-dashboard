@@ -1855,7 +1855,7 @@ const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // même limite que server.js
 async function uploadBackground(file) {
   if (file.size > BACKGROUND_MAX_BYTES) return toast(t('display.backgroundTooBig'), true);
   try {
-    const res = await fetch('/api/background', { method: 'POST', body: file });
+    const res = await fetch('/api/background', { method: 'POST', body: file, headers: { 'Content-Type': file.type || 'application/octet-stream' } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw Object.assign(new Error(data.error || t('common.error', { status: res.status })), { code: data.code, params: data.params });
     $('#displayForm').elements.background.value = data.url;

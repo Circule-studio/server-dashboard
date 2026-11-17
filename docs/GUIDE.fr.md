@@ -89,6 +89,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
 | `NOTIFY_INTERVAL_MS` | `60000` | Intervalle de vérification des applications pour les notifications (en millisecondes) |
 | `UPDATE_CHECK` | `true` | `false` : ne pas vérifier sur GitHub si une nouvelle version existe (la version installée reste affichée à l’admin) |
+| `INSECURE_TLS` | `false` | `true` : ne jamais vérifier les certificats HTTPS. Par défaut, un service à une adresse publique doit avoir un certificat valide (il reçoit des clés) ; ceux du réseau local, de Tailscale ou de la machine ne sont pas vérifiés : les certificats auto-signés marchent toujours |
 
 ## Sécurité
 

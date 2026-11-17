@@ -1,4 +1,7 @@
 node_modules/
 data/
-.claude/
+.claude/*
+# Partagés avec le projet : l'agent de revue et sa commande /audit. Le reste de .claude/ reste local.
+!.claude/agents/
+!.claude/commands/
 .env

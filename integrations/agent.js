@@ -71,7 +71,10 @@ function receive(w, body) {
     temp,
     interval: num(b.interval, 5, 86400) ?? 30,
   };
-  reports.set(w.id, { t: Date.now(), data, updates: cleanUpdates(b.updates) });
+  // Recherche de mises à jour déjà reçue (même date) : l'agent n'en renvoie que la date.
+  const same = b.updates === undefined && prev?.updates?.checkedAt && b.updatesAt === prev.updates.checkedAt;
+  const updates = same ? prev.updates : cleanUpdates(b.updates);
+  reports.set(w.id, { t: Date.now(), data, updates });
   // Les compteurs réseau ne servent qu'à l'historique : ils ne sont pas repris dans les données du widget.
   const net = b.net && num(b.net.rx) !== null && num(b.net.tx) !== null ? { rx: num(b.net.rx), tx: num(b.net.tx) } : null;
   history.add(w.id, {
@@ -82,7 +85,8 @@ function receive(w, body) {
   });
   wanted.delete(w.id);
   for (const arrived of arrivals.get(w.id) || []) arrived(true);
-  return true;
+  // Dit à l'agent quelle recherche le dashboard a : il ne renverra la liste que si elle change.
+  return { updatesAt: updates?.checkedAt ?? null };
 }
 
 async function agent(w) {

@@ -52,6 +52,10 @@ Chaque widget tient dans trois fichiers à son nom, sans toucher à ceux des aut
 3. **Faux service** : crée `dev/mocks/<service>.js` et ajoute-le à `SERVICES` dans `dev/mocks.js`, avec ses identifiants dans l'en-tête de ce fichier.
 4. Ajoute le widget (et ses principaux cas d'erreur) dans `test/widgets.test.js`, puis lance `npm test` : les tests démarrent eux-mêmes les faux services et un dashboard temporaire. La CI les lance à chaque push.
 
+## Audit du code
+
+Avec Claude Code, la commande `/audit` (ou `/audit integrations/`) lance l'agent `dev-senior`, défini dans `.claude/agents/dev-senior.md`. Il relit le code, vérifie chaque problème trouvé et ouvre une issue par problème confirmé, sans jamais modifier le code. Les failles de sécurité exploitables ne sont pas publiées : elles restent dans son rapport.
+
 ## Branches
 
 | Branche | Rôle |

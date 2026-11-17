@@ -247,6 +247,30 @@ const app = express();
 app.disable('x-powered-by');
 // Derrière un reverse proxy, indiquer TRUST_PROXY (ex. 1) pour obtenir la vraie IP des visiteurs.
 if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
+// Une requête qui modifie quelque chose ne vient que de la page du dashboard. Le cookie de session
+// (SameSite=Strict) part aussi d'un « même site » : un autre port du même hôte, ou un sous-domaine voisin.
+// Le navigateur dit d'où vient la requête (Sec-Fetch-Site, ou Origin pour un navigateur ancien). Un script
+// (curl, agent) n'envoie ni l'un ni l'autre : il passe, avec son mot de passe ou son jeton.
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function sameHost(origin, req) {
+  try {
+    const { host } = new URL(origin);
+    return host === req.get('host') || host === req.get('x-forwarded-host')?.split(',')[0].trim();
+  } catch {
+    return false; // « null » : page isolée, fichier local…
+  }
+}
+
+function fromDashboardOnly(req, res, next) {
+  if (SAFE_METHODS.has(req.method)) return next();
+  const site = req.get('sec-fetch-site');
+  const origin = req.get('origin');
+  if (site ? site === 'same-origin' || site === 'none' : !origin || sameHost(origin, req)) return next();
+  res.status(403).json({ error: 'Requête refusée : elle ne vient pas de la page du dashboard', code: 'cross_site' });
+}
+app.use('/api', fromDashboardOnly);
+
 // Relevés des agents : petits, et reçus de machines hors de la session admin (64 Ko au plus).
 const jsonBody = express.json({ limit: '1mb' });
 const agentBody = express.json({ limit: '64kb' });
@@ -331,7 +355,8 @@ function imageExtension(buf) {
 }
 const backgroundFile = (ext) => path.join(DATA_DIR, `background.${ext}`);
 
-app.post('/api/background', requireAuth, express.raw({ type: () => true, limit: '8mb' }), async (req, res) => {
+// Types qu'un formulaire d'un autre site ne peut pas envoyer sans demande préalable du navigateur (CORS).
+app.post('/api/background', requireAuth, express.raw({ type: ['image/*', 'application/octet-stream'], limit: '8mb' }), async (req, res) => {
   const ext = imageExtension(req.body);
   if (!ext) return sendError(res, 400, fail('image_invalid', 'Image invalide (PNG, JPEG, WebP ou GIF)'));
   await Promise.all(Object.keys(BACKGROUND_TYPES).filter((e) => e !== ext).map((e) => fsp.rm(backgroundFile(e), { force: true })));
@@ -524,8 +549,9 @@ app.get('/api/agent/:id/wait', async (req, res) => {
 app.post('/api/agent/:id', async (req, res) => {
   const w = await agentFromToken(req, res);
   if (!w) return;
-  if (!INTEGRATIONS[w.type].receive(w, req.body)) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
-  res.json({ ok: true });
+  const received = INTEGRATIONS[w.type].receive(w, req.body);
+  if (!received) return res.status(429).json({ error: 'Trop d\'envois', code: 'too_many_attempts' });
+  res.json({ ok: true, ...(typeof received === 'object' ? received : {}) });
 });
 
 // Identifiant et jeton de l'agent, pour sa commande d'installation : admin seulement. L'adresse du
