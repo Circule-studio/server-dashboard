@@ -3,7 +3,7 @@
 
 // Les adresses iCal sont secrètes : elles passent par le champ de clé (jamais renvoyé au navigateur).
 WIDGET_TYPES.ical = {
-  label: 'Calendrier (iCal)', icon: '/icons/calendar.svg', kind: 'ical', refresh: 5 * 60_000,
+  label: t('ical.label'), icon: '/icons/calendar.svg', kind: 'ical', refresh: 5 * 60_000,
   fields: ['apiKey', 'username', 'password'], keyLabel: 'key.ical', keyHelp: 'key.icalHelp',
   userLabel: 'ical.user', passwordLabel: 'ical.password', passwordHelp: 'ical.passwordHelp',
 };

@@ -9,10 +9,16 @@ const DOCKER_SOCKET = process.env.DOCKER_SOCKET ||
   (process.platform === 'win32' ? '\\\\.\\pipe\\docker_engine' : '/var/run/docker.sock');
 
 // Part du CPU utilisée depuis le dernier appel. Chaque utilisateur a sa mesure : l'historique, relevé
-// chaque minute, ne doit pas dépendre des appels de l'interface, toutes les 5 s.
-function cpuMeter() {
+// chaque minute, ne doit pas dépendre des appels de l'interface, toutes les 5 s. `minMs` : en dessous, la
+// dernière valeur est redonnée. Deux visiteurs à quelques millisecondes d'écart mesuraient sinon un
+// intervalle presque vide : 0 % ou 100 % (#164).
+function cpuMeter(minMs = 0) {
   let last = os.cpus();
+  let lastAt = Date.now();
+  let value = 0;
   return () => {
+    if (Date.now() - lastAt < minMs) return value;
+    lastAt = Date.now();
     const now = os.cpus();
     let idle = 0, total = 0;
     now.forEach((c, i) => {
@@ -22,11 +28,13 @@ function cpuMeter() {
       total += (t.user - prev.user) + (t.nice - prev.nice) + (t.sys - prev.sys) + (t.idle - prev.idle) + (t.irq - prev.irq);
     });
     last = now;
-    return total > 0 ? Math.round((1 - idle / total) * 1000) / 10 : 0;
+    value = total > 0 ? Math.round((1 - idle / total) * 1000) / 10 : 0;
+    return value;
   };
 }
 
-const cpuUsage = cpuMeter();
+// Carte CPU de l'interface : mesurée sur 2 s au moins, quel que soit le nombre de visiteurs.
+const cpuUsage = cpuMeter(2000);
 
 async function memInfo() {
   // Sous Linux, MemAvailable est plus juste que os.freemem() (qui ignore le cache).

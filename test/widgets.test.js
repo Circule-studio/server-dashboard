@@ -13,9 +13,10 @@ const ROOT = path.join(__dirname, '..');
 const PORT = 17999;
 const BASE = `http://localhost:${PORT}`;
 const PASSWORD = 'test-admin';
+// Faux Docker propre aux tests : un « npm run mocks » lancé à côté garde le sien (#169).
 const DOCKER_SOCKET = process.platform === 'win32'
-  ? '\\\\.\\pipe\\server-dashboard-mock-docker'
-  : path.join(os.tmpdir(), 'server-dashboard-mock-docker.sock');
+  ? `\\\\.\\pipe\\server-dashboard-mock-docker-${process.pid}`
+  : path.join(os.tmpdir(), `server-dashboard-mock-docker-${process.pid}.sock`);
 
 const children = [];
 let dataDir;
@@ -157,7 +158,7 @@ const SECRETS = ['client-secret', 'mauvais-secret', 'refresh-spotify', 'refresh-
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
-  await start('dev/mocks.js', {}, 'mocks prêts');
+  await start('dev/mocks.js', { MOCK_DOCKER_SOCKET: DOCKER_SOCKET }, 'mocks prêts');
   // Vérification des apps pour les notifications : 200 ms au lieu d'une minute.
   await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200', UPDATE_API: 'http://localhost:14000', SPOTIFY_ACCOUNTS_URL: 'http://localhost:18104', SPOTIFY_API_URL: 'http://localhost:18104' }, 'Server Dashboard sur');
   const login = await fetch(`${BASE}/api/login`, {
@@ -177,6 +178,7 @@ after(async () => {
     child.kill();
   })));
   if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
+  if (process.platform !== 'win32') fs.rmSync(DOCKER_SOCKET, { force: true });
 });
 
 const widget = async (id) => {
@@ -330,6 +332,23 @@ test('Flux RSS : adresses invalides refusées à l’enregistrement', async () =
   for (const [feeds, code] of [[[], 'feeds_missing'], [['ftp://x/flux'], 'invalid_url']]) {
     const r = await api('PUT', '/api/config', { ...cfg, widgets: [...cfg.widgets, { id: 'rss-x', type: 'rss', feeds }] });
     assert.deepEqual([r.status, r.json.code], [400, code]);
+  }
+});
+
+test('Réponse d’une forme inattendue : erreur traduite au lieu du message brut de Node (#173)', async () => {
+  const http = require('node:http');
+  const { fetchWidget } = require('../integrations');
+  // Un autre service : du JSON, mais pas la forme attendue.
+  const other = http.createServer((req, res) => res.setHeader('Content-Type', 'application/json').end('{"message":"Not here"}'));
+  await new Promise((r) => other.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${other.address().port}`;
+  try {
+    for (const w of [{ id: 'x1', type: 'sonarr', url, apiKey: 'k' }, { id: 'x2', type: 'jellyfin', url, apiKey: 'k' }, { id: 'x3', type: 'proxmox', url, apiKey: 'a!b=c' }]) {
+      const e = await fetchWidget(w, []).catch((err) => err);
+      assert.equal(e.key, 'unexpected_response', `${w.type} : ${e.message}`);
+    }
+  } finally {
+    other.close();
   }
 });
 
@@ -901,7 +920,8 @@ test('Agent : jeton généré, envoi du vrai script, valeurs bornées, hors lign
   // Le vrai script, téléchargé depuis le dashboard comme le fait la commande d'installation.
   const script = path.join(dataDir, 'agent.js');
   fs.writeFileSync(script, await (await fetch(`${BASE}/agent/server-dashboard-agent.js`)).text());
-  const run = spawn(process.execPath, [script, '--once'], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: setup.token } });
+  // AGENT_UPDATES=0 : ni apt, ni Docker de la machine, ni registres publics pendant les tests (#171).
+  const run = spawn(process.execPath, [script, '--once'], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: setup.token, AGENT_UPDATES: '0' } });
   let out = '';
   run.stderr.on('data', (d) => (out += d));
   assert.equal(await new Promise((r) => run.on('exit', r)), 0, out);
@@ -1533,6 +1553,27 @@ test('Port déjà utilisé : erreur claire et code de sortie 1', async () => {
   assert.equal(code, 1, out);
   assert.match(out, /déjà utilisé/);
   assert.doesNotMatch(out, /Server Dashboard sur/);
+});
+
+test('TRUST_PROXY : true et des réseaux acceptés, valeur invalide signalée clairement (#168)', async () => {
+  // Port occupé (dashboard des tests) : arriver jusqu'à « déjà utilisé » prouve que TRUST_PROXY a été accepté.
+  const run = (value) => new Promise((resolve) => {
+    const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, TRUST_PROXY: value } });
+    let out = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.stderr.on('data', (d) => (out += d));
+    child.on('exit', () => resolve(out));
+  });
+  for (const value of ['true', '1', 'loopback, 10.0.0.0/8']) assert.match(await run(value), /déjà utilisé/, value);
+  assert.match(await run('nimporte'), /TRUST_PROXY invalide/);
+});
+
+test('Carte CPU : deux lectures rapprochées donnent la même mesure (#164)', () => {
+  const { cpuMeter } = require('../system');
+  const meter = cpuMeter(60_000);
+  const first = meter();
+  for (let i = 0; i < 1e6; i++); // un peu de travail entre les deux appels
+  assert.equal(meter(), first, 'intervalle trop court : dernière valeur redonnée');
 });
 
 // ---------- Docker ----------

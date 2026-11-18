@@ -81,7 +81,8 @@ In edit mode, the **Disks** button lists the disks found on the machine (`C:\`, 
 | `DISK_PATH` | `/` (`C:\` on Windows) | Disk shown by default, until disks are chosen in edit mode |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Docker API socket |
 | `REQUIRE_LOGIN` | `false` | `true`: the whole dashboard, reading included, requires logging in |
-| `TRUST_PROXY` | – | Behind a reverse proxy, set to `1` so login rate limiting sees real client IPs |
+| `RUN_AS` | `1000:1000` (Docker image) | `uid:gid` the server switches to after giving it the `data` folder: it no longer runs as root, so it cannot read the host files mounted on `/host`. The Docker socket's group is kept, so the Docker panel still works. Empty (`RUN_AS=`): stay root, as before 0.33 |
+| `TRUST_PROXY` | – | Behind a reverse proxy, set to `1` (number of proxies) so login rate limiting sees real client IPs. Also accepts `true`, or addresses and networks separated by commas (`loopback, 10.0.0.0/8`) |
 | `SESSION_SECRET` | generated in `data/.secret` | Session cookie signing key |
 | `NOTIFY_INTERVAL_MS` | `60000` | Interval between app checks for notifications (in milliseconds) |
 | `UPDATE_CHECK` | `true` | `false`: don't check GitHub for a new version (the installed version is still shown to the admin) |

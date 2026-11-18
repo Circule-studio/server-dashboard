@@ -31,6 +31,7 @@ async function qbitGet(w, path, retry = true) {
     return qbitGet(w, path, false);
   }
   if (r.status >= 400) throw fail('http', `HTTP ${r.status}`, { status: r.status });
+  if (r.json === null) throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)'); // page HTML : autre service
   return r.json;
 }
 

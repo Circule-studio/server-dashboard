@@ -25,9 +25,11 @@ const IMAGES = {
   'sha256:ancien': ['localhost:18099/demo/ancien@sha256:ancienne'],
 };
 
-const DOCKER_SOCKET = process.platform === 'win32'
+// MOCK_DOCKER_SOCKET : un autre emplacement (les tests prennent le leur, pour ne jamais casser le faux
+// Docker d'un « npm run mocks » lancé à côté, #169).
+const DOCKER_SOCKET = process.env.MOCK_DOCKER_SOCKET || (process.platform === 'win32'
   ? '\\\\.\\pipe\\server-dashboard-mock-docker'
-  : require('path').join(require('os').tmpdir(), 'server-dashboard-mock-docker.sock');
+  : require('path').join(require('os').tmpdir(), 'server-dashboard-mock-docker.sock'));
 if (process.platform !== 'win32') { try { require('fs').unlinkSync(DOCKER_SOCKET); } catch {} }
 
 http.createServer((req, res) => {

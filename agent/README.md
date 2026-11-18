@@ -49,7 +49,20 @@ Sur un Raspberry Pi, coche **Vue 3D** dans le formulaire du widget : les valeurs
 
 ### Linux (systemd)
 
-Inutile si tu as utilisé la commande d'installation. Sinon, copie le script dans `/opt/server-dashboard-agent/`, puis crée `/etc/systemd/system/server-dashboard-agent.service`. Remplace les trois valeurs par celles de la commande donnée par le dashboard :
+Inutile si tu as utilisé la commande d'installation. Sinon, copie le script dans `/opt/server-dashboard-agent/`, puis mets les trois valeurs de la commande donnée par le dashboard dans `/etc/server-dashboard-agent.env`, lisible par root seul. Le jeton ne va pas dans le fichier du service : `/etc/systemd/system/` et `systemctl show` sont lisibles par tous les utilisateurs de la machine.
+
+```bash
+sudo install -m 600 /dev/null /etc/server-dashboard-agent.env
+sudoedit /etc/server-dashboard-agent.env
+```
+
+```ini
+DASHBOARD_URL=http://192.168.1.10:7575
+AGENT_ID=wid-…
+AGENT_TOKEN=…
+```
+
+Puis crée `/etc/systemd/system/server-dashboard-agent.service` :
 
 ```ini
 [Unit]
@@ -58,9 +71,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Environment=DASHBOARD_URL=http://192.168.1.10:7575
-Environment=AGENT_ID=wid-…
-Environment=AGENT_TOKEN=…
+EnvironmentFile=/etc/server-dashboard-agent.env
 ExecStart=/usr/bin/node /opt/server-dashboard-agent/server-dashboard-agent.js
 DynamicUser=true
 Restart=always
@@ -70,7 +81,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-Puis : `sudo systemctl enable --now server-dashboard-agent`.
+Enfin : `sudo systemctl enable --now server-dashboard-agent`.
 
 ### Windows
 
