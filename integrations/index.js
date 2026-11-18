@@ -25,7 +25,7 @@
 //                 Proxmox arrêtée). problem : 'disk', 'cert', 'backup', 'lastbackup', 'smart', 'attacks' ou 'security' pour un message adapté (notify.js)
 //   offlineCodes  codes d'erreur qui veulent dire « machine éteinte » : alerte sur `${id}:machine`
 
-const { request } = require('./lib');
+const { request, fail } = require('./lib');
 
 // Ordre d'affichage dans le formulaire de l'interface : voir public/widgets/.
 const FILES = ['weather', 'github', 'immich', 'goaccess', 'alwaysdata', 'rss', 'ical', 'npm', 'homeassistant', 'frigate', 'dns', 'proxmox', 'pbs', 'scrutiny', 'crowdsec', 'traefik', 'wazuh', 'speedtest', 'pulse',
@@ -47,7 +47,7 @@ async function fetchWidget(w, widgets) {
   if (!entry || Date.now() - entry.t >= ttl) {
     // La dernière réponse réussie reste disponible pendant que la nouvelle se charge.
     const last = entry?.value ? { t: entry.t, value: entry.value } : entry?.last;
-    const current = { t: Date.now(), promise: integration.withWidgets ? integration.fetch(w, widgets) : integration.fetch(w), last };
+    const current = { t: Date.now(), promise: callFetch(integration, w, widgets), last };
     current.promise.then((value) => { current.value = value; current.last = null; },
       () => { if (cache.get(w.id) === current) cache.delete(w.id); });
     cache.set(w.id, current);
@@ -57,6 +57,19 @@ async function fetchWidget(w, widgets) {
   // au-delà de STALE_WAIT_MS, la réponse précédente, si elle est récente, est renvoyée.
   if (!entry.value && entry.last && Date.now() - entry.last.t < Math.max(ttl * 5, STALE_MS)) return orStale(entry.promise, entry.last.value);
   return entry.promise;
+}
+
+// Réponse d'une forme inattendue (mauvaise URL, autre service, page d'erreur d'un proxy) : l'intégration
+// plante sur un .map ou une propriété absente. Au lieu du message brut de Node, en anglais, le code traduit
+// unexpected_response ; le détail reste dans le journal du serveur (#173).
+async function callFetch(integration, w, widgets) {
+  try {
+    return await (integration.withWidgets ? integration.fetch(w, widgets) : integration.fetch(w));
+  } catch (e) {
+    if (e.key || !(e instanceof TypeError || e instanceof RangeError || e instanceof SyntaxError)) throw e;
+    console.warn(`[${w.type} ${w.id}] réponse inattendue : ${e.message}`);
+    throw fail('unexpected_response', 'Réponse inattendue (vérifie l\'URL)');
+  }
 }
 
 // Bouton ⟳ : les données à l'instant, jamais une réponse précédente, même récente.

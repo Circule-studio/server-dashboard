@@ -333,6 +333,23 @@ test('Flux RSS : adresses invalides refusées à l’enregistrement', async () =
   }
 });
 
+test('Réponse d’une forme inattendue : erreur traduite au lieu du message brut de Node (#173)', async () => {
+  const http = require('node:http');
+  const { fetchWidget } = require('../integrations');
+  // Un autre service : du JSON, mais pas la forme attendue.
+  const other = http.createServer((req, res) => res.setHeader('Content-Type', 'application/json').end('{"message":"Not here"}'));
+  await new Promise((r) => other.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${other.address().port}`;
+  try {
+    for (const w of [{ id: 'x1', type: 'sonarr', url, apiKey: 'k' }, { id: 'x2', type: 'jellyfin', url, apiKey: 'k' }, { id: 'x3', type: 'proxmox', url, apiKey: 'a!b=c' }]) {
+      const e = await fetchWidget(w, []).catch((err) => err);
+      assert.equal(e.key, 'unexpected_response', `${w.type} : ${e.message}`);
+    }
+  } finally {
+    other.close();
+  }
+});
+
 test('RSS et Calendrier : un contenu piégé ou un gros historique ne fige pas le dashboard (#147, #163)', () => {
   const { INTEGRATIONS } = require('../integrations');
   const timed = (fn) => { const t = Date.now(); try { fn(); } catch { /* rejet possible */ } return Date.now() - t; };
@@ -1533,6 +1550,27 @@ test('Port déjà utilisé : erreur claire et code de sortie 1', async () => {
   assert.equal(code, 1, out);
   assert.match(out, /déjà utilisé/);
   assert.doesNotMatch(out, /Server Dashboard sur/);
+});
+
+test('TRUST_PROXY : true et des réseaux acceptés, valeur invalide signalée clairement (#168)', async () => {
+  // Port occupé (dashboard des tests) : arriver jusqu'à « déjà utilisé » prouve que TRUST_PROXY a été accepté.
+  const run = (value) => new Promise((resolve) => {
+    const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, TRUST_PROXY: value } });
+    let out = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.stderr.on('data', (d) => (out += d));
+    child.on('exit', () => resolve(out));
+  });
+  for (const value of ['true', '1', 'loopback, 10.0.0.0/8']) assert.match(await run(value), /déjà utilisé/, value);
+  assert.match(await run('nimporte'), /TRUST_PROXY invalide/);
+});
+
+test('Carte CPU : deux lectures rapprochées donnent la même mesure (#164)', () => {
+  const { cpuMeter } = require('../system');
+  const meter = cpuMeter(60_000);
+  const first = meter();
+  for (let i = 0; i < 1e6; i++); // un peu de travail entre les deux appels
+  assert.equal(meter(), first, 'intervalle trop court : dernière valeur redonnée');
 });
 
 // ---------- Docker ----------

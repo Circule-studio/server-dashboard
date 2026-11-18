@@ -183,7 +183,20 @@ function safeEqual(a, b) {
 }
 
 // ---------- Limitation des tentatives de connexion (par IP) ----------
-const loginFailures = new Map(); // ip -> { count, reset }
+const loginFailures = new Map(); // adresse (ou réseau IPv6 /64) -> { count, reset }
+const MAX_LOGIN_ENTRIES = 10_000;
+
+// Une machine IPv6 dispose en général de tout un /64 : compter par adresse complète laissait changer
+// d'adresse à chaque essai, et remplir la mémoire (#160). IPv4 (y compris ::ffff:1.2.3.4) : l'adresse.
+function loginKey(ip = '') {
+  const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (!ip.includes(':') || /^\d+\.\d+\.\d+\.\d+$/.test(v4)) return v4;
+  const [head, tail = ''] = ip.split('::');
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const full = [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right];
+  return `${full.slice(0, 4).map((g) => g.toLowerCase().replace(/^0+(?=.)/, '')).join(':')}::/64`;
+}
 
 function loginRetryAfter(ip) {
   const entry = loginFailures.get(ip);
@@ -195,7 +208,11 @@ function loginRetryAfter(ip) {
 function recordLoginFailure(ip) {
   const entry = loginFailures.get(ip);
   if (entry && Date.now() <= entry.reset) entry.count++;
-  else loginFailures.set(ip, { count: 1, reset: Date.now() + LOGIN_WINDOW_MS });
+  else {
+    // Mémoire bornée : la plus ancienne entrée part d'abord (ordre d'insertion de la Map).
+    if (loginFailures.size >= MAX_LOGIN_ENTRIES) loginFailures.delete(loginFailures.keys().next().value);
+    loginFailures.set(ip, { count: 1, reset: Date.now() + LOGIN_WINDOW_MS });
+  }
 }
 
 // Nettoyage périodique des entrées expirées (échecs et sessions révoquées).
@@ -250,8 +267,22 @@ function getStatuses(maxAge = STATUS_CACHE_MS, { stale = false } = {}) {
 // ---------- App ----------
 const app = express();
 app.disable('x-powered-by');
-// Derrière un reverse proxy, indiquer TRUST_PROXY (ex. 1) pour obtenir la vraie IP des visiteurs.
-if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
+// Derrière un reverse proxy, indiquer TRUST_PROXY pour obtenir la vraie IP des visiteurs : un nombre de proxys
+// (1), true / false, ou des adresses et réseaux séparés par des virgules (loopback, 10.0.0.0/8). « true » était
+// transmis tel quel, comme une adresse, et le dashboard s'arrêtait sur une erreur illisible (#168).
+function trustProxySetting(value) {
+  if (value === 'true' || value === 'false') return value === 'true';
+  if (/^\d+$/.test(value)) return Number(value);
+  return value.split(',').map((v) => v.trim()).filter(Boolean);
+}
+if (process.env.TRUST_PROXY) {
+  try {
+    app.set('trust proxy', trustProxySetting(process.env.TRUST_PROXY.trim()));
+  } catch (e) {
+    console.error(`[!] TRUST_PROXY invalide (« ${process.env.TRUST_PROXY} ») : un nombre de proxys (1), true, ou des adresses et réseaux séparés par des virgules. ${e.message}`);
+    process.exit(1);
+  }
+}
 // Une requête qui modifie quelque chose ne vient que de la page du dashboard. Le cookie de session
 // (SameSite=Strict) part aussi d'un « même site » : un autre port du même hôte, ou un sous-domaine voisin.
 // Le navigateur dit d'où vient la requête (Sec-Fetch-Site, ou Origin pour un navigateur ancien). Un script
@@ -300,7 +331,8 @@ app.get('/api/me', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  const retryAfter = loginRetryAfter(req.ip);
+  const who = loginKey(req.ip);
+  const retryAfter = loginRetryAfter(who);
   if (retryAfter) {
     res.setHeader('Retry-After', Math.ceil(retryAfter / 1000));
     const minutes = Math.ceil(retryAfter / 60000);
@@ -308,10 +340,10 @@ app.post('/api/login', (req, res) => {
   }
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
   if (!safeEqual(password, ADMIN_PASSWORD)) {
-    recordLoginFailure(req.ip);
+    recordLoginFailure(who);
     return res.status(401).json({ error: 'Mot de passe incorrect', code: 'bad_password' });
   }
-  loginFailures.delete(req.ip);
+  loginFailures.delete(who);
   const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.setHeader('Set-Cookie',
     `${COOKIE_NAME}=${makeToken()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_MS / 1000}${secure ? '; Secure' : ''}`);
