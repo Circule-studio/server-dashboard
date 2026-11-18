@@ -63,7 +63,9 @@ notifier:
 CONFIG
 
 docker run -d --name sd-loki -p 127.0.0.1:3100:3100 "$LOKI_IMAGE"
-docker run -d --name sd-authelia -p 127.0.0.1:9091:9091 -p 127.0.0.1:9959:9959 -v "$config:/config" "$AUTHELIA_IMAGE"
+# PUID/PGID : Authelia écrit dans $config sous notre utilisateur, pas root, pour qu'on puisse le supprimer à la fin.
+docker run -d --name sd-authelia -p 127.0.0.1:9091:9091 -p 127.0.0.1:9959:9959 -v "$config:/config" \
+  -e PUID="$(id -u)" -e PGID="$(id -g)" "$AUTHELIA_IMAGE"
 # Watchtower n'est plus maintenu : son client Docker est trop ancien pour la version de l'API par défaut.
 docker run -d --name sd-watchtower -p 127.0.0.1:8080:8080 -v /var/run/docker.sock:/var/run/docker.sock \
   -e DOCKER_API_VERSION=1.44 -e WATCHTOWER_HTTP_API_METRICS=true -e WATCHTOWER_HTTP_API_TOKEN=ci-token \
