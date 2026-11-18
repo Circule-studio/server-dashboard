@@ -68,10 +68,11 @@ const fmtUptime = (s) => {
   return d ? `${d} ${t('unit.day')} ${hh} h` : hh ? `${hh} h ${m} min` : `${m} min`;
 };
 
-// Boutons « Modifier » et « Supprimer » d'un élément en mode édition.
+// Boutons « Modifier » et « Supprimer » d'un élément en mode édition. aria-label : un lecteur d'écran lisait
+// « ✎ » et « ✕ » (#165).
 const editTools = (onEdit, onDelete, cls = 'tile-tools') => h('div', { class: cls },
-  h('button', { class: 'icon-btn', title: t('tool.edit'), onclick: onEdit }, '✎'),
-  h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: onDelete }, '✕'));
+  h('button', { class: 'icon-btn', title: t('tool.edit'), 'aria-label': t('tool.edit'), onclick: onEdit }, '✎'),
+  h('button', { class: 'icon-btn danger', title: t('tool.delete'), 'aria-label': t('tool.delete'), onclick: onDelete }, '✕'));
 
 const uid = (p) => `${p}-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)}`;
 
@@ -131,6 +132,7 @@ function render() {
 
   itemObserver.disconnect();
   const board = $('#board');
+  keepWidgetCards(board);
   board.replaceChildren();
   board.dataset.tiles = cfg.tileSize || 'normal'; // taille des tuiles : style.css
 
@@ -172,6 +174,7 @@ function render() {
   if (q && !found) boardMessage(h('div', { class: 'empty' }, t('search.none', { query: state.search.trim() })));
 
   layoutBoard();
+  restoreWidgetScroll();
   for (const el of board.querySelectorAll('.board-item, .board-full')) itemObserver.observe(el);
   renderStatsOrder();
   updateSaveBar();
@@ -288,10 +291,10 @@ function renderTabs(cfg, active) {
     }, tb.name);
     if (!state.editing || !on) return [btn];
     return [btn, h('span', { class: 'tab-tools' },
-      h('button', { class: 'icon-btn', title: t('tab.moveLeft'), disabled: i === 0, onclick: () => moveTab(i, -1) }, '‹'),
-      h('button', { class: 'icon-btn', title: t('tab.moveRight'), disabled: i === tabs.length - 1, onclick: () => moveTab(i, 1) }, '›'),
-      h('button', { class: 'icon-btn', title: t('tool.rename'), onclick: () => renameTab(i) }, '✎'),
-      h('button', { class: 'icon-btn danger', title: t('tool.delete'), onclick: () => deleteTab(i) }, '✕'))];
+      h('button', { class: 'icon-btn', title: t('tab.moveLeft'), 'aria-label': t('tab.moveLeft'), disabled: i === 0, onclick: () => moveTab(i, -1) }, '‹'),
+      h('button', { class: 'icon-btn', title: t('tab.moveRight'), 'aria-label': t('tab.moveRight'), disabled: i === tabs.length - 1, onclick: () => moveTab(i, 1) }, '›'),
+      h('button', { class: 'icon-btn', title: t('tool.rename'), 'aria-label': t('tool.rename'), onclick: () => renameTab(i) }, '✎'),
+      h('button', { class: 'icon-btn danger', title: t('tool.delete'), 'aria-label': t('tool.delete'), onclick: () => deleteTab(i) }, '✕'))];
   }));
 }
 
@@ -705,9 +708,32 @@ function widgetCard(w, i) {
   return card;
 }
 
+// Cartes de widgets gardées d'un rendu à l'autre hors édition : taper dans la recherche ou replier une
+// catégorie reconstruisait chaque widget (miniatures redemandées, listes revenues en haut, #167). Une carte
+// n'est reprise que si son widget n'a pas changé ; ses données sont mises à jour sur place (updateWidget).
+let keptCards = new Map(); // id -> { card, key, scroll }
+const cardKey = (w) => `${state.authed}|${JSON.stringify(w)}`;
+
+function keepWidgetCards(board) {
+  keptCards = new Map(state.editing ? [] : [...board.querySelectorAll('[data-widget]')].map((card) => [card.dataset.widget,
+    { card, key: card.dataset.cardKey, scroll: [...card.querySelectorAll('.widget-list')].map((l) => l.scrollTop) }]));
+}
+
+// Après le rendu : les listes des cartes reprises retrouvent leur défilement (perdu en quittant le document).
+function restoreWidgetScroll() {
+  for (const { card, scroll } of keptCards.values()) {
+    if (card.isConnected) card.querySelectorAll('.widget-list').forEach((l, i) => { l.scrollTop = scroll[i] || 0; });
+  }
+}
+
 function widgetCardById(id) {
   const i = current().widgets.findIndex((w) => w.id === id);
-  return widgetCard(current().widgets[i], i);
+  const w = current().widgets[i];
+  const kept = keptCards.get(id);
+  if (!state.editing && kept && kept.key === cardKey(w)) return kept.card;
+  const card = widgetCard(w, i);
+  if (!state.editing) card.dataset.cardKey = cardKey(w); // carte d'édition (outils ✎ ✕) : jamais reprise
+  return card;
 }
 
 function widgetBody(w) {
@@ -785,7 +811,9 @@ function fillStatRules(w) {
   const entry = state.widgetData[w.id];
   const box = form.querySelector('[data-stats]');
   const seen = new Set();
-  const cells = entry?.data ? statCells(h('div', {}, RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, w))) : [];
+  // Sans vue 3D : sa maquette est un nœud unique, gardé d'un rendu à l'autre ; le rendre ici l'arrachait
+  // de la carte du tableau (#159).
+  const cells = entry?.data ? statCells(h('div', {}, RENDERERS[WIDGET_TYPES[w.type].kind](entry.data, { ...w, view3d: false }))) : [];
   const rows = cells.flatMap((cell) => {
     const key = statKey(cell, WIDGET_TYPES[w.type].kind);
     if (seen.has(key)) return [];
@@ -1271,9 +1299,11 @@ function renderStatsOrder() {
   [...$('#stats').children].forEach((card, i) => {
     const pos = order.indexOf(card.dataset.stat);
     card.style.order = pos >= 0 ? pos : order.length + i;
-    // Les cartes existent hors édition : sélection au clavier et aide seulement en édition.
-    card.tabIndex = state.editing ? 0 : -1;
-    card.title = state.editing ? t('drag.handle') : '';
+    // Toujours atteignables au clavier : elles ouvrent l'historique hors édition (history.js) et se
+    // déplacent aux flèches en édition (#162).
+    card.tabIndex = 0;
+    if (state.editing) card.title = t('drag.handle');
+    else if (card.title === t('drag.handle')) card.title = '';
   });
 }
 
@@ -1662,21 +1692,31 @@ async function refreshSystem() {
   } catch { /* le serveur est peut-être en train de redémarrer */ }
 }
 
-// Une carte par disque, insérées avant la carte Uptime.
+// Une carte par disque, insérées avant la carte Uptime. Une carte existante est mise à jour sur place :
+// la recréer toutes les 5 s lui faisait perdre le focus clavier (#162).
 function renderDisks(disks) {
   const stats = $('#stats');
-  stats.querySelectorAll('.stat-disk').forEach((el) => el.remove());
+  const keys = new Set(disks.map((d) => `disk:${d.path}`));
+  stats.querySelectorAll('.stat-disk').forEach((el) => { if (!keys.has(el.dataset.stat)) el.remove(); });
   for (const d of disks) {
     const percent = d.total ? (d.used / d.total) * 100 : 0;
     const name = d.label || (disks.length > 1 ? d.path : t('stat.disk'));
     const error = d.errorCode ? errMsg({ code: d.errorCode }) : d.error;
-    const card = h('div', { class: 'stat stat-disk', 'data-stat': `disk:${d.path}` },
-      h('div', { class: 'stat-head' }, h('span', { title: d.path }, name), h('b', {}, error ? '–' : `${percent.toFixed(0)} %`)),
-      h('div', { class: 'bar' }, h('i', { class: levelOf(percent / 100), style: `width:${Math.min(100, percent)}%` })),
-      h('small', { class: 'muted', title: d.path },
-        error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`));
-    makeStatDraggable(card);
-    stats.insertBefore(card, $('#stat-up'));
+    let card = [...stats.querySelectorAll('.stat-disk')].find((el) => el.dataset.stat === `disk:${d.path}`);
+    if (!card) {
+      card = h('div', { class: 'stat stat-disk', 'data-stat': `disk:${d.path}` },
+        h('div', { class: 'stat-head' }, h('span', { title: d.path }), h('b')),
+        h('div', { class: 'bar' }, h('i')),
+        h('small', { class: 'muted', title: d.path }));
+      makeStatDraggable(card);
+      stats.insertBefore(card, $('#stat-up'));
+    }
+    card.querySelector('.stat-head > span').textContent = name;
+    card.querySelector('.stat-head > b').textContent = error ? '–' : `${percent.toFixed(0)} %`;
+    const bar = card.querySelector('.bar i');
+    bar.className = levelOf(percent / 100);
+    bar.style.width = `${Math.min(100, percent)}%`;
+    card.querySelector('small').textContent = error ? `${error} · ${d.path}` : `${fmtBytes(d.used)} / ${fmtBytes(d.total)} · ${d.path}`;
   }
   renderStatsOrder();
 }
@@ -1727,10 +1767,10 @@ function submitDisks(e) {
 // Le serveur vérifie les apps toutes les minutes et prévient quand l'une tombe ou revient. L'URL et
 // le jeton ne sont jamais renvoyés au navigateur : vides = inchangés.
 const NOTIFY_TYPES = {
-  ntfy: { placeholder: 'https://ntfy.sh/mon-sujet', token: 'optional' },
-  gotify: { placeholder: 'https://gotify.exemple.fr', token: 'required' },
-  discord: { placeholder: 'https://discord.com/api/webhooks/…', token: null },
-  webhook: { placeholder: 'https://exemple.fr/hook', token: 'optional' },
+  ntfy: { token: 'optional' },
+  gotify: { token: 'required' },
+  discord: { token: null },
+  webhook: { token: 'optional' },
 };
 
 function openNotifyDialog() {
@@ -1758,7 +1798,7 @@ function updateNotifyFields() {
   f.url.required = false;
   f.token.required = false;
   if (!spec) return;
-  f.url.placeholder = saved.hasUrl ? t('notify.urlUnchanged') : spec.placeholder;
+  f.url.placeholder = saved.hasUrl ? t('notify.urlUnchanged') : t(`notify.placeholder.${type}`);
   f.url.required = !saved.hasUrl;
   form.querySelector('[data-notify-url-help]').textContent = t(`notify.urlHelp.${type}`);
   form.querySelector('[data-notify-token-label]').textContent = t(spec.token === 'required' ? 'notify.token' : 'notify.tokenOptional');
