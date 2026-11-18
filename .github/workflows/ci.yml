@@ -259,6 +259,8 @@ jobs:
           curl -fsS http://127.0.0.1:7575/ | grep -q "Server Dashboard"
           curl -fsS http://127.0.0.1:7575/api/system | grep -q '"hostname":"ci"'
           curl -fsS http://127.0.0.1:7575/api/docker/containers | grep -q '"name":"sd"'
+          # Le serveur a abandonné root (#178), en gardant l'accès au socket Docker (vérifié juste au-dessus).
+          test "$(docker exec sd awk '/^Uid/ {print $2}' /proc/1/status)" = 1000
           curl -fsS -c jar -H 'Content-Type: application/json' -d '{"password":"ci-test"}' http://127.0.0.1:7575/api/login
           # Le disque de l'hôte, monté en /host, doit être détecté et affiché par défaut.
           curl -fsS -b jar http://127.0.0.1:7575/api/disks | grep -q '"path":"/host"'

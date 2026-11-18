@@ -85,6 +85,7 @@ En mode édition, le bouton **Disques** liste les disques détectés sur la mach
 | `DISK_PATH` | `/` (`C:\` sous Windows) | Disque affiché par défaut, tant qu'aucun disque n'est choisi en mode édition |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket de l'API Docker |
 | `REQUIRE_LOGIN` | `false` | `true` : tout le dashboard (lecture comprise) exige d’être connecté |
+| `RUN_AS` | `1000:1000` (image Docker) | `uid:gid` adopté par le serveur après lui avoir donné le dossier `data` : il ne tourne plus en root et ne peut donc pas lire les fichiers de l’hôte montés sur `/host`. Le groupe du socket Docker est gardé : le panneau Docker marche toujours. Vide (`RUN_AS=`) : rester en root, comme avant 0.33 |
 | `TRUST_PROXY` | – | Derrière un reverse proxy, mettre `1` (nombre de proxys) pour que la limite de tentatives de connexion voie la vraie IP des visiteurs. Accepte aussi `true`, ou des adresses et réseaux séparés par des virgules (`loopback, 10.0.0.0/8`) |
 | `SESSION_SECRET` | généré dans `data/.secret` | Clé de signature des cookies de session |
 | `NOTIFY_INTERVAL_MS` | `60000` | Intervalle de vérification des applications pour les notifications (en millisecondes) |

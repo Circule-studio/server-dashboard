@@ -38,6 +38,40 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 // une version précédente (0644) est corrigé au démarrage.
 try { fs.chmodSync(CONFIG_FILE, 0o600); } catch { /* pas encore de config */ }
 
+// Image Docker : démarré en root pour rendre data/ à l'utilisateur RUN_AS (« uid:gid »), puis sans droits.
+// En root, le processus pouvait lire tout l'hôte monté sur /host (/etc/shadow, clés SSH…) (#178). Le
+// groupe du socket Docker est gardé : le panneau Docker marche sans réglage. RUN_AS vide : reste en root.
+function dropPrivileges(runAs) {
+  if (!runAs || typeof process.getuid !== 'function' || process.getuid() !== 0) return;
+  const [uid, gid] = runAs.split(':').map(Number);
+  if (!Number.isInteger(uid) || !Number.isInteger(gid)) {
+    console.error(`[!] RUN_AS invalide (« ${runAs} ») : « uid:gid » attendu, par exemple 1000:1000.`);
+    process.exit(1);
+  }
+  const chownAll = (dir) => {
+    fs.lchownSync(dir, uid, gid);
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) chownAll(p);
+      else fs.lchownSync(p, uid, gid);
+    }
+  };
+  try {
+    chownAll(DATA_DIR);
+  } catch (e) {
+    // Partage réseau qui refuse chown (NFS root_squash…) : sans droits, data/ deviendrait illisible.
+    console.warn(`[!] Impossible de rendre ${DATA_DIR} à ${runAs} (${e.code || e.message}) : le dashboard reste en root.`);
+    return;
+  }
+  const socket = process.env.DOCKER_SOCKET || '/var/run/docker.sock';
+  const groups = [gid];
+  try { groups.push(fs.statSync(socket).gid); } catch { /* pas de socket Docker monté */ }
+  process.setgroups([...new Set(groups)]);
+  process.setgid(gid);
+  process.setuid(uid);
+}
+dropPrivileges(process.env.RUN_AS);
+
 // ---------- Secret de session (persisté pour survivre aux redémarrages) ----------
 const SECRET_FILE = path.join(DATA_DIR, '.secret');
 const SECRET = process.env.SESSION_SECRET || (() => {
