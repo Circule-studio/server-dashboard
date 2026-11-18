@@ -1,5 +1,5 @@
 // Tests de l'historique des ressources (#136), sans serveur : npm test.
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
@@ -11,7 +11,11 @@ const { parseNetDev } = require('../agent/server-dashboard-agent');
 const GIB = 1024 ** 3;
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0);
 const MIN = 60_000;
-const tmpFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sd-history-')), 'history.json');
+// Dossiers temporaires des tests, tous supprimés à la fin : chaque lancement en laissait 9 dans /tmp (#174).
+const tmpDirs = [];
+const tmpDir = () => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-history-')); tmpDirs.push(dir); return dir; };
+const tmpFile = () => path.join(tmpDir(), 'history.json');
+after(() => { for (const dir of tmpDirs) fs.rmSync(dir, { recursive: true, force: true }); });
 
 test('Les relevés sont moyennés par point, le point en cours compris', () => {
   const h = createHistory(tmpFile());
@@ -132,7 +136,7 @@ test('Une machine sans point depuis une semaine est oubliée à l\'enregistremen
 
 // Windows arrête le processus sans lui laisser le temps de réagir au signal.
 test('À l\'arrêt du service, l\'historique est enregistré', { skip: process.platform === 'win32' }, async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-history-'));
+  const dir = tmpDir();
   const script = `const { history } = require('./history');
     history.add('a', { cpu: 10 });
     history.start(async () => {});
