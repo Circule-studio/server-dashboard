@@ -42,8 +42,25 @@
 // Un fichier par service dans dev/mocks/ : pour en ajouter un, crée-le et ajoute-le à la liste.
 const SERVICES = ['jellyfin', 'plex', 'qbittorrent', 'arr', 'proxmox', 'pulse', 'glances', 'uptimekuma', 'weather', 'immich', 'pihole', 'adguard',
   'frigate', 'homeassistant', 'npm', 'github', 'goaccess', 'alwaysdata', 'rss', 'ical', 'customapi', 'pbs', 'scrutiny', 'speedtest', 'crowdsec', 'traefik', 'wazuh', 'registry', 'loki', 'authelia', 'watchtower', 'spotify'];
+// « mocks prêts » seulement une fois chaque faux service à l'écoute. Avant, il partait tout de suite : avec
+// un autre « npm run mocks » déjà lancé, les ports étaient pris, le processus s'arrêtait, et npm test
+// interrogeait sans le dire les faux services de l'autre terminal (#169).
+const http = require('http');
+const listening = [];
+const listen = http.Server.prototype.listen;
+http.Server.prototype.listen = function (...args) {
+  listening.push(new Promise((resolve, reject) => { this.once('listening', resolve); this.once('error', reject); }));
+  return listen.apply(this, args);
+};
 for (const name of SERVICES) require(`./mocks/${name}`);
 const { DOCKER_SOCKET } = require('./mocks/docker');
 
-console.log('mocks prêts');
-console.log(`Faux Docker : DOCKER_SOCKET=${DOCKER_SOCKET}`);
+Promise.all(listening).then(() => {
+  console.log('mocks prêts');
+  console.log(`Faux Docker : DOCKER_SOCKET=${DOCKER_SOCKET}`);
+}, (e) => {
+  console.error(e.code === 'EADDRINUSE'
+    ? `Port ${e.port ?? e.address} déjà utilisé : un autre « npm run mocks » tourne sans doute. Arrête-le, ou lance seulement les tests.`
+    : `Faux service impossible à lancer : ${e.message}`);
+  process.exit(1);
+});

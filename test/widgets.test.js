@@ -13,9 +13,10 @@ const ROOT = path.join(__dirname, '..');
 const PORT = 17999;
 const BASE = `http://localhost:${PORT}`;
 const PASSWORD = 'test-admin';
+// Faux Docker propre aux tests : un « npm run mocks » lancé à côté garde le sien (#169).
 const DOCKER_SOCKET = process.platform === 'win32'
-  ? '\\\\.\\pipe\\server-dashboard-mock-docker'
-  : path.join(os.tmpdir(), 'server-dashboard-mock-docker.sock');
+  ? `\\\\.\\pipe\\server-dashboard-mock-docker-${process.pid}`
+  : path.join(os.tmpdir(), `server-dashboard-mock-docker-${process.pid}.sock`);
 
 const children = [];
 let dataDir;
@@ -157,7 +158,7 @@ const SECRETS = ['client-secret', 'mauvais-secret', 'refresh-spotify', 'refresh-
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-test-'));
-  await start('dev/mocks.js', {}, 'mocks prêts');
+  await start('dev/mocks.js', { MOCK_DOCKER_SOCKET: DOCKER_SOCKET }, 'mocks prêts');
   // Vérification des apps pour les notifications : 200 ms au lieu d'une minute.
   await start('server.js', { PORT: String(PORT), DATA_DIR: dataDir, ADMIN_PASSWORD: PASSWORD, DOCKER_SOCKET, NOTIFY_INTERVAL_MS: '200', UPDATE_API: 'http://localhost:14000', SPOTIFY_ACCOUNTS_URL: 'http://localhost:18104', SPOTIFY_API_URL: 'http://localhost:18104' }, 'Server Dashboard sur');
   const login = await fetch(`${BASE}/api/login`, {
@@ -177,6 +178,7 @@ after(async () => {
     child.kill();
   })));
   if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
+  if (process.platform !== 'win32') fs.rmSync(DOCKER_SOCKET, { force: true });
 });
 
 const widget = async (id) => {
@@ -918,7 +920,8 @@ test('Agent : jeton généré, envoi du vrai script, valeurs bornées, hors lign
   // Le vrai script, téléchargé depuis le dashboard comme le fait la commande d'installation.
   const script = path.join(dataDir, 'agent.js');
   fs.writeFileSync(script, await (await fetch(`${BASE}/agent/server-dashboard-agent.js`)).text());
-  const run = spawn(process.execPath, [script, '--once'], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: setup.token } });
+  // AGENT_UPDATES=0 : ni apt, ni Docker de la machine, ni registres publics pendant les tests (#171).
+  const run = spawn(process.execPath, [script, '--once'], { env: { ...process.env, DASHBOARD_URL: BASE, AGENT_ID: 'agent', AGENT_TOKEN: setup.token, AGENT_UPDATES: '0' } });
   let out = '';
   run.stderr.on('data', (d) => (out += d));
   assert.equal(await new Promise((r) => run.on('exit', r)), 0, out);
