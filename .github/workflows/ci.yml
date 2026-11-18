@@ -206,12 +206,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # En cas d'échec, le script affiche lui-même les journaux des conteneurs avant de les supprimer.
       - name: Démarrage et vérification
         run: bash dev/real-services.sh
-      - name: Journaux en cas d'échec
-        if: failure()
-        run: |
-          for c in sd-loki sd-authelia sd-watchtower; do echo "=== $c"; docker logs --tail 40 "$c" 2>&1 || true; done
 
   proxmox:
     name: Script Proxmox (community-scripts, hors Proxmox)
