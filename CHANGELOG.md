@@ -4,6 +4,28 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
+## [0.33.0] - 2026-11-18
+
+### Modifié
+- Image Docker : le serveur démarre en root le temps de rendre `data/` à l’utilisateur `node` (uid 1000), puis abandonne ses droits. Le dossier existant est repris automatiquement, et l’accès au socket Docker est conservé. `RUN_AS=` (vide) dans `compose.yaml` garde l’ancien fonctionnement en root (#178).
+- `TRUST_PROXY` accepte `true`, `false`, un nombre de proxys ou une liste d’adresses. Une valeur invalide arrête le démarrage avec un message clair au lieu d’être ignorée (#168).
+
+### Corrigé
+- Recherche : chaque lettre tapée reconstruisait tous les widgets, rechargeait les miniatures et perdait le défilement (#167).
+- Cartes de stats (Disque…) : le focus clavier sautait toutes les 5 s, et les cartes n’étaient plus atteignables au clavier après un rendu (#162).
+- Lecteurs d’écran : les boutons ✎ ✕ ‹ › des tuiles et catégories ont un nom (#165).
+- Interface en anglais : les exemples des notifications et le nom du calendrier restaient en français (#170).
+- Agent en vue 3D : ouvrir son formulaire remplaçait la maquette par la vue classique (#159).
+- Carte CPU : plusieurs visiteurs à la fois faussaient la mesure (#164).
+- Limite de connexion : une adresse IPv6 pouvait la contourner en changeant d’adresse dans son /64, et la table des essais n’avait pas de taille maximale (#160).
+- Un service qui répond n’importe quoi affiche « réponse inattendue » au lieu d’une erreur JavaScript brute (#173).
+
+### Interne
+- Nouveaux tests des garanties d’accès : `REQUIRE_LOGIN`, connexion et sa limite, déconnexion après redémarrage, conflit d’enregistrement, actions Docker (#172).
+- Tests : faux services vraiment prêts avant de commencer, faux Docker propre aux tests, dossiers temporaires supprimés (#169, #171, #174).
+- `dev/real-services.sh` : ports sur `127.0.0.1` seulement, conteneurs et configuration supprimés à la fin (#177).
+- `agent/README.md` : le jeton du service systemd est dans un fichier lisible par root seul (#176).
+
 ## [0.32.2] - 2026-11-17
 
 ### Corrigé
@@ -412,7 +434,11 @@ Première version publique.
 - Sessions invalidées à la déconnexion et au changement de mot de passe.
 - Mot de passe admin lu depuis `.env` (Docker) ou `/etc/server-dashboard/server-dashboard.env` (systemd), jamais dans le dépôt.
 
-[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.31.0...HEAD
+[Non publié]: https://github.com/Circule-studio/server-dashboard/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.32.2...v0.33.0
+[0.32.2]: https://github.com/Circule-studio/server-dashboard/compare/v0.32.1...v0.32.2
+[0.32.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.32.0...v0.32.1
+[0.32.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/Circule-studio/server-dashboard/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/Circule-studio/server-dashboard/compare/v0.29.1...v0.30.0
